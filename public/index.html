@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Killam Development – Task Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f4f4f4;font-family:"Montserrat",Arial,sans-serif;}
+:root{
+  --navy:#16273a;--gold:#b8924f;--gold2:#8f7038;
+  --cream:#f7f5f0;--gray:#f0f0f0;--border:#d0d0d0;
+  --text:#1a1a1a;--muted:#888;
+}
+button{font-family:"Montserrat",Arial,sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;border-radius:999px;cursor:pointer;transition:opacity .15s;}
+button:hover{opacity:.85;}
+.btn-blue{background:#4a90c4;color:#fff;border:1px solid #3a7aaa;padding:8px 16px;}
+.btn-gold{background:var(--gold);color:#1c1305;border:1px solid var(--gold2);padding:8px 16px;}
+.btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);padding:8px 16px;}
+.btn-white{background:#fff;color:var(--navy);border:1px solid #fff;padding:8px 16px;}
+#header{background:var(--navy);color:#fff;padding:18px 20px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
+#logo-pill{background:#fff;border-radius:999px;padding:8px 18px;display:flex;align-items:center;}
+#logo-pill img{height:44px;width:auto;display:block;}
+#hcenter{display:flex;flex-direction:column;}
+#hcenter h2{color:#fff;font-weight:500;font-size:18px;}
+#weekLabel{color:#cfd6dd;font-size:13px;margin-top:4px;}
+#saveStatus{font-size:11px;margin-top:2px;min-height:16px;}
+#hbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.view{padding:0 12px 12px;}
+table{width:100%;border-collapse:separate;border-spacing:0 5px;font-size:13px;}
+thead th{background:var(--navy);color:#fff;font-size:10px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;}
+thead th:first-child{border-radius:999px 0 0 999px;padding-left:14px;}
+thead th:last-child{border-radius:0 999px 999px 0;padding-right:14px;}
+.task-row td{background:#fff;padding:8px 6px;color:var(--text);vertical-align:top;}
+.task-row:nth-child(even) td{background:var(--gray);}
+.task-row td:first-child{border-radius:999px 0 0 999px;padding-left:14px;}
+.task-row td:last-child{border-radius:0 999px 999px 0;padding-right:14px;}
+.task-row.due-today td{background:#fbe7d4!important;}
+.task-row.overdue td{background:#f8d6d6!important;}
+textarea,select,input[type=date]{font-family:"Montserrat",Arial,sans-serif;font-size:12px;
+  color:var(--text);background:transparent;border:1px solid transparent;border-radius:4px;
+  width:100%;padding:4px 6px;transition:border-color .15s;}
+textarea{resize:none;overflow:hidden;field-sizing:content;min-height:30px;
+  line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+textarea:focus,select:focus,input[type=date]:focus{outline:none;border-color:var(--gold);background:#fff8f0;}
+select{cursor:pointer;}
+.week-header td{background:var(--navy);color:#fff;border-radius:999px;padding:10px 18px;
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.week-gap td{padding:6px;}
+.empty-msg{color:var(--muted);font-size:13px;padding:16px 4px;}
+#archSecHdr{background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px;}
+#archSecHdr h3{color:#fff;font-weight:500;font-size:16px;}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;
+  padding:12px 20px;border-radius:999px;font-size:12px;font-weight:600;
+  opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div id="logo-pill"><img src="data:image/png;base64,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" alt="Killam Development"></div>
+      <div id="hcenter">
+        <h2>Weekly task tracker</h2>
+        <div id="weekLabel"></div>
+        <div id="saveStatus"></div>
+      </div>
+    </div>
+    <div id="hbtns">
+      <button id="btnAdd" class="btn-blue"><i class="ti ti-plus"></i> Add task</button>
+      <button id="btnNewWeek" class="btn-gold"><i class="ti ti-refresh"></i> Start new week</button>
+      <button id="btnReload" class="btn-ghost"><i class="ti ti-rotate"></i> Reload</button>
+      <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
+      <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> View archive</button>
+      <button id="btnCurrent" class="btn-white" style="display:none;"><i class="ti ti-arrow-left"></i> Current week</button>
+    </div>
+  </div>
+
+  <div id="loadingMsg" class="view empty-msg">Loading tasks…</div>
+
+  <div id="activeView" class="view" style="display:none;">
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th style="width:32px;"></th>
+          <th style="min-width:130px;">Project</th>
+          <th style="min-width:160px;">Task</th>
+          <th style="min-width:120px;">Status</th>
+          <th style="min-width:180px;">Status notes</th>
+          <th style="min-width:120px;">Deadline</th>
+          <th style="min-width:150px;">Contact info</th>
+          <th style="width:36px;"></th>
+        </tr></thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+    <p id="emptyMsg" class="empty-msg" style="display:none;">No tasks yet this week. Click Add task to get started.</p>
+  </div>
+
+  <div id="archiveView" class="view" style="display:none;">
+    <div id="archSecHdr">
+      <h3>Archived (completed) tasks</h3>
+      <button id="btnBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to this week</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th style="min-width:130px;">Project</th>
+          <th style="min-width:160px;">Task</th>
+          <th style="min-width:110px;">Status</th>
+          <th style="min-width:180px;">Status notes</th>
+          <th style="min-width:110px;">Deadline</th>
+          <th style="min-width:150px;">Contact info</th>
+          <th style="min-width:100px;">Week</th>
+        </tr></thead>
+        <tbody id="archiveBody"></tbody>
+      </table>
+    </div>
+    <p id="archiveEmptyMsg" class="empty-msg" style="display:none;">Nothing archived yet.</p>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const STATUSES = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Dead","Working on other"];
+
+// ── API base URL — auto-detects local vs deployed ──────────────
+const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:3000"
+  : "";  // same origin when deployed on Railway
+
+let state = { weekId:"", tasks:[], archive:[] };
+let saveTimer = null;
+
+// ── Utilities ──────────────────────────────────────────────────
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+function weekLabel(id){
+  if(!id) return "";
+  const [y,w] = id.split("-W").map(Number);
+  const d = new Date(Date.UTC(y,0,1+(w-1)*7));
+  const dow = d.getUTCDay();
+  const mon = new Date(d); mon.setUTCDate(d.getUTCDate()-((dow+6)%7));
+  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate()+6);
+  const fmt = x=>x.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  return fmt(mon)+" – "+fmt(sun)+", "+y+" ("+id+")";
+}
+
+function weekRange(id){
+  if(!id) return id;
+  const [y,w] = id.split("-W").map(Number);
+  const d = new Date(Date.UTC(y,0,1+(w-1)*7));
+  const dow = d.getUTCDay();
+  const mon = new Date(d); mon.setUTCDate(d.getUTCDate()-((dow+6)%7));
+  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate()+6);
+  const fmt = x=>x.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  return fmt(mon)+" – "+fmt(sun)+", "+y;
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function toast(msg, color="#16273a"){
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.style.background = color; el.style.opacity = "1";
+  clearTimeout(el._t); el._t = setTimeout(()=>el.style.opacity="0", 3000);
+}
+
+// ── API calls ──────────────────────────────────────────────────
+async function apiFetch(path, method="GET", body){
+  const opts = { method, headers:{"Content-Type":"application/json"} };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(API+path, opts);
+  return res.json();
+}
+
+async function loadState(){
+  document.getElementById("loadingMsg").style.display = "block";
+  document.getElementById("activeView").style.display = "none";
+  try {
+    const data = await apiFetch("/api/state");
+    state = data;
+    document.getElementById("loadingMsg").style.display = "none";
+    document.getElementById("activeView").style.display = "block";
+    render();
+    toast("✓ Loaded", "#2e7d32");
+  } catch(e) {
+    document.getElementById("loadingMsg").textContent = "⚠ Could not connect to server. Is it running?";
+    toast("⚠ Connection failed","#c0392b");
+  }
+}
+
+// Debounced save — waits 800ms after last keystroke
+function scheduleSave(task){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>saveTask(task), 800);
+}
+
+async function saveTask(t){
+  try {
+    await apiFetch("/api/tasks/"+t.id, "PUT", t);
+    toast("✓ Saved","#2e7d32");
+  } catch(e){ toast("⚠ Save failed","#c0392b"); }
+}
+
+async function saveArchiveEntry(t){
+  try {
+    await apiFetch("/api/archive/"+t.id, "PUT", t);
+    toast("✓ Saved","#2e7d32");
+  } catch(e){ toast("⚠ Save failed","#c0392b"); }
+}
+
+// ── Render active tasks ────────────────────────────────────────
+function mkTa(val, onInput, placeholder){
+  const el = document.createElement("textarea");
+  el.value = val||""; el.placeholder = placeholder||"";
+  el.oninput = ()=>onInput(el.value);
+  return el;
+}
+
+function render(){
+  document.getElementById("weekLabel").textContent = weekLabel(state.weekId);
+  const tbody = document.getElementById("taskBody");
+  tbody.innerHTML = "";
+  const today = todayStr();
+  document.getElementById("emptyMsg").style.display = state.tasks.length ? "none" : "block";
+
+  state.tasks.forEach(t=>{
+    const tr = document.createElement("tr");
+    tr.className = "task-row";
+    if(!t.done && t.deadline){
+      if(t.deadline===today) tr.className+=" due-today";
+      else if(t.deadline<today) tr.className+=" overdue";
+    }
+
+    // Checkbox
+    const tdCb = document.createElement("td");
+    const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=!!t.done;
+    cb.style="width:16px;height:16px;cursor:pointer;";
+    cb.onchange = async()=>{
+      t.done = cb.checked;
+      await saveTask(t);
+      render();
+    };
+    tdCb.appendChild(cb); tr.appendChild(tdCb);
+
+    // Project
+    const tdP = document.createElement("td");
+    tdP.appendChild(mkTa(t.title, v=>{ t.title=v; scheduleSave(t); }, "Project name"));
+    tr.appendChild(tdP);
+
+    // Task
+    const tdT = document.createElement("td");
+    tdT.appendChild(mkTa(t.task, v=>{ t.task=v; scheduleSave(t); }, "Task description"));
+    tr.appendChild(tdT);
+
+    // Status
+    const tdS = document.createElement("td");
+    const sel = document.createElement("select");
+    STATUSES.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; if(t.status===s) o.selected=true; sel.appendChild(o); });
+    sel.onchange = async()=>{ t.status=sel.value; await saveTask(t); };
+    tdS.appendChild(sel); tr.appendChild(tdS);
+
+    // Notes
+    const tdN = document.createElement("td");
+    tdN.appendChild(mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes"));
+    tr.appendChild(tdN);
+
+    // Deadline
+    const tdD = document.createElement("td");
+    const dl = document.createElement("input"); dl.type="date"; dl.value=t.deadline||"";
+    if(!t.done && t.deadline){
+      if(t.deadline===today){ dl.style.color="#8a4a12"; dl.style.fontWeight="600"; }
+      else if(t.deadline<today){ dl.style.color="#a32d2d"; dl.style.fontWeight="600"; }
+    }
+    dl.onchange = async()=>{ t.deadline=dl.value; await saveTask(t); render(); };
+    tdD.appendChild(dl); tr.appendChild(tdD);
+
+    // Contact
+    const tdC = document.createElement("td");
+    tdC.appendChild(mkTa(t.contact, v=>{ t.contact=v; scheduleSave(t); }, "Contact info"));
+    tr.appendChild(tdC);
+
+    // Delete
+    const tdDel = document.createElement("td");
+    const del = document.createElement("button");
+    del.innerHTML='<i class="ti ti-trash"></i>';
+    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--navy);border-radius:999px;font-size:13px;";
+    del.onclick = async()=>{
+      await apiFetch("/api/tasks/"+t.id,"DELETE");
+      state.tasks = state.tasks.filter(x=>x.id!==t.id);
+      render(); toast("Task deleted","#888");
+    };
+    tdDel.appendChild(del); tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Render archive ─────────────────────────────────────────────
+function renderArchive(){
+  const tbody = document.getElementById("archiveBody");
+  tbody.innerHTML = "";
+  document.getElementById("archiveEmptyMsg").style.display = state.archive.length ? "none" : "block";
+  if(!state.archive.length) return;
+
+  const groups = {};
+  state.archive.forEach(t=>{ const w=t.weekCompleted||"Unknown"; if(!groups[w]) groups[w]=[]; groups[w].push(t); });
+
+  Object.keys(groups).forEach(week=>{
+    const htr = document.createElement("tr"); htr.className="week-header";
+    const htd = document.createElement("td"); htd.colSpan=7;
+    htd.textContent = week+" · "+weekRange(week)+" · "+groups[week].length+" task"+(groups[week].length!==1?"s":"");
+    htr.appendChild(htd); tbody.appendChild(htr);
+
+    groups[week].forEach((t,idx)=>{
+      const tr = document.createElement("tr"); tr.className="task-row";
+      const bg = idx%2===0?"#fff":"var(--gray)";
+
+      const mkTd=(content,round)=>{
+        const td=document.createElement("td");
+        td.style.background=bg; td.style.color="var(--text)"; td.style.padding="8px 8px"; td.style.verticalAlign="top";
+        if(round==="left"){ td.style.borderRadius="999px 0 0 999px"; td.style.paddingLeft="14px"; }
+        if(round==="right"){ td.style.borderRadius="0 999px 999px 0"; td.style.paddingRight="14px"; }
+        if(content) td.appendChild(content);
+        return td;
+      };
+
+      const arcTa=(field,ph)=>{
+        const el=document.createElement("textarea");
+        el.value=t[field]||""; el.placeholder=ph||"";
+        el.oninput=()=>{ t[field]=el.value; clearTimeout(el._t); el._t=setTimeout(()=>saveArchiveEntry(t),800); };
+        return el;
+      };
+
+      tr.appendChild(mkTd(arcTa("title","Project"),"left"));
+      tr.appendChild(mkTd(arcTa("task","Task")));
+      const stTd=mkTd(null); stTd.textContent=t.status||"—"; stTd.style.fontSize="12px"; tr.appendChild(stTd);
+      tr.appendChild(mkTd(arcTa("notes","Notes")));
+      const dlTd=mkTd(null); dlTd.textContent=t.deadline||"—"; dlTd.style.fontSize="12px"; tr.appendChild(dlTd);
+      tr.appendChild(mkTd(arcTa("contact","Contact")));
+      const wkTd=mkTd(null,"right"); wkTd.textContent=t.weekCompleted||"—"; wkTd.style.fontSize="11px"; tr.appendChild(wkTd);
+
+      tbody.appendChild(tr);
+    });
+
+    const gap=document.createElement("tr"); gap.className="week-gap";
+    const gtd=document.createElement("td"); gtd.colSpan=7; gap.appendChild(gtd); tbody.appendChild(gap);
+  });
+}
+
+// ── Button actions ─────────────────────────────────────────────
+document.getElementById("btnAdd").onclick = async()=>{
+  const t={id:uid(),title:"",task:"",status:"Not started",notes:"",deadline:"",contact:"",done:false};
+  await apiFetch("/api/tasks","POST",{...t,week_id:state.weekId});
+  state.tasks.push(t);
+  render();
+};
+
+document.getElementById("btnNewWeek").onclick = async()=>{
+  if(!confirm("Archive all completed tasks and start a new week?")) return;
+  const res = await apiFetch("/api/newweek","POST");
+  await loadState();
+  toast("New week started!","#2e7d32");
+};
+
+document.getElementById("btnReload").onclick = loadState;
+
+document.getElementById("btnExport").onclick = ()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url;
+  a.download="killam-tracker-"+new Date().toISOString().slice(0,10)+".json";
+  a.click(); URL.revokeObjectURL(url);
+};
+
+document.getElementById("btnArchive").onclick = ()=>{
+  document.getElementById("activeView").style.display="none";
+  document.getElementById("archiveView").style.display="block";
+  document.getElementById("btnArchive").style.display="none";
+  document.getElementById("btnCurrent").style.display="inline-flex";
+  renderArchive();
+};
+
+function goActive(){
+  document.getElementById("archiveView").style.display="none";
+  document.getElementById("activeView").style.display="block";
+  document.getElementById("btnCurrent").style.display="none";
+  document.getElementById("btnArchive").style.display="inline-flex";
+}
+document.getElementById("btnCurrent").onclick = goActive;
+document.getElementById("btnBack").onclick    = goActive;
+
+loadState();
+</script>
+</body>
+</html>
