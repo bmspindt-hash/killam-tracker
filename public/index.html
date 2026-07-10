@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f4f4f4;font-family:"Montserrat",Arial,sans-serif;}
@@ -79,6 +80,7 @@ select{cursor:pointer;}
       <button id="btnNewWeek" class="btn-gold"><i class="ti ti-refresh"></i> Start new week</button>
       <button id="btnReload" class="btn-ghost"><i class="ti ti-rotate"></i> Reload</button>
       <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
+      <button id="btnDashboard" class="btn-ghost"><i class="ti ti-chart-bar"></i> Dashboard</button>
       <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> View archive</button>
       <button id="btnCurrent" class="btn-white" style="display:none;"><i class="ti ti-arrow-left"></i> Current week</button>
     </div>
@@ -127,6 +129,47 @@ select{cursor:pointer;}
     <p id="archiveEmptyMsg" class="empty-msg" style="display:none;">Nothing archived yet.</p>
   </div>
 </div>
+<!-- DASHBOARD VIEW -->
+<div id="dashboardView" class="view" style="display:none;">
+  <div style="background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+    <h3 style="color:#fff;font-weight:500;font-size:16px;"><i class="ti ti-chart-bar"></i> Pipeline Dashboard</h3>
+    <button id="btnDashBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to tasks</button>
+  </div>
+
+  <!-- Metric tiles -->
+  <div id="dashMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;"></div>
+
+  <!-- Charts row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Deal pipeline by status</p>
+      <canvas id="chartPipeline" height="220"></canvas>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Closed deals by month</p>
+      <canvas id="chartClosed" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Due this week & overdue -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:12px;">Due this week</p>
+      <div id="dashDueWeek"></div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a32d2d;margin-bottom:12px;">Overdue tasks</p>
+      <div id="dashOverdue"></div>
+    </div>
+  </div>
+
+  <!-- Contact activity -->
+  <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
+    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:12px;">Contact activity</p>
+    <div id="dashContacts"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -399,6 +442,182 @@ document.getElementById("btnCurrent").onclick = goActive;
 document.getElementById("btnBack").onclick    = goActive;
 
 loadState();
+
+// ── Dashboard ──────────────────────────────────────────────────
+let pipelineChart = null;
+let closedChart   = null;
+
+function showDashboard(){
+  document.getElementById("activeView").style.display   = "none";
+  document.getElementById("archiveView").style.display  = "none";
+  document.getElementById("dashboardView").style.display = "block";
+  document.getElementById("btnArchive").style.display   = "inline-flex";
+  document.getElementById("btnCurrent").style.display   = "none";
+  renderDashboard();
+}
+
+function hideDashboard(){
+  document.getElementById("dashboardView").style.display = "none";
+  document.getElementById("activeView").style.display   = "block";
+}
+
+document.getElementById("btnDashboard").onclick = showDashboard;
+document.getElementById("btnDashBack").onclick  = hideDashboard;
+
+function renderDashboard(){
+  const today = todayStr();
+  const tasks  = state.tasks;
+  const archive = state.archive;
+
+  // ── Metrics ───────────────────────────────────────────────────
+  const active   = tasks.filter(t=>!t.done).length;
+  const dueWeek  = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd()).length;
+  const overdue  = tasks.filter(t=>!t.done && t.deadline && t.deadline < today).length;
+  const closedAll = archive.filter(t=>t.status==="Closed").length;
+  const loiCount   = [...tasks,...archive].filter(t=>t.status==="LOI").length;
+  const leaseCount = [...tasks,...archive].filter(t=>t.status==="Lease agreement").length;
+  const psaCount   = [...tasks,...archive].filter(t=>t.status==="PSA").length;
+
+  const metrics = [
+    {label:"Active tasks",      value:active,     color:"var(--navy)"},
+    {label:"Due this week",     value:dueWeek,    color:"#b8924f"},
+    {label:"Overdue",           value:overdue,    color:"#a32d2d"},
+    {label:"At LOI",            value:loiCount,   color:"#1565c0"},
+    {label:"Lease agreement",   value:leaseCount, color:"#7b1fa2"},
+    {label:"At PSA",            value:psaCount,   color:"#6a1b9a"},
+    {label:"Total closed",      value:closedAll,  color:"#2e7d32"},
+  ];
+
+  const mDiv = document.getElementById("dashMetrics");
+  mDiv.innerHTML = "";
+  metrics.forEach(m=>{
+    mDiv.innerHTML += `<div style="background:#fff;border-radius:8px;padding:16px;text-align:center;">
+      <div style="font-size:32px;font-weight:700;color:${m.color};">${m.value}</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#888;margin-top:4px;">${m.label}</div>
+    </div>`;
+  });
+
+  // ── Pipeline bar chart ────────────────────────────────────────
+  const statuses = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Dead","Working on other"];
+  const statusColors = ["#9e9e9e","#4a90c4","#1565c0","#7b1fa2","#6a1b9a","#2e7d32","#c62828","#e65100"];
+  const allTasks = [...tasks, ...archive];
+  const counts = statuses.map(s=>allTasks.filter(t=>t.status===s).length);
+
+  if(pipelineChart) pipelineChart.destroy();
+  pipelineChart = new Chart(document.getElementById("chartPipeline"),{
+    type:"bar",
+    data:{
+      labels: statuses.map(s=>s.length>12?s.slice(0,12)+"…":s),
+      datasets:[{
+        data: counts,
+        backgroundColor: statusColors,
+        borderRadius: 6,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:"#f0f0f0"}},
+              x:{grid:{display:false}}}
+    }
+  });
+
+  // ── Closed by month chart ─────────────────────────────────────
+  const now = new Date();
+  const months = [];
+  const monthLabels = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+    monthLabels.push(d.toLocaleDateString(undefined,{month:"short",year:"2-digit"}));
+  }
+  const closedByMonth = months.map(m=>
+    archive.filter(t=>t.status==="Closed" && t.deadline && t.deadline.slice(0,7)===m).length
+  );
+
+  if(closedChart) closedChart.destroy();
+  closedChart = new Chart(document.getElementById("chartClosed"),{
+    type:"bar",
+    data:{
+      labels: monthLabels,
+      datasets:[{
+        data: closedByMonth,
+        backgroundColor:"#2e7d32",
+        borderRadius:6,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:"#f0f0f0"}},
+              x:{grid:{display:false}}}
+    }
+  });
+
+  // ── Due this week list ────────────────────────────────────────
+  const dueDiv = document.getElementById("dashDueWeek");
+  const dueTasks = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd());
+  if(!dueTasks.length){
+    dueDiv.innerHTML = '<p style="color:#888;font-size:12px;">Nothing due this week 🎉</p>';
+  } else {
+    dueDiv.innerHTML = dueTasks.map(t=>`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}</div>
+          <div style="font-size:11px;color:#888;">${t.task||""}</div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#b8924f;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
+      </div>`).join("");
+  }
+
+  // ── Overdue list ──────────────────────────────────────────────
+  const overdueDiv = document.getElementById("dashOverdue");
+  const overdueTasks = tasks.filter(t=>!t.done && t.deadline && t.deadline < today);
+  if(!overdueTasks.length){
+    overdueDiv.innerHTML = '<p style="color:#888;font-size:12px;">No overdue tasks 🎉</p>';
+  } else {
+    overdueDiv.innerHTML = overdueTasks.map(t=>`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}</div>
+          <div style="font-size:11px;color:#888;">${t.task||""}</div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#a32d2d;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
+      </div>`).join("");
+  }
+
+  // ── Contact activity ──────────────────────────────────────────
+  const contactMap = {};
+  [...tasks,...archive].forEach(t=>{
+    if(!t.contact || t.contact==="—" || t.contact==="N/A") return;
+    const lines = t.contact.split(/\n|,/).map(c=>c.trim()).filter(Boolean);
+    lines.forEach(c=>{
+      if(!contactMap[c]) contactMap[c]=[];
+      contactMap[c].push(t.title||"(untitled)");
+    });
+  });
+  const contactDiv = document.getElementById("dashContacts");
+  const contacts = Object.entries(contactMap).sort((a,b)=>b[1].length-a[1].length).slice(0,10);
+  if(!contacts.length){
+    contactDiv.innerHTML = '<p style="color:#888;font-size:12px;">No contacts yet.</p>';
+  } else {
+    contactDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
+    ${contacts.map(([contact,projects])=>`
+      <div style="background:var(--cream);border-radius:6px;padding:12px;">
+        <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;">${contact}</div>
+        <div style="font-size:11px;color:#888;">${[...new Set(projects)].join(", ")}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--gold);margin-top:4px;">${projects.length} task${projects.length!==1?"s":""}</div>
+      </div>`).join("")}
+    </div>`;
+  }
+}
+
+function weekEnd(){
+  const d = new Date();
+  const dow = d.getDay()||7;
+  const sun = new Date(d); sun.setDate(d.getDate()+(7-dow));
+  return sun.toISOString().slice(0,10);
+}
 </script>
 </body>
 </html>
