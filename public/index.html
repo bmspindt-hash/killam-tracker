@@ -141,13 +141,13 @@ select{cursor:pointer;}
 
   <!-- Charts row -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-    <div style="background:#fff;border-radius:8px;padding:20px;">
+    <div style="background:#fff;border-radius:8px;padding:20px;height:280px;">
       <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Deal pipeline by status</p>
-      <canvas id="chartPipeline" height="220"></canvas>
+      <div style="position:relative;height:200px;"><canvas id="chartPipeline"></canvas></div>
     </div>
-    <div style="background:#fff;border-radius:8px;padding:20px;">
+    <div style="background:#fff;border-radius:8px;padding:20px;height:280px;">
       <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Closed deals by month</p>
-      <canvas id="chartClosed" height="220"></canvas>
+      <div style="position:relative;height:200px;"><canvas id="chartClosed"></canvas></div>
     </div>
   </div>
 
@@ -517,7 +517,7 @@ function renderDashboard(){
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:"#f0f0f0"}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1,precision:0},grid:{color:"#f0f0f0"}},
               x:{grid:{display:false}}}
     }
   });
@@ -549,7 +549,7 @@ function renderDashboard(){
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:"#f0f0f0"}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1,precision:0},grid:{color:"#f0f0f0"}},
               x:{grid:{display:false}}}
     }
   });
