@@ -481,7 +481,11 @@ document.getElementById("btnAdd").onclick = async()=>{
 document.getElementById("btnNewWeek").onclick = async()=>{
   if(!confirm("Archive all completed tasks and start a new week?")) return;
   const res = await apiFetch("/api/newweek","POST");
-  await // ── Contacts ──────────────────────────────────────────────────
+  await loadState();
+  toast("New week started!","#2e7d32");
+};
+
+// ── Contacts ──────────────────────────────────────────────────
 let editingContactId = null;
 let pickerCallback   = null;
 
