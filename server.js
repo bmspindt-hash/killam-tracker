@@ -40,6 +40,14 @@ async function initDB() {
       key   TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS contacts (
+      id         TEXT PRIMARY KEY,
+      name       TEXT DEFAULT '',
+      company    TEXT DEFAULT '',
+      email      TEXT DEFAULT '',
+      phone      TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
   `);
   const res = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
   if (res.rows.length === 0) {
@@ -61,12 +69,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+// ── State ──────────────────────────────────────────────────────
 app.get("/api/state", async (req, res) => {
   try {
     const weekRes = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
     const weekId  = weekRes.rows[0]?.value || getCurrentWeekId();
     const taskRes = await pool.query("SELECT * FROM tasks ORDER BY created_at ASC");
     const archRes = await pool.query("SELECT * FROM archive ORDER BY archived_at DESC");
+    const contRes = await pool.query("SELECT * FROM contacts ORDER BY name ASC");
     res.json({
       weekId,
       tasks: taskRes.rows.map(r => ({
@@ -76,11 +86,13 @@ app.get("/api/state", async (req, res) => {
       archive: archRes.rows.map(r => ({
         id: r.id, title: r.title, task: r.task, status: r.status,
         notes: r.notes, deadline: r.deadline, contact: r.contact, weekCompleted: r.week_completed
-      }))
+      })),
+      contacts: contRes.rows
     });
   } catch(e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// ── Tasks ──────────────────────────────────────────────────────
 app.post("/api/tasks", async (req, res) => {
   const { id, title, task, status, notes, deadline, contact, done, week_id } = req.body;
   await pool.query(
@@ -104,6 +116,7 @@ app.delete("/api/tasks/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── New week ───────────────────────────────────────────────────
 app.post("/api/newweek", async (req, res) => {
   const weekRes = await pool.query("SELECT value FROM meta WHERE key='weekId'");
   const currentWeekId = weekRes.rows[0]?.value;
@@ -120,6 +133,7 @@ app.post("/api/newweek", async (req, res) => {
   res.json({ ok: true, newWeekId });
 });
 
+// ── Archive ────────────────────────────────────────────────────
 app.put("/api/archive/:id", async (req, res) => {
   const { title, task, notes, contact } = req.body;
   await pool.query(
@@ -129,6 +143,31 @@ app.put("/api/archive/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Contacts ───────────────────────────────────────────────────
+app.post("/api/contacts", async (req, res) => {
+  const { id, name, company, email, phone } = req.body;
+  await pool.query(
+    "INSERT INTO contacts (id,name,company,email,phone) VALUES ($1,$2,$3,$4,$5)",
+    [id, name||"", company||"", email||"", phone||""]
+  );
+  res.json({ ok: true });
+});
+
+app.put("/api/contacts/:id", async (req, res) => {
+  const { name, company, email, phone } = req.body;
+  await pool.query(
+    "UPDATE contacts SET name=$1,company=$2,email=$3,phone=$4 WHERE id=$5",
+    [name||"", company||"", email||"", phone||"", req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+app.delete("/api/contacts/:id", async (req, res) => {
+  await pool.query("DELETE FROM contacts WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ── Frontend ───────────────────────────────────────────────────
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
