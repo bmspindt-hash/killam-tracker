@@ -1,42 +1,51 @@
-const express = require("express");
-const cors    = require("cors");
-const path    = require("path");
-const Database = require("better-sqlite3");
+const express  = require("express");
+const cors     = require("cors");
+const path     = require("path");
+const { Pool } = require("pg");
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const db = new Database(path.join(__dirname, "tracker.db"));
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tasks (
-    id          TEXT PRIMARY KEY,
-    title       TEXT DEFAULT '',
-    task        TEXT DEFAULT '',
-    status      TEXT DEFAULT 'Not started',
-    notes       TEXT DEFAULT '',
-    deadline    TEXT DEFAULT '',
-    contact     TEXT DEFAULT '',
-    done        INTEGER DEFAULT 0,
-    week_id     TEXT DEFAULT '',
-    created_at  TEXT DEFAULT (datetime('now'))
-  );
-  CREATE TABLE IF NOT EXISTS archive (
-    id              TEXT PRIMARY KEY,
-    title           TEXT DEFAULT '',
-    task            TEXT DEFAULT '',
-    status          TEXT DEFAULT '',
-    notes           TEXT DEFAULT '',
-    deadline        TEXT DEFAULT '',
-    contact         TEXT DEFAULT '',
-    week_completed  TEXT DEFAULT '',
-    archived_at     TEXT DEFAULT (datetime('now'))
-  );
-  CREATE TABLE IF NOT EXISTS meta (
-    key   TEXT PRIMARY KEY,
-    value TEXT
-  );
-`);
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id          TEXT PRIMARY KEY,
+      title       TEXT DEFAULT '',
+      task        TEXT DEFAULT '',
+      status      TEXT DEFAULT 'Not started',
+      notes       TEXT DEFAULT '',
+      deadline    TEXT DEFAULT '',
+      contact     TEXT DEFAULT '',
+      done        BOOLEAN DEFAULT FALSE,
+      week_id     TEXT DEFAULT '',
+      created_at  TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS archive (
+      id              TEXT PRIMARY KEY,
+      title           TEXT DEFAULT '',
+      task            TEXT DEFAULT '',
+      status          TEXT DEFAULT '',
+      notes           TEXT DEFAULT '',
+      deadline        TEXT DEFAULT '',
+      contact         TEXT DEFAULT '',
+      week_completed  TEXT DEFAULT '',
+      archived_at     TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS meta (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
+  const res = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
+  if (res.rows.length === 0) {
+    await pool.query("INSERT INTO meta (key, value) VALUES ('weekId', $1)", [getCurrentWeekId()]);
+  }
+}
 
 function getCurrentWeekId() {
   const d = new Date();
@@ -48,64 +57,75 @@ function getCurrentWeekId() {
   return `${y}-W${String(w).padStart(2, "0")}`;
 }
 
-const weekRow = db.prepare("SELECT value FROM meta WHERE key = 'weekId'").get();
-if (!weekRow) {
-  db.prepare("INSERT INTO meta (key, value) VALUES ('weekId', ?)").run(getCurrentWeekId());
-}
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/api/state", (req, res) => {
-  const weekId = db.prepare("SELECT value FROM meta WHERE key = 'weekId'").get()?.value || getCurrentWeekId();
-  const tasks = db.prepare("SELECT * FROM tasks ORDER BY created_at ASC").all().map(row => ({
-    id: row.id, title: row.title, task: row.task, status: row.status,
-    notes: row.notes, deadline: row.deadline, contact: row.contact, done: row.done === 1
-  }));
-  const archive = db.prepare("SELECT * FROM archive ORDER BY archived_at DESC").all().map(row => ({
-    id: row.id, title: row.title, task: row.task, status: row.status,
-    notes: row.notes, deadline: row.deadline, contact: row.contact, weekCompleted: row.week_completed
-  }));
-  res.json({ weekId, tasks, archive });
+app.get("/api/state", async (req, res) => {
+  try {
+    const weekRes = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
+    const weekId  = weekRes.rows[0]?.value || getCurrentWeekId();
+    const taskRes = await pool.query("SELECT * FROM tasks ORDER BY created_at ASC");
+    const archRes = await pool.query("SELECT * FROM archive ORDER BY archived_at DESC");
+    res.json({
+      weekId,
+      tasks: taskRes.rows.map(r => ({
+        id: r.id, title: r.title, task: r.task, status: r.status,
+        notes: r.notes, deadline: r.deadline, contact: r.contact, done: r.done
+      })),
+      archive: archRes.rows.map(r => ({
+        id: r.id, title: r.title, task: r.task, status: r.status,
+        notes: r.notes, deadline: r.deadline, contact: r.contact, weekCompleted: r.week_completed
+      }))
+    });
+  } catch(e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-app.post("/api/tasks", (req, res) => {
+app.post("/api/tasks", async (req, res) => {
   const { id, title, task, status, notes, deadline, contact, done, week_id } = req.body;
-  db.prepare("INSERT INTO tasks (id, title, task, status, notes, deadline, contact, done, week_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-    .run(id, title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done?1:0, week_id||"");
+  await pool.query(
+    "INSERT INTO tasks (id,title,task,status,notes,deadline,contact,done,week_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+    [id, title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, week_id||""]
+  );
   res.json({ ok: true });
 });
 
-app.put("/api/tasks/:id", (req, res) => {
+app.put("/api/tasks/:id", async (req, res) => {
   const { title, task, status, notes, deadline, contact, done } = req.body;
-  db.prepare("UPDATE tasks SET title=?, task=?, status=?, notes=?, deadline=?, contact=?, done=? WHERE id=?")
-    .run(title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done?1:0, req.params.id);
+  await pool.query(
+    "UPDATE tasks SET title=$1,task=$2,status=$3,notes=$4,deadline=$5,contact=$6,done=$7 WHERE id=$8",
+    [title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, req.params.id]
+  );
   res.json({ ok: true });
 });
 
-app.delete("/api/tasks/:id", (req, res) => {
-  db.prepare("DELETE FROM tasks WHERE id=?").run(req.params.id);
+app.delete("/api/tasks/:id", async (req, res) => {
+  await pool.query("DELETE FROM tasks WHERE id=$1", [req.params.id]);
   res.json({ ok: true });
 });
 
-app.post("/api/newweek", (req, res) => {
-  const currentWeekId = db.prepare("SELECT value FROM meta WHERE key='weekId'").get()?.value;
-  const doneTasks = db.prepare("SELECT * FROM tasks WHERE done=1").all();
-  const insertArchive = db.prepare("INSERT INTO archive (id, title, task, status, notes, deadline, contact, week_completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+app.post("/api/newweek", async (req, res) => {
+  const weekRes = await pool.query("SELECT value FROM meta WHERE key='weekId'");
+  const currentWeekId = weekRes.rows[0]?.value;
+  const doneTasks = await pool.query("SELECT * FROM tasks WHERE done=TRUE");
+  for (const t of doneTasks.rows) {
+    await pool.query(
+      "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+      [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, currentWeekId]
+    );
+  }
+  await pool.query("DELETE FROM tasks WHERE done=TRUE");
   const newWeekId = getCurrentWeekId();
-  db.transaction(() => {
-    doneTasks.forEach(t => insertArchive.run(t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, currentWeekId));
-    db.prepare("DELETE FROM tasks WHERE done=1").run();
-    db.prepare("UPDATE meta SET value=? WHERE key='weekId'").run(newWeekId);
-  })();
+  await pool.query("UPDATE meta SET value=$1 WHERE key='weekId'", [newWeekId]);
   res.json({ ok: true, newWeekId });
 });
 
-app.put("/api/archive/:id", (req, res) => {
+app.put("/api/archive/:id", async (req, res) => {
   const { title, task, notes, contact } = req.body;
-  db.prepare("UPDATE archive SET title=?, task=?, notes=?, contact=? WHERE id=?")
-    .run(title||"", task||"", notes||"", contact||"", req.params.id);
+  await pool.query(
+    "UPDATE archive SET title=$1,task=$2,notes=$3,contact=$4 WHERE id=$5",
+    [title||"", task||"", notes||"", contact||"", req.params.id]
+  );
   res.json({ ok: true });
 });
 
@@ -113,4 +133,6 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, () => console.log(`Killam Tracker running on port ${PORT}`));
+initDB().then(() => {
+  app.listen(PORT, () => console.log(`Killam Tracker running on port ${PORT}`));
+}).catch(err => { console.error("DB init failed:", err); process.exit(1); });
