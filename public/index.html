@@ -143,7 +143,7 @@ select{cursor:pointer;}
   <!-- Add/Edit form -->
   <div id="contactForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
     <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="contactFormTitle">Add contact</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
         <input id="cfName" type="text" placeholder="Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
@@ -159,11 +159,11 @@ select{cursor:pointer;}
       <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
         <input id="cfPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button id="cfSave" class="btn-gold" style="padding:8px 20px;">Save contact</button>
+          <button id="cfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
+        </div>
       </div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button id="cfSave" class="btn-gold" style="padding:8px 20px;">Save contact</button>
-      <button id="cfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
     </div>
   </div>
 
@@ -215,13 +215,15 @@ select{cursor:pointer;}
 
 <!-- CONTACT PICKER MODAL -->
 <div id="contactPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:24px;width:420px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <p style="font-size:13px;font-weight:700;color:var(--navy);">Select a contact</p>
+  <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <p style="font-size:13px;font-weight:700;color:var(--navy);">Add contacts to task</p>
       <button id="pickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
     </div>
-    <input id="pickerSearch" type="text" placeholder="Search by name or company..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:12px;">
-    <div id="pickerList" style="overflow-y:auto;flex:1;"></div>
+    <div id="pickerSelected" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:0;"></div>
+    <input id="pickerSearch" type="text" placeholder="Search by name or company..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
+    <div id="pickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
+    <button id="pickerDone" class="btn-gold" style="padding:10px;width:100%;font-size:12px;">Done — add to task</button>
   </div>
 </div>
 
@@ -396,8 +398,9 @@ function render(){
     pickBtn.title = "Pick from contacts";
     pickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
     pickBtn.onclick = ()=> openContactPicker(val=>{
-      contactTa.value = val;
-      t.contact = val;
+      const existing = contactTa.value.trim();
+      contactTa.value = existing ? existing + "\n" + val : val;
+      t.contact = contactTa.value;
       scheduleSave(t);
     });
     contactWrap.appendChild(contactTa);
@@ -593,24 +596,52 @@ document.getElementById("btnContacts").onclick   = showContacts;
 document.getElementById("btnContactsBack").onclick = hideContacts;
 
 // ── Contact Picker ─────────────────────────────────────────────
+let pickerSelected = []; // array of selected contact objects
+
 function openContactPicker(callback){
   pickerCallback = callback;
+  pickerSelected = [];
   document.getElementById("pickerSearch").value = "";
+  document.getElementById("pickerSelected").innerHTML = "";
   renderPickerList("");
   document.getElementById("contactPickerModal").style.display = "flex";
   document.getElementById("pickerSearch").focus();
 }
 
+function renderPickerSelected(){
+  const el = document.getElementById("pickerSelected");
+  el.innerHTML = "";
+  if(!pickerSelected.length){
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "flex";
+  pickerSelected.forEach((c,i)=>{
+    const tag = document.createElement("div");
+    tag.style.cssText = "background:var(--navy);color:#fff;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;";
+    tag.innerHTML = `${c.name} <span style="cursor:pointer;opacity:.7;" data-i="${i}">✕</span>`;
+    tag.querySelector("span").onclick = (e)=>{
+      pickerSelected.splice(parseInt(e.target.dataset.i),1);
+      renderPickerSelected();
+      renderPickerList(document.getElementById("pickerSearch").value);
+    };
+    el.appendChild(tag);
+  });
+}
+
 function renderPickerList(query){
   const list = document.getElementById("pickerList");
+  const selectedIds = pickerSelected.map(c=>c.id);
   const contacts = (state.contacts||[]).filter(c=>
-    !query ||
-    c.name.toLowerCase().includes(query.toLowerCase()) ||
-    (c.company||"").toLowerCase().includes(query.toLowerCase())
+    !selectedIds.includes(c.id) && (
+      !query ||
+      c.name.toLowerCase().includes(query.toLowerCase()) ||
+      (c.company||"").toLowerCase().includes(query.toLowerCase())
+    )
   );
   list.innerHTML = "";
   if(!contacts.length){
-    list.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No contacts found.</p>';
+    list.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No more contacts found.</p>';
     return;
   }
   contacts.forEach(c=>{
@@ -621,16 +652,24 @@ function renderPickerList(query){
     row.onmouseenter = ()=>row.style.background="var(--cream)";
     row.onmouseleave = ()=>row.style.background="";
     row.onclick = ()=>{
-      const formatted = [c.name, c.company, c.email, c.phone].filter(Boolean).join(", ");
-      if(pickerCallback) pickerCallback(formatted);
-      document.getElementById("contactPickerModal").style.display = "none";
+      pickerSelected.push(c);
+      document.getElementById("pickerSearch").value = "";
+      renderPickerSelected();
+      renderPickerList("");
+      document.getElementById("pickerSearch").focus();
     };
     list.appendChild(row);
   });
 }
 
 document.getElementById("pickerSearch").oninput = e => renderPickerList(e.target.value);
-document.getElementById("pickerClose").onclick  = () => {
+document.getElementById("pickerClose").onclick = () => {
+  document.getElementById("contactPickerModal").style.display = "none";
+};
+document.getElementById("pickerDone").onclick = () => {
+  if(!pickerSelected.length){ document.getElementById("contactPickerModal").style.display="none"; return; }
+  const lines = pickerSelected.map(c=>[c.name,c.company,c.email,c.phone].filter(Boolean).join(", ")).join("\n");
+  if(pickerCallback) pickerCallback(lines);
   document.getElementById("contactPickerModal").style.display = "none";
 };
 
