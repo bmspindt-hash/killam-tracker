@@ -67,7 +67,6 @@ function getCurrentWeekId() {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
 // ── State ──────────────────────────────────────────────────────
 app.get("/api/state", async (req, res) => {
@@ -168,6 +167,8 @@ app.delete("/api/contacts/:id", async (req, res) => {
 });
 
 // ── Frontend ───────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
