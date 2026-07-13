@@ -281,17 +281,20 @@ async function apiFetch(path, method="GET", body){
 
 async function loadState(){
   document.getElementById("loadingMsg").style.display = "block";
+  document.getElementById("loadingMsg").textContent = "Loading tasks…";
   document.getElementById("activeView").style.display = "none";
   try {
-    const data = await apiFetch("/api/state");
+    const res = await fetch(API + "/api/state");
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
     state = data;
+    if(!state.contacts) state.contacts = [];
     document.getElementById("loadingMsg").style.display = "none";
     document.getElementById("activeView").style.display = "block";
     render();
-    toast("✓ Loaded", "#2e7d32");
   } catch(e) {
-    document.getElementById("loadingMsg").textContent = "⚠ Could not connect to server. Is it running?";
-    toast("⚠ Connection failed","#c0392b");
+    console.error("Load error:", e);
+    document.getElementById("loadingMsg").textContent = "⚠ Could not load tasks: " + e.message + ". Try reloading.";
   }
 }
 
