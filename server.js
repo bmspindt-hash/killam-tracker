@@ -46,8 +46,10 @@ async function initDB() {
       company    TEXT DEFAULT '',
       email      TEXT DEFAULT '',
       phone      TEXT DEFAULT '',
+      notes      TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT NOW()
     );
+    ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
   `);
   const res = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
   if (res.rows.length === 0) {
@@ -144,19 +146,19 @@ app.put("/api/archive/:id", async (req, res) => {
 
 // ── Contacts ───────────────────────────────────────────────────
 app.post("/api/contacts", async (req, res) => {
-  const { id, name, company, email, phone } = req.body;
+  const { id, name, company, email, phone, notes } = req.body;
   await pool.query(
-    "INSERT INTO contacts (id,name,company,email,phone) VALUES ($1,$2,$3,$4,$5)",
-    [id, name||"", company||"", email||"", phone||""]
+    "INSERT INTO contacts (id,name,company,email,phone,notes) VALUES ($1,$2,$3,$4,$5,$6)",
+    [id, name||"", company||"", email||"", phone||"", notes||""]
   );
   res.json({ ok: true });
 });
 
 app.put("/api/contacts/:id", async (req, res) => {
-  const { name, company, email, phone } = req.body;
+  const { name, company, email, phone, notes } = req.body;
   await pool.query(
-    "UPDATE contacts SET name=$1,company=$2,email=$3,phone=$4 WHERE id=$5",
-    [name||"", company||"", email||"", phone||"", req.params.id]
+    "UPDATE contacts SET name=$1,company=$2,email=$3,phone=$4,notes=$5 WHERE id=$6",
+    [name||"", company||"", email||"", phone||"", notes||"", req.params.id]
   );
   res.json({ ok: true });
 });
