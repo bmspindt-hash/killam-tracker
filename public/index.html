@@ -159,11 +159,15 @@ select{cursor:pointer;}
       <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
         <input id="cfPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <button id="cfSave" class="btn-gold" style="padding:8px 20px;">Save contact</button>
-          <button id="cfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
-        </div>
       </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Notes</label>
+        <textarea id="cfNotes" placeholder="Met at ICSC 2025, prefers email..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="cfSave" class="btn-gold" style="padding:8px 20px;">Save contact</button>
+      <button id="cfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
     </div>
   </div>
 
@@ -520,6 +524,7 @@ function renderContacts(){
   contacts.forEach(c => {
     const card = document.createElement("div");
     card.style.cssText = "background:#fff;border-radius:8px;padding:16px;border:1px solid var(--border);";
+    const notesId = "notes-"+c.id;
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
@@ -527,15 +532,23 @@ function renderContacts(){
           <div style="font-size:12px;color:var(--gold);font-weight:600;">${c.company||""}</div>
         </div>
         <div style="display:flex;gap:6px;">
+          ${c.notes ? `<button onclick="toggleNotes('${c.id}')" title="Notes" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--gold);font-family:inherit;"><i class="ti ti-notes"></i></button>` : ""}
           <button onclick="editContact('${c.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--navy);font-family:inherit;"><i class="ti ti-pencil"></i></button>
           <button onclick="deleteContact('${c.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
         </div>
       </div>
       ${c.email ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${c.email}</div>` : ""}
-      ${c.phone ? `<div style="font-size:12px;color:#555;"><i class="ti ti-phone" style="margin-right:4px;"></i>${c.phone}</div>` : ""}
+      ${c.phone ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${c.phone}</div>` : ""}
+      ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${c.notes}</div>` : ""}
     `;
     grid.appendChild(card);
   });
+}
+
+function toggleNotes(id){
+  const el = document.getElementById("notes-"+id);
+  if(!el) return;
+  el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
 function showContactForm(contact){
@@ -545,6 +558,7 @@ function showContactForm(contact){
   document.getElementById("cfCompany").value = contact?.company || "";
   document.getElementById("cfEmail").value   = contact?.email   || "";
   document.getElementById("cfPhone").value   = contact?.phone   || "";
+  document.getElementById("cfNotes").value   = contact?.notes   || "";
   document.getElementById("contactForm").style.display = "block";
   document.getElementById("cfName").focus();
 }
@@ -573,18 +587,19 @@ document.getElementById("cfSave").onclick = async () => {
   const company = document.getElementById("cfCompany").value.trim();
   const email   = document.getElementById("cfEmail").value.trim();
   const phone   = document.getElementById("cfPhone").value.trim();
+  const notes   = document.getElementById("cfNotes").value.trim();
   if(!name){ alert("Name is required"); return; }
 
   if(editingContactId){
-    await apiFetch("/api/contacts/"+editingContactId,"PUT",{name,company,email,phone});
+    await apiFetch("/api/contacts/"+editingContactId,"PUT",{name,company,email,phone,notes});
     const c = (state.contacts||[]).find(x=>x.id===editingContactId);
-    if(c){ c.name=name; c.company=company; c.email=email; c.phone=phone; }
+    if(c){ c.name=name; c.company=company; c.email=email; c.phone=phone; c.notes=notes; }
     toast("Contact updated","#2e7d32");
   } else {
     const id = uid();
-    await apiFetch("/api/contacts","POST",{id,name,company,email,phone});
+    await apiFetch("/api/contacts","POST",{id,name,company,email,phone,notes});
     if(!state.contacts) state.contacts=[];
-    state.contacts.push({id,name,company,email,phone});
+    state.contacts.push({id,name,company,email,phone,notes});
     toast("Contact added","#2e7d32");
   }
   document.getElementById("contactForm").style.display = "none";
