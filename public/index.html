@@ -621,8 +621,7 @@ function renderPickerList(query){
     row.onmouseenter = ()=>row.style.background="var(--cream)";
     row.onmouseleave = ()=>row.style.background="";
     row.onclick = ()=>{
-      const formatted = [c.name, c.company, c.email, c.phone].filter(Boolean).join("
-");
+      const formatted = [c.name, c.company, c.email, c.phone].filter(Boolean).join(", ");
       if(pickerCallback) pickerCallback(formatted);
       document.getElementById("contactPickerModal").style.display = "none";
     };
