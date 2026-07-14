@@ -40,6 +40,21 @@ async function initDB() {
       key   TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS projects (
+      id           TEXT PRIMARY KEY,
+      name         TEXT DEFAULT '',
+      address      TEXT DEFAULT '',
+      prospect     TEXT DEFAULT '',
+      type         TEXT DEFAULT '',
+      sf           TEXT DEFAULT '',
+      price_per_sf TEXT DEFAULT '',
+      notes        TEXT DEFAULT '',
+      created_at   TIMESTAMP DEFAULT NOW()
+    );
+    ALTER TABLE projects ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
+    ALTER TABLE projects ADD COLUMN IF NOT EXISTS sf TEXT DEFAULT '';
+    ALTER TABLE projects ADD COLUMN IF NOT EXISTS price_per_sf TEXT DEFAULT '';
+
     CREATE TABLE IF NOT EXISTS contacts (
       id         TEXT PRIMARY KEY,
       name       TEXT DEFAULT '',
@@ -78,6 +93,7 @@ app.get("/api/state", async (req, res) => {
     const taskRes = await pool.query("SELECT * FROM tasks ORDER BY created_at ASC");
     const archRes = await pool.query("SELECT * FROM archive ORDER BY archived_at DESC");
     const contRes = await pool.query("SELECT * FROM contacts ORDER BY name ASC");
+    const projRes = await pool.query("SELECT * FROM projects ORDER BY name ASC");
     res.json({
       weekId,
       tasks: taskRes.rows.map(r => ({
@@ -88,7 +104,8 @@ app.get("/api/state", async (req, res) => {
         id: r.id, title: r.title, task: r.task, status: r.status,
         notes: r.notes, deadline: r.deadline, contact: r.contact, weekCompleted: r.week_completed
       })),
-      contacts: contRes.rows
+      contacts: contRes.rows,
+      projects: projRes.rows
     });
   } catch(e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -141,6 +158,30 @@ app.put("/api/archive/:id", async (req, res) => {
     "UPDATE archive SET title=$1,task=$2,notes=$3,contact=$4 WHERE id=$5",
     [title||"", task||"", notes||"", contact||"", req.params.id]
   );
+  res.json({ ok: true });
+});
+
+// ── Projects ───────────────────────────────────────────────────
+app.post("/api/projects", async (req, res) => {
+  const { id, name, address, prospect, type, sf, price_per_sf, notes } = req.body;
+  await pool.query(
+    "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+    [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", notes||""]
+  );
+  res.json({ ok: true });
+});
+
+app.put("/api/projects/:id", async (req, res) => {
+  const { name, address, prospect, type, sf, price_per_sf, notes } = req.body;
+  await pool.query(
+    "UPDATE projects SET name=$1,address=$2,prospect=$3,type=$4,sf=$5,price_per_sf=$6,notes=$7 WHERE id=$8",
+    [name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", notes||"", req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+app.delete("/api/projects/:id", async (req, res) => {
+  await pool.query("DELETE FROM projects WHERE id=$1", [req.params.id]);
   res.json({ ok: true });
 });
 
