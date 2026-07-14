@@ -582,7 +582,11 @@ document.getElementById("btnAdd").onclick = async()=>{
 document.getElementById("btnNewWeek").onclick = async()=>{
   if(!confirm("Archive all completed tasks and start a new week?")) return;
   const res = await apiFetch("/api/newweek","POST");
-  await // ── Projects ──────────────────────────────────────────────────
+  await loadState();
+  toast("New week started!","#2e7d32");
+};
+
+// ── Projects ──────────────────────────────────────────────────
 let editingProjectId = null;
 
 function showProjects(){
@@ -748,10 +752,6 @@ function renderProjectPickerList(query){
 document.getElementById("projPickerSearch").oninput = e => renderProjectPickerList(e.target.value);
 document.getElementById("projPickerClose").onclick  = () => {
   document.getElementById("projectPickerModal").style.display = "none";
-};
-
-loadState();
-  toast("New week started!","#2e7d32");
 };
 
 // ── Contacts ──────────────────────────────────────────────────
