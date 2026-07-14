@@ -628,6 +628,17 @@ function renderProjects(){
           <button onclick="deleteProject('${p.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
         </div>
       </div>
+      <select onchange="updateProjectStatus('${p.id}', this.value)" style="font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--navy);font-family:inherit;margin-bottom:8px;cursor:pointer;">
+  <option value="">— Status —</option>
+  <option value="Not started" ${p.status==="Not started"?"selected":""}>Not started</option>
+  <option value="Started" ${p.status==="Started"?"selected":""}>Started</option>
+  <option value="LOI" ${p.status==="LOI"?"selected":""}>LOI</option>
+  <option value="Lease agreement" ${p.status==="Lease agreement"?"selected":""}>Lease agreement</option>
+  <option value="PSA" ${p.status==="PSA"?"selected":""}>PSA</option>
+  <option value="Closed" ${p.status==="Closed"?"selected":""}>Closed</option>
+  <option value="Dead" ${p.status==="Dead"?"selected":""}>Dead</option>
+  <option value="Working on other" ${p.status==="Working on other"?"selected":""}>Working on other</option>
+</select>
       ${p.prospect ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-user" style="margin-right:4px;"></i>${p.prospect}</div>` : ""}
       ${(p.sf || p.price_per_sf) ? `<div style="font-size:12px;color:#555;margin-bottom:4px;">${p.sf ? `<span style="margin-right:12px;"><i class="ti ti-ruler" style="margin-right:3px;"></i>${p.sf} SF</span>` : ""}${p.price_per_sf ? `<span><i class="ti ti-currency-dollar" style="margin-right:3px;"></i>${p.price_per_sf}/SF</span>` : ""}</div>` : ""}
       ${p.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${p.notes}</div>` : ""}
@@ -976,6 +987,12 @@ function goActive(){
 document.getElementById("btnCurrent").onclick = goActive;
 document.getElementById("btnBack").onclick    = goActive;
 
+  async function updateProjectStatus(id, status){
+  const p = (state.projects||[]).find(x=>x.id===id);
+  if(p) p.status = status;
+  await apiFetch("/api/projects/"+id+"/status", "PATCH", {status});
+  toast("Status updated","#2e7d32");
+}
 loadState();
 
 // ── Dashboard ──────────────────────────────────────────────────
