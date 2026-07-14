@@ -54,6 +54,7 @@ async function initDB() {
     ALTER TABLE projects ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
     ALTER TABLE projects ADD COLUMN IF NOT EXISTS sf TEXT DEFAULT '';
     ALTER TABLE projects ADD COLUMN IF NOT EXISTS price_per_sf TEXT DEFAULT '';
+    ALTER TABLE projects ADD COLUMN IF NOT EXISTS status TEXT DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS contacts (
       id         TEXT PRIMARY KEY,
@@ -126,6 +127,12 @@ app.put("/api/tasks/:id", async (req, res) => {
     "UPDATE tasks SET title=$1,task=$2,status=$3,notes=$4,deadline=$5,contact=$6,done=$7 WHERE id=$8",
     [title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, req.params.id]
   );
+  res.json({ ok: true });
+});
+
+app.patch("/api/projects/:id/status", async (req, res) => {
+  const { status } = req.body;
+  await pool.query("UPDATE projects SET status=$1 WHERE id=$2", [status||"", req.params.id]);
   res.json({ ok: true });
 });
 
