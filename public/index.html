@@ -65,6 +65,31 @@ select{cursor:pointer;}
 </style>
 </head>
 <body>
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="background:var(--navy);border-radius:999px;padding:10px 24px;display:inline-flex;align-items:center;margin-bottom:16px;">
+        <img src="data:image/png;base64,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" alt="Killam" style="height:40px;width:auto;">
+      </div>
+      <h2 id="loginTitle" style="color:var(--navy);font-size:18px;font-weight:600;margin:0;">Sign in to Task Tracker</h2>
+    </div>
+    <div id="loginError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Username</label>
+      <input id="loginUsername" type="text" placeholder="Enter your username" autocomplete="username"
+        style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Password</label>
+      <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password"
+        style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
+    </div>
+    <button id="loginBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Sign in</button>
+    <p id="registerToggle" style="text-align:center;margin-top:14px;font-size:12px;color:#888;cursor:pointer;">First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span></p>
+  </div>
+</div>
+
 <div id="app">
   <div id="header">
     <div style="display:flex;align-items:center;gap:16px;">
@@ -85,6 +110,7 @@ select{cursor:pointer;}
       <button id="btnProjects" class="btn-ghost"><i class="ti ti-building"></i> Projects</button>
       <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> View archive</button>
       <button id="btnCurrent" class="btn-white" style="display:none;"><i class="ti ti-arrow-left"></i> Current week</button>
+      <button id="btnLogout" class="btn-ghost" style="border-color:rgba(255,100,100,.5);"><i class="ti ti-logout"></i> Sign out</button>
     </div>
   </div>
 
@@ -353,11 +379,31 @@ function toast(msg, color="#16273a"){
 }
 
 // ── API calls ──────────────────────────────────────────────────
+function getToken(){ return localStorage.getItem("kd_token") || ""; }
+
 async function apiFetch(path, method="GET", body){
-  const opts = { method, headers:{"Content-Type":"application/json"} };
+  const opts = { method, headers:{"Content-Type":"application/json","Authorization":"Bearer "+getToken()} };
   if(body) opts.body = JSON.stringify(body);
   const res = await fetch(API+path, opts);
+  if(res.status === 401){
+    localStorage.removeItem("kd_token");
+    localStorage.removeItem("kd_username");
+    showLoginScreen();
+    throw new Error("Session expired — please sign in again");
+  }
   return res.json();
+}
+
+function showLoginScreen(isRegister=false){
+  document.getElementById("app").style.display = "none";
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("loginTitle").textContent = isRegister ? "Create your account" : "Sign in to Task Tracker";
+  document.getElementById("loginBtn").textContent   = isRegister ? "Create account" : "Sign in";
+  document.getElementById("loginBtn").dataset.mode  = isRegister ? "register" : "login";
+  document.getElementById("loginError").style.display = "none";
+  document.getElementById("loginUsername").value = "";
+  document.getElementById("loginPassword").value = "";
+  document.getElementById("loginUsername").focus();
 }
 
 async function loadState(){
@@ -365,17 +411,18 @@ async function loadState(){
   document.getElementById("loadingMsg").textContent = "Loading tasks…";
   document.getElementById("activeView").style.display = "none";
   try {
-    const res = await fetch(API + "/api/state");
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
+    const data = await apiFetch("/api/state");
     state = data;
     if(!state.contacts) state.contacts = [];
+    if(!state.projects) state.projects = [];
     document.getElementById("loadingMsg").style.display = "none";
     document.getElementById("activeView").style.display = "block";
     render();
   } catch(e) {
     console.error("Load error:", e);
-    document.getElementById("loadingMsg").textContent = "⚠ Could not load tasks: " + e.message + ". Try reloading.";
+    if(!e.message.includes("Session expired")){
+      document.getElementById("loadingMsg").textContent = "⚠ Could not load tasks: " + e.message + ". Try reloading.";
+    }
   }
 }
 
@@ -628,17 +675,6 @@ function renderProjects(){
           <button onclick="deleteProject('${p.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
         </div>
       </div>
-      <select onchange="updateProjectStatus('${p.id}', this.value)" style="font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--navy);font-family:inherit;margin-bottom:8px;cursor:pointer;">
-  <option value="">— Status —</option>
-  <option value="Not started" ${p.status==="Not started"?"selected":""}>Not started</option>
-  <option value="Started" ${p.status==="Started"?"selected":""}>Started</option>
-  <option value="LOI" ${p.status==="LOI"?"selected":""}>LOI</option>
-  <option value="Lease agreement" ${p.status==="Lease agreement"?"selected":""}>Lease agreement</option>
-  <option value="PSA" ${p.status==="PSA"?"selected":""}>PSA</option>
-  <option value="Closed" ${p.status==="Closed"?"selected":""}>Closed</option>
-  <option value="Dead" ${p.status==="Dead"?"selected":""}>Dead</option>
-  <option value="Working on other" ${p.status==="Working on other"?"selected":""}>Working on other</option>
-</select>
       ${p.prospect ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-user" style="margin-right:4px;"></i>${p.prospect}</div>` : ""}
       ${(p.sf || p.price_per_sf) ? `<div style="font-size:12px;color:#555;margin-bottom:4px;">${p.sf ? `<span style="margin-right:12px;"><i class="ti ti-ruler" style="margin-right:3px;"></i>${p.sf} SF</span>` : ""}${p.price_per_sf ? `<span><i class="ti ti-currency-dollar" style="margin-right:3px;"></i>${p.price_per_sf}/SF</span>` : ""}</div>` : ""}
       ${p.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${p.notes}</div>` : ""}
@@ -987,14 +1023,6 @@ function goActive(){
 document.getElementById("btnCurrent").onclick = goActive;
 document.getElementById("btnBack").onclick    = goActive;
 
-  async function updateProjectStatus(id, status){
-  const p = (state.projects||[]).find(x=>x.id===id);
-  if(p) p.status = status;
-  await apiFetch("/api/projects/"+id+"/status", "PATCH", {status});
-  toast("Status updated","#2e7d32");
-}
-loadState();
-
 // ── Dashboard ──────────────────────────────────────────────────
 let pipelineChart = null;
 let closedChart   = null;
@@ -1170,6 +1198,72 @@ function weekEnd(){
   const sun = new Date(d); sun.setDate(d.getDate()+(7-dow));
   return sun.toISOString().slice(0,10);
 }
+// ── Auth init ──────────────────────────────────────────────────
+document.getElementById("loginBtn").onclick = async () => {
+  const mode     = document.getElementById("loginBtn").dataset.mode || "login";
+  const username = document.getElementById("loginUsername").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+  const errEl    = document.getElementById("loginError");
+  errEl.style.display = "none";
+  if(!username || !password){ errEl.textContent="Please enter username and password."; errEl.style.display="block"; return; }
+  try {
+    const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
+    const res  = await fetch(API + endpoint, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error || "Something went wrong."; errEl.style.display="block"; return; }
+    localStorage.setItem("kd_token", data.token);
+    localStorage.setItem("kd_username", data.username);
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadState();
+  } catch(e){
+    errEl.textContent = "Connection error. Please try again.";
+    errEl.style.display = "block";
+  }
+};
+
+document.getElementById("loginPassword").addEventListener("keydown", e => {
+  if(e.key === "Enter") document.getElementById("loginBtn").click();
+});
+
+document.getElementById("registerToggle").onclick = () => {
+  const current = document.getElementById("loginBtn").dataset.mode || "login";
+  const isReg   = current === "login";
+  showLoginScreen(isReg);
+  document.getElementById("registerToggle").innerHTML = isReg
+    ? 'Already have an account? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Sign in</span>'
+    : 'First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span>';
+};
+
+document.getElementById("btnLogout").onclick = () => {
+  if(!confirm("Sign out?")) return;
+  localStorage.removeItem("kd_token");
+  localStorage.removeItem("kd_username");
+  showLoginScreen();
+};
+
+(async () => {
+  const token = localStorage.getItem("kd_token");
+  if(token){
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadState();
+  } else {
+    try {
+      const res  = await fetch(API + "/api/auth/check-users");
+      const data = await res.json();
+      showLoginScreen(!data.hasUsers);
+      if(!data.hasUsers){
+        document.getElementById("registerToggle").style.display = "none";
+      }
+    } catch(e){
+      showLoginScreen(false);
+    }
+  }
+})();
 </script>
 </body>
 </html>
