@@ -290,19 +290,37 @@ select{cursor:pointer;}
   <!-- Due this week & overdue -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
     <div style="background:#fff;border-radius:8px;padding:20px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:12px;">Due this week</p>
-      <div id="dashDueWeek"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Due this week</p>
+        <button onclick="toggleSection('dueWeek')" id="toggleBtn-dueWeek" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+      </div>
+      <div id="section-dueWeek"><div id="dashDueWeek"></div></div>
     </div>
     <div style="background:#fff;border-radius:8px;padding:20px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a32d2d;margin-bottom:12px;">Overdue tasks</p>
-      <div id="dashOverdue"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a32d2d;margin:0;">Overdue tasks</p>
+        <button onclick="toggleSection('overdue')" id="toggleBtn-overdue" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+      </div>
+      <div id="section-overdue"><div id="dashOverdue"></div></div>
     </div>
   </div>
 
   <!-- Contact activity -->
   <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
-    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:12px;">Contact activity</p>
-    <div id="dashContacts"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Contact activity</p>
+      <button onclick="toggleSection('contacts')" id="toggleBtn-contacts" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+    </div>
+    <div id="section-contacts"><div id="dashContacts"></div></div>
+  </div>
+
+  <!-- Projects activity -->
+  <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Active projects</p>
+      <button onclick="toggleSection('projects')" id="toggleBtn-projects" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+    </div>
+    <div id="section-projects"><div id="dashProjects"></div></div>
   </div>
 </div>
 
@@ -1100,6 +1118,15 @@ document.getElementById("btnBack").onclick    = goActive;
 let pipelineChart = null;
 let closedChart   = null;
 
+function toggleSection(id){
+  const section = document.getElementById("section-"+id);
+  const btn     = document.getElementById("toggleBtn-"+id);
+  if(!section) return;
+  const collapsed = section.style.display === "none";
+  section.style.display = collapsed ? "block" : "none";
+  btn.innerHTML = collapsed ? "&#9650; Collapse" : "&#9660; Expand";
+}
+
 function showDashboard(){
   document.getElementById("activeView").style.display   = "none";
   document.getElementById("archiveView").style.display  = "none";
@@ -1240,26 +1267,54 @@ function renderDashboard(){
   }
 
   // ── Contact activity ──────────────────────────────────────────
-  const contactMap = {};
+  // Match contacts by name from directory
+  const contactTaskMap = {};
   [...tasks,...archive].forEach(t=>{
-    if(!t.contact || t.contact==="—" || t.contact==="N/A") return;
-    const lines = t.contact.split(/\n|,/).map(c=>c.trim()).filter(Boolean);
-    lines.forEach(c=>{
-      if(!contactMap[c]) contactMap[c]=[];
-      contactMap[c].push(t.title||"(untitled)");
+    if(!t.contact) return;
+    // Each line is one contact entry
+    const lines = t.contact.split("\n").map(l=>l.trim()).filter(Boolean);
+    lines.forEach(line=>{
+      // First part before comma is typically the name
+      const name = line.split(",")[0].trim();
+      if(!name || name==="—" || name==="N/A") return;
+      if(!contactTaskMap[name]) contactTaskMap[name] = {tasks:[], info:line};
+      contactTaskMap[name].tasks.push(t.title||"(untitled)");
     });
   });
   const contactDiv = document.getElementById("dashContacts");
-  const contacts = Object.entries(contactMap).sort((a,b)=>b[1].length-a[1].length).slice(0,10);
-  if(!contacts.length){
+  const contactEntries = Object.entries(contactTaskMap).sort((a,b)=>b[1].tasks.length-a[1].tasks.length).slice(0,12);
+  if(!contactEntries.length){
     contactDiv.innerHTML = '<p style="color:#888;font-size:12px;">No contacts yet.</p>';
   } else {
     contactDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
-    ${contacts.map(([contact,projects])=>`
+    ${contactEntries.map(([name,data])=>`
       <div style="background:var(--cream);border-radius:6px;padding:12px;">
-        <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;">${contact}</div>
-        <div style="font-size:11px;color:#888;">${[...new Set(projects)].join(", ")}</div>
-        <div style="font-size:10px;font-weight:700;color:var(--gold);margin-top:4px;">${projects.length} task${projects.length!==1?"s":""}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;">${name}</div>
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">${[...new Set(data.tasks)].join(", ")}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--gold);">${data.tasks.length} task${data.tasks.length!==1?"s":""}</div>
+      </div>`).join("")}
+    </div>`;
+  }
+
+  // ── Active projects ────────────────────────────────────────────
+  const projDiv = document.getElementById("dashProjects");
+  const activeProjects = (state.projects||[]).filter(p=>p.status !== "Completed" && p.status !== "Dead" && p.status !== "Closed");
+  const typeColor = t => t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
+  const statusBg  = s => s==="LOI"?"#e3f0ff":s==="PSA"?"#f3e5f5":s==="Started"?"#fff8e1":s==="Closed"||s==="Completed"?"#e8f5e9":"#f5f5f5";
+  if(!activeProjects.length){
+    projDiv.innerHTML = '<p style="color:#888;font-size:12px;">No active projects yet.</p>';
+  } else {
+    projDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
+    ${activeProjects.map(p=>`
+      <div style="background:var(--cream);border-radius:6px;padding:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:700;color:var(--navy);flex:1;">${p.name}</div>
+          ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};margin-left:6px;white-space:nowrap;">${p.type}</span>`:""}
+        </div>
+        ${p.address?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-map-pin"></i> ${p.address}</div>`:""}
+        ${p.prospect?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-user"></i> ${p.prospect}</div>`:""}
+        ${(p.sf||p.price_per_sf)?`<div style="font-size:11px;color:#888;margin-bottom:4px;">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</div>`:""}
+        ${p.status?`<span style="font-size:10px;font-weight:700;background:${statusBg(p.status)};padding:2px 8px;border-radius:999px;color:var(--navy);">${p.status}</span>`:""}
       </div>`).join("")}
     </div>`;
   }
