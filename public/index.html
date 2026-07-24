@@ -314,7 +314,8 @@ select{cursor:pointer;}
       <button id="projPickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
     </div>
     <input id="projPickerSearch" type="text" placeholder="Search by name or address..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
-    <div id="projPickerList" style="overflow-y:auto;flex:1;"></div>
+    <div id="projPickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
+    <button id="projPickerCreate" style="padding:10px 14px;width:100%;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-plus"></i> Create new project</button>
   </div>
 </div>
 
@@ -328,7 +329,79 @@ select{cursor:pointer;}
     <div id="pickerSelected" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:0;"></div>
     <input id="pickerSearch" type="text" placeholder="Search by name or company..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
     <div id="pickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
-    <button id="pickerDone" class="btn-gold" style="padding:10px;width:100%;font-size:12px;">Done — add to task</button>
+    <div style="display:flex;gap:8px;">
+      <button id="pickerCreateContact" style="padding:10px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;white-space:nowrap;"><i class="ti ti-plus"></i> New contact</button>
+      <button id="pickerDone" class="btn-gold" style="padding:10px;flex:1;font-size:12px;">Done — add to task</button>
+    </div>
+  </div>
+</div>
+
+<!-- INLINE CREATE CONTACT MODAL -->
+<div id="inlineContactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:460px;max-width:90vw;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <p style="font-size:14px;font-weight:700;color:var(--navy);">Create new contact</p>
+      <button id="inlineContactClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
+        <input id="icName" type="text" placeholder="Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
+        <input id="icCompany" type="text" placeholder="Company name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
+        <input id="icEmail" type="email" placeholder="jane@example.com" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
+        <input id="icPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button id="icSave" class="btn-gold" style="padding:10px 20px;">Save & add to task</button>
+      <button id="icCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:#888;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- INLINE CREATE PROJECT MODAL -->
+<div id="inlineProjectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:500px;max-width:90vw;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <p style="font-size:14px;font-weight:700;color:var(--navy);">Create new project</p>
+      <button id="inlineProjectClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
+        <input id="ipName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
+        <input id="ipAddress" type="text" placeholder="1100 Matamoros St" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
+        <input id="ipProspect" type="text" placeholder="Prospect name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
+        <select id="ipType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <option value="">— Select type —</option>
+          <option value="Lease">Lease</option>
+          <option value="Purchase">Purchase</option>
+          <option value="Sale">Sale</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button id="ipSave" class="btn-gold" style="padding:10px 20px;">Save & add to task</button>
+      <button id="ipCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:#888;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1198,6 +1271,90 @@ function weekEnd(){
   const sun = new Date(d); sun.setDate(d.getDate()+(7-dow));
   return sun.toISOString().slice(0,10);
 }
+// ── Inline create contact from picker ─────────────────────────
+document.getElementById("pickerCreateContact").onclick = () => {
+  document.getElementById("contactPickerModal").style.display = "none";
+  document.getElementById("icName").value = "";
+  document.getElementById("icCompany").value = "";
+  document.getElementById("icEmail").value = "";
+  document.getElementById("icPhone").value = "";
+  document.getElementById("inlineContactModal").style.display = "flex";
+  document.getElementById("icName").focus();
+};
+
+document.getElementById("inlineContactClose").onclick = () => {
+  document.getElementById("inlineContactModal").style.display = "none";
+  document.getElementById("contactPickerModal").style.display = "flex";
+};
+
+document.getElementById("icCancel").onclick = () => {
+  document.getElementById("inlineContactModal").style.display = "none";
+  document.getElementById("contactPickerModal").style.display = "flex";
+};
+
+document.getElementById("icSave").onclick = async () => {
+  const name    = document.getElementById("icName").value.trim();
+  const company = document.getElementById("icCompany").value.trim();
+  const email   = document.getElementById("icEmail").value.trim();
+  const phone   = document.getElementById("icPhone").value.trim();
+  if(!name){ alert("Name is required"); return; }
+  const id = uid();
+  await apiFetch("/api/contacts", "POST", {id, name, company, email, phone, notes:""});
+  if(!state.contacts) state.contacts = [];
+  const newContact = {id, name, company, email, phone, notes:""};
+  state.contacts.push(newContact);
+  state.contacts.sort((a,b)=>a.name.localeCompare(b.name));
+  // Add to selected in picker and close inline modal
+  pickerSelected.push(newContact);
+  document.getElementById("inlineContactModal").style.display = "none";
+  // Fire done immediately — add the new contact to task
+  const lines = pickerSelected.map(c=>[c.name,c.company,c.email,c.phone].filter(Boolean).join(", ")).join("\n");
+  if(pickerCallback) pickerCallback(lines);
+  document.getElementById("contactPickerModal").style.display = "none";
+  toast("Contact created and added to task", "#2e7d32");
+};
+
+// ── Inline create project from picker ─────────────────────────
+document.getElementById("projPickerCreate").onclick = () => {
+  document.getElementById("projectPickerModal").style.display = "none";
+  document.getElementById("ipName").value = "";
+  document.getElementById("ipAddress").value = "";
+  document.getElementById("ipProspect").value = "";
+  document.getElementById("ipType").value = "";
+  document.getElementById("inlineProjectModal").style.display = "flex";
+  document.getElementById("ipName").focus();
+};
+
+document.getElementById("inlineProjectClose").onclick = () => {
+  document.getElementById("inlineProjectModal").style.display = "none";
+  document.getElementById("projectPickerModal").style.display = "flex";
+};
+
+document.getElementById("ipCancel").onclick = () => {
+  document.getElementById("inlineProjectModal").style.display = "none";
+  document.getElementById("projectPickerModal").style.display = "flex";
+};
+
+document.getElementById("ipSave").onclick = async () => {
+  const name     = document.getElementById("ipName").value.trim();
+  const address  = document.getElementById("ipAddress").value.trim();
+  const prospect = document.getElementById("ipProspect").value.trim();
+  const type     = document.getElementById("ipType").value;
+  if(!name){ alert("Project name is required"); return; }
+  const id = uid();
+  await apiFetch("/api/projects", "POST", {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:""});
+  if(!state.projects) state.projects = [];
+  const newProject = {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:""};
+  state.projects.push(newProject);
+  state.projects.sort((a,b)=>a.name.localeCompare(b.name));
+  // Auto-fill task project cell and close
+  const display = [name, address].filter(Boolean).join(" — ");
+  if(projPickerCallback) projPickerCallback(display);
+  document.getElementById("inlineProjectModal").style.display = "none";
+  document.getElementById("projectPickerModal").style.display = "none";
+  toast("Project created and added to task", "#2e7d32");
+};
+
 // ── Auth init ──────────────────────────────────────────────────
 document.getElementById("loginBtn").onclick = async () => {
   const mode     = document.getElementById("loginBtn").dataset.mode || "login";
