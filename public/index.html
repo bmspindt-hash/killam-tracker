@@ -667,14 +667,26 @@ function renderArchive(){
   const groups = {};
   state.archive.forEach(t=>{ const w=t.weekCompleted||"Unknown"; if(!groups[w]) groups[w]=[]; groups[w].push(t); });
 
+  let weekIndex = 0;
   Object.keys(groups).forEach(week=>{
+    const wkId = "archweek-"+weekIndex++;
     const htr = document.createElement("tr"); htr.className="week-header";
     const htd = document.createElement("td"); htd.colSpan=7;
-    htd.textContent = week+" · "+weekRange(week)+" · "+groups[week].length+" task"+(groups[week].length!==1?"s":"");
+    htd.style.cursor = "pointer";
+    htd.style.userSelect = "none";
+    const label = week+" · "+weekRange(week)+" · "+groups[week].length+" task"+(groups[week].length!==1?"s":"");
+    htd.innerHTML = `<span>${label}</span><span id="toggle-${wkId}" style="float:right;font-size:12px;opacity:.8;">&#9650; Collapse</span>`;
+    htd.onclick = ()=>{
+      const rows = tbody.querySelectorAll("."+wkId);
+      const toggleEl = document.getElementById("toggle-"+wkId);
+      const isCollapsed = rows[0] && rows[0].style.display === "none";
+      rows.forEach(r=>r.style.display = isCollapsed ? "" : "none");
+      toggleEl.innerHTML = isCollapsed ? "&#9650; Collapse" : "&#9660; Expand";
+    };
     htr.appendChild(htd); tbody.appendChild(htr);
 
     groups[week].forEach((t,idx)=>{
-      const tr = document.createElement("tr"); tr.className="task-row";
+      const tr = document.createElement("tr"); tr.className="task-row "+wkId;
       const bg = idx%2===0?"#fff":"var(--gray)";
 
       const mkTd=(content,round)=>{
