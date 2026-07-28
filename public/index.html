@@ -1568,13 +1568,7 @@ document.getElementById("reportGenerateBtn").onclick = async () => {
 
   let narrative = "";
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        model:"claude-sonnet-4-6",
-        max_tokens:2000,
-        messages:[{role:"user",content:`You are writing a professional executive report for Killam Development, a commercial real estate development company in Laredo, Texas.
+    const briefPrompt = `You are writing a professional executive report for Killam Development, a commercial real estate development company in Laredo, Texas.
 
 Period covered: ${weekLabels}
 Pipeline summary: ${allTasks.length} total tasks | ${closed} Closed/Completed | ${loi} at LOI | ${started} in progress
@@ -1588,11 +1582,10 @@ Write a professional executive brief with the following structure:
 2. Then for EACH project (in its own paragraph), discuss: what the project is, who the prospect is, the deal type, any relevant project-level notes, and what specific progress was made on each task. Reference task notes to add color and detail.
 3. A closing paragraph highlighting key wins, outstanding items, and recommended next steps.
 
-Use professional commercial real estate language. Be specific — reference project names, prospect names, deal types, and task outcomes. Prose paragraphs only, no bullet points or headers.`}]
-      })
-    });
-    const data = await res.json();
-    narrative = (data.content||[]).map(c=>c.text||"").join("").trim();
+Use professional commercial real estate language. Be specific — reference project names, prospect names, deal types, and task outcomes. Prose paragraphs only, no bullet points or headers.`;
+
+    const res = await apiFetch("/api/generate-brief","POST",{prompt: briefPrompt});
+    narrative = res.text || "";
   } catch(e){ narrative = "AI narrative unavailable. Please review task details below."; }
 
   statusEl.textContent = "⏳ Building PDF…";
