@@ -430,21 +430,45 @@ select{cursor:pointer;}
 
 <!-- REPORT MODAL -->
 <div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:520px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <div>
-        <p style="font-size:15px;font-weight:700;color:var(--navy);margin:0;">Generate executive report</p>
-        <p style="font-size:12px;color:#888;margin:4px 0 0;">Select weeks to include in the report</p>
-      </div>
+  <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <p style="font-size:15px;font-weight:700;color:var(--navy);margin:0;">Generate executive report</p>
       <button id="reportModalClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <button id="reportSelectAll" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
-      <button id="reportSelectNone" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;">
+      <button id="tabByWeek" onclick="switchReportTab('week')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy);border-bottom:2px solid var(--navy);margin-bottom:-2px;">By Week</button>
+      <button id="tabByProject" onclick="switchReportTab('project')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;">By Project</button>
     </div>
-    <div id="reportWeekList" style="overflow-y:auto;flex:1;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;padding:8px;"></div>
-    <div id="reportStatus" style="font-size:12px;color:#888;margin-bottom:12px;min-height:18px;"></div>
-    <button id="reportGenerateBtn" class="btn-gold" style="padding:12px;width:100%;font-size:13px;"><i class="ti ti-file-text"></i> Generate PDF report</button>
+
+    <!-- By Week tab -->
+    <div id="reportTabWeek" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">Select one or more weeks to include in the report.</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button onclick="reportSelectAll('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
+        <button onclick="reportSelectNone('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
+      </div>
+      <div id="reportWeekList" style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;min-height:180px;"></div>
+    </div>
+
+    <!-- By Project tab -->
+    <div id="reportTabProject" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">Select one or more projects to include in the report. All tasks across all weeks will be included for each selected project.</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button onclick="reportSelectAll('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
+        <button onclick="reportSelectNone('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
+      </div>
+      <div id="reportProjectList" style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;min-height:180px;"></div>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:16px;">
+      <div id="reportStatus" style="font-size:12px;color:#888;margin-bottom:10px;min-height:18px;"></div>
+      <button id="reportGenerateBtn" class="btn-gold" style="padding:12px;width:100%;font-size:13px;"><i class="ti ti-file-text"></i> Generate PDF report</button>
+    </div>
   </div>
 </div>
 
@@ -1448,69 +1472,133 @@ document.getElementById("ipSave").onclick = async () => {
 };
 
 // ── Report generation ─────────────────────────────────────────
-document.getElementById("btnGenerateReport").onclick = () => {
-  // Build week list from archive
-  const groups = {};
-  state.archive.forEach(t=>{
-    const w = t.weekCompleted||"Unknown";
-    if(!groups[w]) groups[w] = [];
-    groups[w].push(t);
-  });
-  // Also include current week tasks
-  const currentWeek = state.weekId;
+let reportMode = "week"; // "week" or "project"
 
+function switchReportTab(mode){
+  reportMode = mode;
+  document.getElementById("reportTabWeek").style.display    = mode==="week"    ? "flex" : "none";
+  document.getElementById("reportTabProject").style.display = mode==="project" ? "flex" : "none";
+  document.getElementById("tabByWeek").style.color          = mode==="week"    ? "var(--navy)" : "#888";
+  document.getElementById("tabByWeek").style.borderBottomColor = mode==="week" ? "var(--navy)" : "transparent";
+  document.getElementById("tabByProject").style.color          = mode==="project" ? "var(--navy)" : "#888";
+  document.getElementById("tabByProject").style.borderBottomColor = mode==="project" ? "var(--navy)" : "transparent";
+}
+
+function reportSelectAll(mode){
+  const listId = mode==="week" ? "reportWeekList" : "reportProjectList";
+  document.getElementById(listId).querySelectorAll("input").forEach(cb=>cb.checked=true);
+}
+function reportSelectNone(mode){
+  const listId = mode==="week" ? "reportWeekList" : "reportProjectList";
+  document.getElementById(listId).querySelectorAll("input").forEach(cb=>cb.checked=false);
+}
+
+function buildWeekList(){
+  const groups = {};
+  state.archive.forEach(t=>{ const w=t.weekCompleted||"Unknown"; if(!groups[w]) groups[w]=[]; groups[w].push(t); });
   const weekList = document.getElementById("reportWeekList");
   weekList.innerHTML = "";
-  document.getElementById("reportStatus").textContent = "";
-
-  // Current week option
   const allWeeks = [];
   if(state.tasks.length){
-    allWeeks.push({id: currentWeek, label: currentWeek+" · "+weekRange(currentWeek)+" (current week)", tasks: state.tasks, isCurrent: true});
+    allWeeks.push({id:state.weekId, label:state.weekId+" · "+weekRange(state.weekId)+" (current week)", isCurrent:true});
   }
-  // Archived weeks (most recent first)
   Object.keys(groups).sort().reverse().forEach(w=>{
-    allWeeks.push({id: w, label: w+" · "+weekRange(w)+" · "+groups[w].length+" task"+(groups[w].length!==1?"s":""), tasks: groups[w], isCurrent: false});
+    allWeeks.push({id:w, label:w+" · "+weekRange(w)+" · "+groups[w].length+" task"+(groups[w].length!==1?"s":""), isCurrent:false});
   });
-
   if(!allWeeks.length){
-    weekList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No tasks or archive data yet.</p>';
-  } else {
-    allWeeks.forEach(wk=>{
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;";
-      row.innerHTML = `<input type="checkbox" id="wk-${wk.id}" value="${wk.id}" style="width:16px;height:16px;cursor:pointer;" ${wk.isCurrent?"checked":""}>
-        <label for="wk-${wk.id}" style="font-size:13px;color:var(--navy);cursor:pointer;flex:1;">${wk.label}</label>`;
-      row.onclick = (e)=>{ if(e.target.tagName!=="INPUT") row.querySelector("input").click(); };
-      weekList.appendChild(row);
-    });
+    weekList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No tasks yet.</p>';
+    return;
+  }
+  allWeeks.forEach(wk=>{
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;";
+    row.innerHTML = `<input type="checkbox" id="wk-${wk.id}" value="${wk.id}" style="width:16px;height:16px;cursor:pointer;" ${wk.isCurrent?"checked":""}><label for="wk-${wk.id}" style="font-size:13px;color:var(--navy);cursor:pointer;flex:1;">${wk.label}</label>`;
+    row.onclick = e=>{ if(e.target.tagName!=="INPUT") row.querySelector("input").click(); };
+    weekList.appendChild(row);
+  });
+}
+
+function buildProjectList(){
+  const projList = document.getElementById("reportProjectList");
+  projList.innerHTML = "";
+
+  // Collect all unique project names from tasks + archive + project directory
+  const projectNames = new Set();
+  [...state.tasks, ...state.archive].forEach(t=>{ if(t.title) projectNames.add(t.title.split(" — ")[0].trim()); });
+  (state.projects||[]).forEach(p=>{ if(p.name) projectNames.add(p.name); });
+
+  if(!projectNames.size){
+    projList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No projects yet.</p>';
+    return;
   }
 
+  const typeColor = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
+
+  [...projectNames].sort().forEach(name=>{
+    const projData = (state.projects||[]).find(p=>p.name===name || name.toLowerCase().includes(p.name.toLowerCase()));
+    const taskCount = [...state.tasks,...state.archive].filter(t=>(t.title||"").split(" — ")[0].trim()===name).length;
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:flex-start;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;";
+    const safeId = "proj-"+name.replace(/[^a-zA-Z0-9]/g,"_");
+    row.innerHTML = `<input type="checkbox" id="${safeId}" value="${name}" style="width:16px;height:16px;cursor:pointer;margin-top:2px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:var(--navy);">${name}</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">
+          ${projData?.address?projData.address+" · ":""}
+          ${projData?.type?`<span style="color:${typeColor(projData.type)};font-weight:600;">${projData.type}</span> · `:""}
+          ${taskCount} task${taskCount!==1?"s":""}
+        </div>
+      </div>`;
+    row.onclick = e=>{ if(e.target.tagName!=="INPUT") row.querySelector("input").click(); };
+    projList.appendChild(row);
+  });
+}
+
+document.getElementById("btnGenerateReport").onclick = () => {
+  document.getElementById("reportStatus").textContent = "";
+  reportMode = "week";
+  switchReportTab("week");
+  buildWeekList();
+  buildProjectList();
   document.getElementById("reportModal").style.display = "flex";
 };
 
 document.getElementById("reportModalClose").onclick = ()=>{ document.getElementById("reportModal").style.display="none"; };
-document.getElementById("reportSelectAll").onclick  = ()=>{ document.getElementById("reportWeekList").querySelectorAll("input").forEach(cb=>cb.checked=true); };
-document.getElementById("reportSelectNone").onclick = ()=>{ document.getElementById("reportWeekList").querySelectorAll("input").forEach(cb=>cb.checked=false); };
 
 document.getElementById("reportGenerateBtn").onclick = async () => {
-  const selected = [...document.getElementById("reportWeekList").querySelectorAll("input:checked")].map(cb=>cb.value);
-  if(!selected.length){ alert("Please select at least one week."); return; }
-
   const statusEl = document.getElementById("reportStatus");
   const btn      = document.getElementById("reportGenerateBtn");
-  btn.disabled   = true;
-  btn.textContent = "Generating…";
+  let allTasks   = [];
+  let reportTitle = "";
 
-  // Collect tasks for selected weeks
-  const allTasks = [];
-  selected.forEach(wk=>{
-    if(wk === state.weekId){
-      state.tasks.forEach(t=>allTasks.push({...t, weekCompleted: wk+" (current)"}));
-    } else {
-      state.archive.filter(t=>t.weekCompleted===wk).forEach(t=>allTasks.push(t));
-    }
-  });
+  if(reportMode === "week"){
+    const selected = [...document.getElementById("reportWeekList").querySelectorAll("input:checked")].map(cb=>cb.value);
+    if(!selected.length){ alert("Please select at least one week."); return; }
+    selected.forEach(wk=>{
+      if(wk === state.weekId){
+        state.tasks.forEach(t=>allTasks.push({...t, weekCompleted: wk+" (current)"}));
+      } else {
+        state.archive.filter(t=>t.weekCompleted===wk).forEach(t=>allTasks.push(t));
+      }
+    });
+    reportTitle = selected.map(w=>weekRange(w)).join(", ");
+  } else {
+    const selected = [...document.getElementById("reportProjectList").querySelectorAll("input:checked")].map(cb=>cb.value);
+    if(!selected.length){ alert("Please select at least one project."); return; }
+    // Collect ALL tasks (current + archive) matching selected projects
+    [...state.tasks.map(t=>({...t, weekCompleted:state.weekId+" (current)"})), ...state.archive].forEach(t=>{
+      const projName = (t.title||"").split(" — ")[0].trim();
+      if(selected.some(s=>s===projName || projName.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(projName.toLowerCase()))){
+        allTasks.push(t);
+      }
+    });
+    reportTitle = selected.join(", ");
+  }
+
+  if(!allTasks.length){ alert("No tasks found for the selected items."); return; }
+
+  btn.disabled = true;
+  btn.textContent = "Generating…";
 
   statusEl.textContent = "⏳ Capturing dashboard…";
   // Capture dashboard as image
@@ -1525,7 +1613,7 @@ document.getElementById("reportGenerateBtn").onclick = async () => {
   statusEl.textContent = "⏳ Generating AI narrative…";
 
   // Build prompt
-  const weekLabels = selected.map(w=>weekRange(w)).join(", ");
+  const weekLabels = reportTitle;
   const closed   = allTasks.filter(t=>t.status==="Closed"||t.status==="Completed").length;
   const loi      = allTasks.filter(t=>t.status==="LOI").length;
   const started  = allTasks.filter(t=>t.status==="Started").length;
