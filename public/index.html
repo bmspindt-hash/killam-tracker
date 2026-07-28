@@ -1748,14 +1748,13 @@ Use professional commercial real estate language. Be specific — reference proj
     doc.setTextColor(22,39,58); doc.setFontSize(11); doc.setFont("helvetica","bold");
     doc.text("Task Detail", margin, y); y+=7;
 
-    // Table header - landscape gives us more width
+    // Table header - landscape, no week column
     const cols = [
-      {label:"Project",  w:58},
-      {label:"Task",     w:68},
-      {label:"Status",   w:24},
-      {label:"Notes",    w:72},
-      {label:"Deadline", w:24},
-      {label:"Week",     w:contentW-58-68-24-72-24}
+      {label:"Project",  w:62},
+      {label:"Task",     w:70},
+      {label:"Status",   w:26},
+      {label:"Notes",    w:contentW-62-70-26-28},
+      {label:"Deadline", w:28}
     ];
     const hdrH = 8;
     let x = margin;
@@ -1772,8 +1771,7 @@ Use professional commercial real estate language. Be specific — reference proj
         doc.splitTextToSize(t.task||"—",     cols[1].w-3),
         doc.splitTextToSize(t.status||"—",   cols[2].w-3),
         doc.splitTextToSize(t.notes||"—",    cols[3].w-3),
-        doc.splitTextToSize(t.deadline||"—", cols[4].w-3),
-        doc.splitTextToSize(t.weekCompleted||"—", cols[5].w-3)
+        doc.splitTextToSize(t.deadline||"—", cols[4].w-3)
       ];
       const maxLines = Math.max(...rowData.map(r=>r.length));
       const rowH = Math.max(8, maxLines * 4.5 + 3);
