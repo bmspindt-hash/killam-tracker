@@ -1680,8 +1680,8 @@ Use professional commercial real estate language. Be specific — reference proj
 
   try {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"letter" });
-    const W = 215.9; const H = 279.4;
+    const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"letter" });
+    const W = 279.4; const H = 215.9;
     const margin = 16;
     const contentW = W - margin*2;
 
@@ -1748,31 +1748,56 @@ Use professional commercial real estate language. Be specific — reference proj
     doc.setTextColor(22,39,58); doc.setFontSize(11); doc.setFont("helvetica","bold");
     doc.text("Task Detail", margin, y); y+=7;
 
-    // Table header
-    const cols = [{label:"Project",w:45},{label:"Task",w:60},{label:"Status",w:22},{label:"Notes",w:55},{label:"Week",w:20}];
+    // Table header - landscape gives us more width
+    const cols = [
+      {label:"Project",  w:58},
+      {label:"Task",     w:68},
+      {label:"Status",   w:24},
+      {label:"Notes",    w:72},
+      {label:"Deadline", w:24},
+      {label:"Week",     w:contentW-58-68-24-72-24}
+    ];
+    const hdrH = 8;
     let x = margin;
-    doc.setFillColor(22,39,58); doc.rect(margin, y-4, contentW, 8, "F");
+    doc.setFillColor(22,39,58); doc.rect(margin, y-4, contentW, hdrH, "F");
     doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont("helvetica","bold");
-    cols.forEach(c=>{ doc.text(c.label.toUpperCase(), x+1, y+1); x+=c.w; });
-    y += 6;
+    cols.forEach(c=>{ doc.text(c.label.toUpperCase(), x+2, y+1); x+=c.w; });
+    y += hdrH;
 
-    // Table rows
+    // Table rows with proper text wrapping
     doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
     allTasks.forEach((t,i)=>{
-      const rowH = 8;
-      if(y + rowH > H-16){ doc.addPage(); y=20; }
-      if(i%2===0){ doc.setFillColor(247,245,240); doc.rect(margin, y-3, contentW, rowH, "F"); }
-      doc.setTextColor(30,30,30);
-      x = margin;
       const rowData = [
-        doc.splitTextToSize(t.title||"—", cols[0].w-2),
-        doc.splitTextToSize(t.task||"—",  cols[1].w-2),
-        doc.splitTextToSize(t.status||"—",cols[2].w-2),
-        doc.splitTextToSize(t.notes||"—", cols[3].w-2),
-        [t.weekCompleted||"—"]
+        doc.splitTextToSize(t.title||"—",    cols[0].w-3),
+        doc.splitTextToSize(t.task||"—",     cols[1].w-3),
+        doc.splitTextToSize(t.status||"—",   cols[2].w-3),
+        doc.splitTextToSize(t.notes||"—",    cols[3].w-3),
+        doc.splitTextToSize(t.deadline||"—", cols[4].w-3),
+        doc.splitTextToSize(t.weekCompleted||"—", cols[5].w-3)
       ];
       const maxLines = Math.max(...rowData.map(r=>r.length));
-      rowData.forEach((lines,ci)=>{ doc.text(lines[0]||"", x+1, y+1); x+=cols[ci].w; });
+      const rowH = Math.max(8, maxLines * 4.5 + 3);
+
+      if(y + rowH > H-16){
+        doc.addPage();
+        y = 20;
+        // Repeat header on new page
+        x = margin;
+        doc.setFillColor(22,39,58); doc.rect(margin, y-4, contentW, hdrH, "F");
+        doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont("helvetica","bold");
+        cols.forEach(c=>{ doc.text(c.label.toUpperCase(), x+2, y+1); x+=c.w; });
+        y += hdrH;
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+      }
+
+      if(i%2===0){ doc.setFillColor(247,245,240); } else { doc.setFillColor(255,255,255); }
+      doc.rect(margin, y-3, contentW, rowH, "F");
+      doc.setTextColor(30,30,30);
+      x = margin;
+      rowData.forEach((lines,ci)=>{
+        doc.text(lines, x+2, y+1);
+        x += cols[ci].w;
+      });
       y += rowH;
     });
 
