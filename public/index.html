@@ -1786,7 +1786,7 @@ Use professional commercial real estate language. Be specific — reference proj
       doc.text("Page "+i+" of "+pageCount, W-margin, H-6, {align:"right"});
     }
 
-    const filename = "Killam-Report-"+selected.join("-")+".pdf";
+    const filename = "Killam-Report-"+new Date().toISOString().slice(0,10)+".pdf";
     doc.save(filename);
     statusEl.textContent = "✓ Report downloaded!";
     setTimeout(()=>{ statusEl.textContent=""; }, 3000);
