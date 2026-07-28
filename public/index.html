@@ -1525,14 +1525,46 @@ document.getElementById("reportGenerateBtn").onclick = async () => {
   statusEl.textContent = "⏳ Generating AI narrative…";
 
   // Build prompt
-  const taskList = allTasks.map((t,i)=>
-    `${i+1}. Project: ${t.title||"—"} | Task: ${t.task||"—"} | Status: ${t.status||"—"} | Notes: ${t.notes||"—"} | Deadline: ${t.deadline||"—"} | Week: ${t.weekCompleted||"—"}`
-  ).join("\n");
-
   const weekLabels = selected.map(w=>weekRange(w)).join(", ");
   const closed   = allTasks.filter(t=>t.status==="Closed"||t.status==="Completed").length;
   const loi      = allTasks.filter(t=>t.status==="LOI").length;
   const started  = allTasks.filter(t=>t.status==="Started").length;
+
+  // Group tasks by project name and enrich with project directory data
+  const projectGroups = {};
+  allTasks.forEach(t=>{
+    const projName = (t.title||"General").split(" — ")[0].trim();
+    if(!projectGroups[projName]) projectGroups[projName] = {tasks:[], projectData:null};
+    projectGroups[projName].tasks.push(t);
+  });
+  // Enrich with project directory data
+  (state.projects||[]).forEach(p=>{
+    const key = Object.keys(projectGroups).find(k=>
+      k.toLowerCase().includes(p.name.toLowerCase()) ||
+      p.name.toLowerCase().includes(k.toLowerCase())
+    );
+    if(key) projectGroups[key].projectData = p;
+  });
+
+  // Build per-project context for prompt
+  const projectSections = Object.entries(projectGroups).map(([name, data])=>{
+    const p = data.projectData;
+    let section = `PROJECT: ${name}\n`;
+    if(p){
+      if(p.address)      section += `  Address: ${p.address}\n`;
+      if(p.type)         section += `  Type: ${p.type}\n`;
+      if(p.prospect)     section += `  Prospect: ${p.prospect}\n`;
+      if(p.sf)           section += `  Size: ${p.sf} SF\n`;
+      if(p.price_per_sf) section += `  Price: ${p.price_per_sf}/SF\n`;
+      if(p.status)       section += `  Deal status: ${p.status}\n`;
+      if(p.notes)        section += `  Project notes: ${p.notes}\n`;
+    }
+    section += `  Tasks this period:\n`;
+    data.tasks.forEach((t,i)=>{
+      section += `    ${i+1}. Task: ${t.task||"—"} | Status: ${t.status||"—"} | Notes: ${t.notes||"—"} | Deadline: ${t.deadline||"—"} | Week: ${t.weekCompleted||"—"}\n`;
+    });
+    return section;
+  }).join("\n");
 
   let narrative = "";
   try {
@@ -1541,22 +1573,22 @@ document.getElementById("reportGenerateBtn").onclick = async () => {
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
         model:"claude-sonnet-4-6",
-        max_tokens:1000,
-        messages:[{role:"user",content:`You are writing a professional executive report brief for Killam Development, a commercial real estate company in Laredo, Texas.
+        max_tokens:2000,
+        messages:[{role:"user",content:`You are writing a professional executive report for Killam Development, a commercial real estate development company in Laredo, Texas.
 
 Period covered: ${weekLabels}
-Total tasks: ${allTasks.length} | Closed/Completed: ${closed} | At LOI: ${loi} | In progress: ${started}
+Pipeline summary: ${allTasks.length} total tasks | ${closed} Closed/Completed | ${loi} at LOI | ${started} in progress
 
-Task details:
-${taskList}
+Below is the project-by-project breakdown. For each project, you are given the project details from our directory (address, type, prospect, size, price, notes) followed by the specific tasks and their notes from this reporting period.
 
-Write a focused 3-4 paragraph executive brief covering:
-1. Overall activity and pipeline momentum this period
-2. Key project highlights and deal milestones (LOI, closings, negotiations)  
-3. Notable outcomes and what moved forward
-4. Priority items and next steps
+${projectSections}
 
-Use professional real estate language. Be specific about project names. Prose paragraphs only, no bullet points.`}]
+Write a professional executive brief with the following structure:
+1. A short opening paragraph summarizing overall pipeline activity and momentum for the period.
+2. Then for EACH project (in its own paragraph), discuss: what the project is, who the prospect is, the deal type, any relevant project-level notes, and what specific progress was made on each task. Reference task notes to add color and detail.
+3. A closing paragraph highlighting key wins, outstanding items, and recommended next steps.
+
+Use professional commercial real estate language. Be specific — reference project names, prospect names, deal types, and task outcomes. Prose paragraphs only, no bullet points or headers.`}]
       })
     });
     const data = await res.json();
