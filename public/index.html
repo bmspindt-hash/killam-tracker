@@ -150,11 +150,22 @@ select{cursor:pointer;}
           <div id="detailProjectMeta" style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;"></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="btnDetailAddNote" class="btn-ghost" style="padding:7px 14px;font-size:11px;"><i class="ti ti-notes"></i> Add note</button>
           <button id="btnDetailEditProject" class="btn-ghost" style="padding:7px 14px;font-size:11px;"><i class="ti ti-pencil"></i> Edit project</button>
           <button id="btnDetailAddTask" class="btn-gold" style="padding:7px 14px;font-size:11px;"><i class="ti ti-plus"></i> Add task</button>
         </div>
       </div>
       <div id="detailProjectNotes" style="margin-top:12px;padding:10px;background:rgba(255,255,255,.08);border-radius:6px;font-size:12px;color:#cfd6dd;display:none;"></div>
+      <!-- Quick add note -->
+      <div id="detailQuickNote" style="display:none;margin-top:10px;">
+        <div style="display:flex;gap:8px;">
+          <textarea id="detailNoteText" placeholder="Type your note..." style="flex:1;padding:8px 12px;border:none;border-radius:6px;font-family:inherit;font-size:12px;min-height:50px;resize:none;background:rgba(255,255,255,.12);color:#fff;"></textarea>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button id="detailNoteSave" style="padding:6px 12px;background:var(--gold);color:#1c1305;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">Save</button>
+            <button id="detailNoteCancel" style="padding:6px 12px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:11px;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Project tasks table -->
@@ -278,8 +289,14 @@ select{cursor:pointer;}
         <input id="pfPriceSf" type="text" placeholder="e.g. $18.50" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Notes</label>
-        <textarea id="pfNotes" placeholder="Additional project notes..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;"></textarea>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
+        <!-- New note entry -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <textarea id="pfNewNote" placeholder="Add a new note..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:60px;resize:vertical;"></textarea>
+          <button id="pfAddNote" type="button" style="padding:8px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;align-self:flex-start;">+ Add note</button>
+        </div>
+        <!-- Journal entries list -->
+        <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;display:none;"></div>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;">
@@ -982,10 +999,21 @@ function openProjectDetail(projectId){
     p.price_per_sf && `<span style="font-size:11px;color:#cfd6dd;">$${p.price_per_sf}/SF</span>`,
   ].filter(Boolean).join("");
 
-  // Notes
+  // Notes journal
   const notesEl = document.getElementById("detailProjectNotes");
-  if(p.notes){ notesEl.textContent = p.notes; notesEl.style.display="block"; }
-  else { notesEl.style.display="none"; }
+  const entries = parseNotes(p.notes);
+  if(entries.length){
+    notesEl.style.display="block";
+    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal</div>' +
+      entries.map(e=>`<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);align-items:flex-start;">
+        <div style="width:5px;height:5px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${formatNoteDate(e.date)}</div>
+          <div style="font-size:12px;color:#e0e0e0;line-height:1.5;">${e.text}</div>
+        </div></div>`).join("");
+  } else { notesEl.style.display="none"; }
+
+
 
   hideAllViews();
   document.getElementById("projectDetailView").style.display = "block";
@@ -1076,6 +1104,37 @@ function renderDetailTasks(p){
 }
 
 document.getElementById("btnBackToBoard").onclick = showProjectBoard;
+
+document.getElementById("btnDetailAddNote").onclick = ()=>{
+  const qn = document.getElementById("detailQuickNote");
+  qn.style.display = qn.style.display==="none" ? "block" : "none";
+  if(qn.style.display==="block") document.getElementById("detailNoteText").focus();
+};
+
+document.getElementById("detailNoteCancel").onclick = ()=>{
+  document.getElementById("detailQuickNote").style.display = "none";
+  document.getElementById("detailNoteText").value = "";
+};
+
+document.getElementById("detailNoteSave").onclick = async()=>{
+  const text = document.getElementById("detailNoteText").value.trim();
+  if(!text) return;
+  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
+  if(!p) return;
+  const entries = parseNotes(p.notes);
+  entries.unshift({date: new Date().toISOString(), text});
+  p.notes = serializeNotes(entries);
+  await apiFetch("/api/projects/"+p.id,"PUT",{
+    name:p.name, address:p.address, prospect:p.prospect,
+    type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
+    status:p.status, notes:p.notes
+  });
+  document.getElementById("detailNoteText").value = "";
+  document.getElementById("detailQuickNote").style.display = "none";
+  // Refresh detail view
+  openProjectDetail(p.id);
+  toast("Note saved","#2e7d32");
+};
 document.getElementById("btnDetailEditProject").onclick = ()=>{
   const p=(state.projects||[]).find(x=>x.id===currentProjectId);
   if(p){ showProjectForm(p); showProjects(); }
@@ -1148,6 +1207,44 @@ function toggleProjectNotes(id){
   el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
+// ── Project Journal helpers ────────────────────────────────────
+function parseNotes(raw){
+  if(!raw) return [];
+  // Already JSON array?
+  try {
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed)) return parsed;
+  } catch(e){}
+  // Plain text — wrap as legacy entry
+  return [{date:"Previous notes", text:raw.trim()}];
+}
+
+function serializeNotes(entries){
+  return JSON.stringify(entries);
+}
+
+function formatNoteDate(d){
+  if(d==="Previous notes") return "Previous notes";
+  try { return new Date(d).toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}); }
+  catch(e){ return d; }
+}
+
+function renderNotesList(entries, containerId){
+  const el = document.getElementById(containerId);
+  if(!entries.length){ el.style.display="none"; return; }
+  el.style.display="block";
+  el.innerHTML = entries.map(e=>`
+    <div style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);align-items:flex-start;">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
+      <div style="flex:1;">
+        <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:2px;">${formatNoteDate(e.date)}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.5;">${e.text}</div>
+      </div>
+    </div>`).join("");
+}
+
+let currentFormNotes = []; // working copy of notes in the form
+
 function showProjectForm(project){
   editingProjectId = project ? project.id : null;
   document.getElementById("projectFormTitle").textContent = project ? "Edit project" : "Add project";
@@ -1157,10 +1254,20 @@ function showProjectForm(project){
   document.getElementById("pfType").value    = project?.type         || "";
   document.getElementById("pfSf").value      = project?.sf           || "";
   document.getElementById("pfPriceSf").value = project?.price_per_sf || "";
-  document.getElementById("pfNotes").value   = project?.notes        || "";
+  document.getElementById("pfNewNote").value = "";
+  currentFormNotes = parseNotes(project?.notes || "");
+  renderNotesList(currentFormNotes, "pfNotesList");
   document.getElementById("projectForm").style.display = "block";
   document.getElementById("pfName").focus();
 }
+
+document.getElementById("pfAddNote").onclick = ()=>{
+  const text = document.getElementById("pfNewNote").value.trim();
+  if(!text) return;
+  currentFormNotes.unshift({date: new Date().toISOString(), text});
+  document.getElementById("pfNewNote").value = "";
+  renderNotesList(currentFormNotes, "pfNotesList");
+};
 
 function editProject(id){
   const p = (state.projects||[]).find(x=>x.id===id);
@@ -1193,7 +1300,7 @@ document.getElementById("pfSave").onclick = async () => {
   const type        = document.getElementById("pfType").value;
   const sf          = document.getElementById("pfSf").value.trim();
   const price_per_sf= document.getElementById("pfPriceSf").value.trim();
-  const notes       = document.getElementById("pfNotes").value.trim();
+  const notes       = serializeNotes(currentFormNotes);
   if(!name){ alert("Project name is required"); return; }
 
   if(editingProjectId){
