@@ -925,7 +925,12 @@ function renderProjectBoard(){
   // Render closed projects section
   if(closedProjects.length){
     const closedSection = document.createElement("div");
-    closedSection.style.cssText = "margin-top:24px;";
+    closedSection.style.cssText = "margin-top:8px;";
+
+    // Horizontal divider
+    const divider = document.createElement("hr");
+    divider.style.cssText = "border:none;border-top:2px solid var(--border);margin:0 0 20px;";
+    closedSection.appendChild(divider);
 
     // Collapsible header
     const closedId = "closedProjectsBody";
