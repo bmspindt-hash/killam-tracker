@@ -134,8 +134,29 @@ select{cursor:pointer;}
         <button id="btnNewWeek" class="btn-gold" style="padding:8px 16px;"><i class="ti ti-refresh"></i> Start new week</button>
       </div>
     </div>
-    <div id="projectBoardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;"></div>
-    <p id="projectBoardEmpty" class="empty-msg" style="display:none;">No projects yet. Click New project to get started.</p>
+    <!-- Active projects panel -->
+    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div>
+          <p style="font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.07em;margin:0;">Active projects</p>
+          <p id="activeProjectCount" style="font-size:11px;color:#888;margin:2px 0 0;"></p>
+        </div>
+      </div>
+      <div id="projectBoardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
+      <p id="projectBoardEmpty" class="empty-msg" style="display:none;">No active projects. Click New project to get started.</p>
+    </div>
+
+    <!-- Closed projects panel -->
+    <div id="closedProjectsPanel" style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:16px;display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="toggleClosedPanel()">
+        <div>
+          <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin:0;">Closed / Completed / Dead</p>
+          <p id="closedProjectCount" style="font-size:11px;color:#aaa;margin:2px 0 0;"></p>
+        </div>
+        <button id="closedPanelToggleBtn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">&#9660; Expand</button>
+      </div>
+      <div id="closedProjectsGrid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;opacity:.8;"></div>
+    </div>
   </div>
 
   <!-- PROJECT DETAIL VIEW -->
@@ -886,9 +907,6 @@ function renderProjectBoard(){
   const openProjects   = allFiltered.filter(p=>!CLOSED_STATUSES.includes(p.status));
   const closedProjects = allFiltered.filter(p=>CLOSED_STATUSES.includes(p.status));
 
-  grid.innerHTML = "";
-  empty.style.display = allFiltered.length ? "none" : "block";
-
   const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
   const statusBadge= s=>{
     const colors = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#2e7d32","Dead":"#c62828","Working on other":"#e65100"};
@@ -936,44 +954,34 @@ function renderProjectBoard(){
     return card;
   }
 
-  // Render open projects
+  // Active projects panel
+  const grid  = document.getElementById("projectBoardGrid");
+  const empty = document.getElementById("projectBoardEmpty");
+  grid.innerHTML = "";
+  empty.style.display = openProjects.length ? "none" : "block";
+  document.getElementById("activeProjectCount").textContent = openProjects.length+" project"+(openProjects.length!==1?"s":"");
   openProjects.forEach(p=>grid.appendChild(buildCard(p)));
 
-  // Render closed projects section
+  // Closed projects panel
+  const closedPanel = document.getElementById("closedProjectsPanel");
+  const closedGrid  = document.getElementById("closedProjectsGrid");
   if(closedProjects.length){
-    const closedSection = document.createElement("div");
-    closedSection.style.cssText = "margin-top:8px;";
-
-    // Horizontal divider
-    const divider = document.createElement("hr");
-    divider.style.cssText = "border:none;border-top:2px solid var(--border);margin:0 0 20px;";
-    closedSection.appendChild(divider);
-
-    // Collapsible header
-    const closedId = "closedProjectsBody";
-    let isCollapsed = localStorage.getItem("closedProjectsCollapsed") === "true";
-    const header = document.createElement("div");
-    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;padding:10px 18px;border-radius:999px;cursor:pointer;margin-bottom:12px;";
-    header.innerHTML = `<span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Closed / Completed / Dead &nbsp;·&nbsp; ${closedProjects.length} project${closedProjects.length!==1?"s":""}</span>
-      <span id="closedToggleIcon" style="font-size:12px;">${isCollapsed?"&#9660; Expand":"&#9650; Collapse"}</span>`;
-    header.onclick = ()=>{
-      isCollapsed = !isCollapsed;
-      localStorage.setItem("closedProjectsCollapsed", isCollapsed);
-      document.getElementById(closedId).style.display = isCollapsed ? "none" : "grid";
-      document.getElementById("closedToggleIcon").innerHTML = isCollapsed ? "&#9660; Expand" : "&#9650; Collapse";
-    };
-
-    const closedGrid = document.createElement("div");
-    closedGrid.id = closedId;
-    closedGrid.style.cssText = "display:"+(isCollapsed?"none":"grid")+";grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;opacity:.75;";
+    closedPanel.style.display = "block";
+    closedGrid.innerHTML = "";
+    document.getElementById("closedProjectCount").textContent = closedProjects.length+" project"+(closedProjects.length!==1?"s":"");
     closedProjects.forEach(p=>closedGrid.appendChild(buildCard(p)));
-
-    closedSection.appendChild(header);
-    closedSection.appendChild(closedGrid);
-    grid.appendChild(closedSection);
+  } else {
+    closedPanel.style.display = "none";
   }
 }
 
+function toggleClosedPanel(){
+  const g   = document.getElementById("closedProjectsGrid");
+  const btn = document.getElementById("closedPanelToggleBtn");
+  const collapsed = g.style.display==="none"||g.style.display==="";
+  g.style.display = collapsed ? "grid" : "none";
+  btn.innerHTML   = collapsed ? "&#9650; Collapse" : "&#9660; Expand";
+}
 document.getElementById("projectBoardSearch").oninput = ()=>renderProjectBoard();
 document.getElementById("projectBoardFilter").onchange = ()=>renderProjectBoard();
 document.getElementById("btnAddProjectBoard").onclick = ()=>{ showProjectForm(null); showProjects(); };
