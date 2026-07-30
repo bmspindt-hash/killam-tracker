@@ -1428,8 +1428,6 @@ document.getElementById("pickerDone").onclick = () => {
 
 loadState();
 
-document.getElementById("btnReload").onclick = loadState;
-
 document.getElementById("btnExport").onclick = ()=>{
   const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
