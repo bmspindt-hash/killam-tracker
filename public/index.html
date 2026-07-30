@@ -103,20 +103,91 @@ select{cursor:pointer;}
       </div>
     </div>
     <div id="hbtns">
-      <button id="btnAdd" class="btn-blue"><i class="ti ti-plus"></i> Add task</button>
-      <button id="btnNewWeek" class="btn-gold"><i class="ti ti-refresh"></i> Start new week</button>
-      <button id="btnReload" class="btn-ghost"><i class="ti ti-rotate"></i> Reload</button>
-      <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
+      <button id="btnProjects" class="btn-blue"><i class="ti ti-building"></i> Projects</button>
+      <button id="btnThisWeek" class="btn-ghost"><i class="ti ti-calendar-week"></i> This week</button>
       <button id="btnDashboard" class="btn-ghost"><i class="ti ti-chart-bar"></i> Dashboard</button>
       <button id="btnContacts" class="btn-ghost"><i class="ti ti-address-book"></i> Contacts</button>
-      <button id="btnProjects" class="btn-ghost"><i class="ti ti-building"></i> Projects</button>
-      <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> View archive</button>
-      <button id="btnCurrent" class="btn-white" style="display:none;"><i class="ti ti-arrow-left"></i> Current week</button>
+      <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> Archive</button>
+      <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
       <button id="btnLogout" class="btn-ghost" style="border-color:rgba(255,100,100,.5);"><i class="ti ti-logout"></i> Sign out</button>
     </div>
   </div>
 
   <div id="loadingMsg" class="view empty-msg">Loading tasks…</div>
+
+  <!-- PROJECT BOARD (default home) -->
+  <div id="projectBoardView" class="view" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div>
+        <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0;">Killam Development</p>
+        <h2 style="font-size:18px;font-weight:600;color:var(--navy);margin:4px 0 0;">Project board</h2>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input id="projectBoardSearch" type="text" placeholder="Search projects…" style="padding:7px 12px;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:12px;width:200px;">
+        <select id="projectBoardFilter" style="padding:7px 12px;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:12px;cursor:pointer;">
+          <option value="">All types</option>
+          <option value="Lease">Lease</option>
+          <option value="Purchase">Purchase</option>
+          <option value="Sale">Sale</option>
+        </select>
+        <button id="btnAddProjectBoard" class="btn-blue" style="padding:8px 16px;"><i class="ti ti-plus"></i> New project</button>
+        <button id="btnNewWeek" class="btn-gold" style="padding:8px 16px;"><i class="ti ti-refresh"></i> Start new week</button>
+      </div>
+    </div>
+    <div id="projectBoardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;"></div>
+    <p id="projectBoardEmpty" class="empty-msg" style="display:none;">No projects yet. Click New project to get started.</p>
+  </div>
+
+  <!-- PROJECT DETAIL VIEW -->
+  <div id="projectDetailView" class="view" style="display:none;">
+    <!-- Header with back button -->
+    <div style="background:var(--navy);border-radius:8px;padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <button id="btnBackToBoard" style="background:none;border:none;color:var(--gold);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;padding:0;margin-bottom:8px;"><i class="ti ti-arrow-left"></i> Back to projects</button>
+          <h2 id="detailProjectName" style="color:#fff;font-size:20px;font-weight:600;margin:0;"></h2>
+          <p id="detailProjectAddress" style="color:#cfd6dd;font-size:13px;margin:4px 0 0;"></p>
+          <div id="detailProjectMeta" style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="btnDetailEditProject" class="btn-ghost" style="padding:7px 14px;font-size:11px;"><i class="ti ti-pencil"></i> Edit project</button>
+          <button id="btnDetailAddTask" class="btn-gold" style="padding:7px 14px;font-size:11px;"><i class="ti ti-plus"></i> Add task</button>
+        </div>
+      </div>
+      <div id="detailProjectNotes" style="margin-top:12px;padding:10px;background:rgba(255,255,255,.08);border-radius:6px;font-size:12px;color:#cfd6dd;display:none;"></div>
+    </div>
+
+    <!-- Project tasks table -->
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:separate;border-spacing:0 5px;font-size:13px;">
+        <thead>
+          <tr>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;border-radius:999px 0 0 999px;padding-left:14px;width:32px;"></th>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:200px;">Task</th>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:120px;">Status</th>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:200px;">Status notes</th>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:110px;">Deadline</th>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:180px;">Contact</th>
+            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;border-radius:0 999px 999px 0;padding-right:14px;width:36px;"></th>
+          </tr>
+        </thead>
+        <tbody id="detailTaskBody"></tbody>
+      </table>
+    </div>
+    <p id="detailTaskEmpty" class="empty-msg" style="display:none;">No tasks for this project yet. Click Add task to get started.</p>
+  </div>
+
+  <!-- THIS WEEK VIEW (former active view) -->
+  <div id="thisWeekView" class="view" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div>
+        <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0;">Weekly tracker</p>
+        <h2 id="weekLabel" style="font-size:18px;font-weight:600;color:var(--navy);margin:4px 0 0;"></h2>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button id="btnAdd" class="btn-blue" style="padding:8px 16px;"><i class="ti ti-plus"></i> Add task</button>
+      </div>
+    </div>
 
   <div id="activeView" class="view" style="display:none;">
     <div style="overflow-x:auto;">
@@ -135,7 +206,8 @@ select{cursor:pointer;}
       </table>
     </div>
     <p id="emptyMsg" class="empty-msg" style="display:none;">No tasks yet this week. Click Add task to get started.</p>
-  </div>
+  </div><!-- end activeView -->
+  </div><!-- end thisWeekView -->
 
   <div id="archiveView" class="view" style="display:none;">
     <div id="archSecHdr">
@@ -556,8 +628,7 @@ async function loadState(){
     if(!state.contacts) state.contacts = [];
     if(!state.projects) state.projects = [];
     document.getElementById("loadingMsg").style.display = "none";
-    document.getElementById("activeView").style.display = "block";
-    render();
+    showProjectBoard();
   } catch(e) {
     console.error("Load error:", e);
     if(!e.message.includes("Session expired")){
@@ -778,6 +849,203 @@ document.getElementById("btnAdd").onclick = async()=>{
   render();
 };
 
+// ── Project Board ──────────────────────────────────────────────
+let currentProjectId = null;
+
+function renderProjectBoard(){
+  const grid  = document.getElementById("projectBoardGrid");
+  const empty = document.getElementById("projectBoardEmpty");
+  const search = document.getElementById("projectBoardSearch").value.toLowerCase();
+  const filter = document.getElementById("projectBoardFilter").value;
+  const projects = (state.projects||[]).filter(p=>{
+    const matchSearch = !search || p.name.toLowerCase().includes(search) || (p.address||"").toLowerCase().includes(search) || (p.prospect||"").toLowerCase().includes(search);
+    const matchFilter = !filter || p.type===filter;
+    return matchSearch && matchFilter;
+  });
+
+  grid.innerHTML = "";
+  empty.style.display = projects.length ? "none" : "block";
+
+  const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
+  const statusBadge= s=>{
+    const colors = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#2e7d32","Dead":"#c62828","Working on other":"#e65100"};
+    const c = colors[s]||"#888";
+    return s?`<span style="font-size:10px;font-weight:700;color:${c};background:${c}18;padding:3px 10px;border-radius:999px;">${s}</span>`:"";
+  };
+
+  const allTasks = [...state.tasks, ...state.archive];
+
+  projects.forEach(p=>{
+    const taskCount = allTasks.filter(t=>{
+      const tName = (t.title||"").split(" — ")[0].trim();
+      return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase());
+    }).length;
+    const activeTasks = state.tasks.filter(t=>{
+      const tName = (t.title||"").split(" — ")[0].trim();
+      return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase());
+    }).length;
+
+    const card = document.createElement("div");
+    card.style.cssText = "background:#fff;border-radius:10px;padding:18px;border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s;position:relative;";
+    card.onmouseenter = ()=>card.style.boxShadow="0 4px 16px rgba(0,0,0,.1)";
+    card.onmouseleave = ()=>card.style.boxShadow="none";
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:3px;">${p.name}</div>
+          ${p.address?`<div style="font-size:12px;color:#888;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>`:""}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;">
+          ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};white-space:nowrap;">${p.type}</span>`:""}
+          ${activeTasks>0?`<span style="font-size:10px;background:var(--navy);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700;">${activeTasks} active</span>`:""}
+        </div>
+      </div>
+      ${p.prospect?`<div style="font-size:12px;color:#555;margin-bottom:6px;"><i class="ti ti-user" style="margin-right:3px;"></i>${p.prospect}</div>`:""}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        ${statusBadge(p.status)}
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${(p.sf||p.price_per_sf)?`<span style="font-size:11px;color:#888;">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</span>`:""}
+          <span style="font-size:11px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
+        </div>
+      </div>
+    `;
+    card.onclick = ()=>openProjectDetail(p.id);
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById("projectBoardSearch").oninput = ()=>renderProjectBoard();
+document.getElementById("projectBoardFilter").onchange = ()=>renderProjectBoard();
+document.getElementById("btnAddProjectBoard").onclick = ()=>{ showProjectForm(null); showProjects(); };
+
+// ── Project Detail ─────────────────────────────────────────────
+function openProjectDetail(projectId){
+  currentProjectId = projectId;
+  const p = (state.projects||[]).find(x=>x.id===projectId);
+  if(!p) return;
+
+  const typeColor = t=>t==="Lease"?"#b8924f":t==="Purchase"?"#6fcf97":t==="Sale"?"#f2994a":"#cfd6dd";
+
+  document.getElementById("detailProjectName").textContent = p.name;
+  document.getElementById("detailProjectAddress").textContent = p.address||"";
+
+  // Meta badges
+  const meta = document.getElementById("detailProjectMeta");
+  meta.innerHTML = [
+    p.type    && `<span style="font-size:11px;font-weight:700;color:${typeColor(p.type)};background:rgba(255,255,255,.15);padding:3px 10px;border-radius:999px;">${p.type}</span>`,
+    p.status  && `<span style="font-size:11px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:999px;">${p.status}</span>`,
+    p.prospect&& `<span style="font-size:11px;color:#cfd6dd;"><i class="ti ti-user"></i> ${p.prospect}</span>`,
+    p.sf      && `<span style="font-size:11px;color:#cfd6dd;"><i class="ti ti-ruler"></i> ${p.sf} SF</span>`,
+    p.price_per_sf && `<span style="font-size:11px;color:#cfd6dd;">$${p.price_per_sf}/SF</span>`,
+  ].filter(Boolean).join("");
+
+  // Notes
+  const notesEl = document.getElementById("detailProjectNotes");
+  if(p.notes){ notesEl.textContent = p.notes; notesEl.style.display="block"; }
+  else { notesEl.style.display="none"; }
+
+  hideAllViews();
+  document.getElementById("projectDetailView").style.display = "block";
+  renderDetailTasks(p);
+}
+
+function renderDetailTasks(p){
+  const tbody  = document.getElementById("detailTaskBody");
+  const empty  = document.getElementById("detailTaskEmpty");
+  tbody.innerHTML = "";
+
+  // Match tasks to this project
+  const projTasks = state.tasks.filter(t=>{
+    const tName = (t.title||"").split(" — ")[0].trim();
+    return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase()) || (t.title||"").includes(p.name);
+  });
+
+  empty.style.display = projTasks.length ? "none" : "block";
+  const today = todayStr();
+
+  projTasks.forEach((t,idx)=>{
+    const tr = document.createElement("tr");
+    tr.className = "task-row";
+    const bg = idx%2===0?"#fff":"var(--gray)";
+    if(!t.done && t.deadline){
+      if(t.deadline===today) tr.className+=" due-today";
+      else if(t.deadline<today) tr.className+=" overdue";
+    }
+
+    const mkTd=(content,round,extraStyle)=>{
+      const td=document.createElement("td");
+      td.style.background=bg; td.style.color="var(--text)"; td.style.padding="8px 8px"; td.style.verticalAlign="top";
+      if(round==="left"){ td.style.borderRadius="999px 0 0 999px"; td.style.paddingLeft="14px"; }
+      if(round==="right"){ td.style.borderRadius="0 999px 999px 0"; td.style.paddingRight="14px"; }
+      if(extraStyle) Object.assign(td.style, extraStyle);
+      if(content) td.appendChild(content);
+      return td;
+    };
+
+    // Checkbox
+    const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=!!t.done;
+    cb.style="width:16px;height:16px;cursor:pointer;";
+    cb.onchange = async()=>{ t.done=cb.checked; await saveTask(t); renderDetailTasks(p); };
+    tr.appendChild(mkTd(cb,"left"));
+
+    // Task textarea
+    const taskTa = mkTa(t.task, v=>{ t.task=v; scheduleSave(t); }, "Task description");
+    tr.appendChild(mkTd(taskTa));
+
+    // Status
+    const sel = document.createElement("select");
+    STATUSES.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; if(t.status===s) o.selected=true; sel.appendChild(o); });
+    sel.onchange = async()=>{ t.status=sel.value; await saveTask(t); };
+    tr.appendChild(mkTd(sel));
+
+    // Notes
+    const notesTa = mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes");
+    tr.appendChild(mkTd(notesTa));
+
+    // Deadline
+    const dl = document.createElement("input"); dl.type="date"; dl.value=t.deadline||"";
+    if(!t.done && t.deadline){
+      if(t.deadline===today){ dl.style.color="#8a4a12"; dl.style.fontWeight="600"; }
+      else if(t.deadline<today){ dl.style.color="#a32d2d"; dl.style.fontWeight="600"; }
+    }
+    dl.onchange = async()=>{ t.deadline=dl.value; await saveTask(t); renderDetailTasks(p); };
+    tr.appendChild(mkTd(dl));
+
+    // Contact with picker
+    const ctWrap = document.createElement("div"); ctWrap.style.cssText="display:flex;gap:4px;align-items:flex-start;";
+    const ctTa = mkTa(t.contact, v=>{ t.contact=v; scheduleSave(t); }, "Contact info"); ctTa.style.flex="1";
+    const pickBtn = document.createElement("button");
+    pickBtn.innerHTML='<i class="ti ti-address-book"></i>';
+    pickBtn.style.cssText="padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
+    pickBtn.onclick=()=>openContactPicker(val=>{ ctTa.value=val; t.contact=val; scheduleSave(t); });
+    ctWrap.appendChild(ctTa); ctWrap.appendChild(pickBtn);
+    tr.appendChild(mkTd(ctWrap));
+
+    // Delete
+    const del = document.createElement("button");
+    del.innerHTML='<i class="ti ti-trash"></i>';
+    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--navy);border-radius:999px;font-size:13px;cursor:pointer;";
+    del.onclick=async()=>{ await apiFetch("/api/tasks/"+t.id,"DELETE"); state.tasks=state.tasks.filter(x=>x.id!==t.id); renderDetailTasks(p); };
+    tr.appendChild(mkTd(del,"right"));
+
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("btnBackToBoard").onclick = showProjectBoard;
+document.getElementById("btnDetailEditProject").onclick = ()=>{
+  const p=(state.projects||[]).find(x=>x.id===currentProjectId);
+  if(p){ showProjectForm(p); showProjects(); }
+};
+document.getElementById("btnDetailAddTask").onclick = async()=>{
+  const p=(state.projects||[]).find(x=>x.id===currentProjectId);
+  const title = p ? p.name+" — "+p.address : "";
+  const t={id:uid(),title:title.trim(),task:"",status:"Not started",notes:"",deadline:"",contact:"",done:false};
+  await apiFetch("/api/tasks","POST",{...t,week_id:state.weekId});
+  state.tasks.push(t);
+  renderDetailTasks(p);
+};
+
 document.getElementById("btnNewWeek").onclick = async()=>{
   if(!confirm("Archive all completed tasks and start a new week?")) return;
   const res = await apiFetch("/api/newweek","POST");
@@ -789,17 +1057,13 @@ document.getElementById("btnNewWeek").onclick = async()=>{
 let editingProjectId = null;
 
 function showProjects(){
-  ["activeView","archiveView","dashboardView","contactsView"].forEach(id=>
-    document.getElementById(id).style.display="none");
+  hideAllViews();
   document.getElementById("projectsView").style.display = "block";
-  document.getElementById("btnCurrent").style.display = "none";
-  document.getElementById("btnArchive").style.display = "inline-flex";
   renderProjects();
 }
 
 function hideProjects(){
-  document.getElementById("projectsView").style.display = "none";
-  document.getElementById("activeView").style.display = "block";
+  showProjectBoard();
 }
 
 function renderProjects(){
@@ -906,7 +1170,8 @@ document.getElementById("pfSave").onclick = async () => {
   renderProjects();
 };
 
-document.getElementById("btnProjects").onclick    = showProjects;
+document.getElementById("btnProjects").onclick = showProjectBoard;
+document.getElementById("btnThisWeek").onclick = showThisWeek;
 document.getElementById("btnProjectsBack").onclick = hideProjects;
 
 // ── Project Picker ─────────────────────────────────────────────
@@ -957,19 +1222,34 @@ document.getElementById("projPickerClose").onclick  = () => {
 let editingContactId = null;
 let pickerCallback   = null;
 
+// ── View management ───────────────────────────────────────────
+const ALL_VIEWS = ["projectBoardView","projectDetailView","thisWeekView","activeView","archiveView","dashboardView","contactsView","projectsView"];
+
+function hideAllViews(){
+  ALL_VIEWS.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+}
+
+function showProjectBoard(){
+  hideAllViews();
+  document.getElementById("projectBoardView").style.display = "block";
+  renderProjectBoard();
+}
+
+function showThisWeek(){
+  hideAllViews();
+  document.getElementById("thisWeekView").style.display = "block";
+  document.getElementById("activeView").style.display   = "block";
+  render();
+}
+
 function showContacts(){
-  document.getElementById("activeView").style.display    = "none";
-  document.getElementById("archiveView").style.display   = "none";
-  document.getElementById("dashboardView").style.display = "none";
-  document.getElementById("contactsView").style.display  = "block";
-  document.getElementById("btnCurrent").style.display    = "none";
-  document.getElementById("btnArchive").style.display    = "inline-flex";
+  hideAllViews();
+  document.getElementById("contactsView").style.display = "block";
   renderContacts();
 }
 
 function hideContacts(){
-  document.getElementById("contactsView").style.display = "none";
-  document.getElementById("activeView").style.display   = "block";
+  showProjectBoard();
 }
 
 function renderContacts(){
@@ -1158,22 +1438,17 @@ document.getElementById("btnExport").onclick = ()=>{
   a.click(); URL.revokeObjectURL(url);
 };
 
-document.getElementById("btnArchive").onclick = ()=>{
-  document.getElementById("activeView").style.display="none";
+document.getElementById("btnArchive").onclick = showArchive;
+function showArchive(){
+  hideAllViews();
   document.getElementById("archiveView").style.display="block";
-  document.getElementById("btnArchive").style.display="none";
-  document.getElementById("btnCurrent").style.display="inline-flex";
   renderArchive();
-};
+}
 
 function goActive(){
-  document.getElementById("archiveView").style.display="none";
-  document.getElementById("activeView").style.display="block";
-  document.getElementById("btnCurrent").style.display="none";
-  document.getElementById("btnArchive").style.display="inline-flex";
+  showProjectBoard();
 }
-document.getElementById("btnCurrent").onclick = goActive;
-document.getElementById("btnBack").onclick    = goActive;
+document.getElementById("btnBack").onclick = goActive;
 
 // ── Dashboard ──────────────────────────────────────────────────
 let pipelineChart = null;
@@ -1189,17 +1464,13 @@ function toggleSection(id){
 }
 
 function showDashboard(){
-  document.getElementById("activeView").style.display   = "none";
-  document.getElementById("archiveView").style.display  = "none";
+  hideAllViews();
   document.getElementById("dashboardView").style.display = "block";
-  document.getElementById("btnArchive").style.display   = "inline-flex";
-  document.getElementById("btnCurrent").style.display   = "none";
   renderDashboard();
 }
 
 function hideDashboard(){
-  document.getElementById("dashboardView").style.display = "none";
-  document.getElementById("activeView").style.display   = "block";
+  showProjectBoard();
 }
 
 document.getElementById("btnDashboard").onclick = showDashboard;
