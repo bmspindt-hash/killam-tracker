@@ -857,14 +857,20 @@ function renderProjectBoard(){
   const empty = document.getElementById("projectBoardEmpty");
   const search = document.getElementById("projectBoardSearch").value.toLowerCase();
   const filter = document.getElementById("projectBoardFilter").value;
-  const projects = (state.projects||[]).filter(p=>{
+
+  const CLOSED_STATUSES = ["Closed","Completed","Dead"];
+
+  const allFiltered = (state.projects||[]).filter(p=>{
     const matchSearch = !search || p.name.toLowerCase().includes(search) || (p.address||"").toLowerCase().includes(search) || (p.prospect||"").toLowerCase().includes(search);
     const matchFilter = !filter || p.type===filter;
     return matchSearch && matchFilter;
   });
 
+  const openProjects   = allFiltered.filter(p=>!CLOSED_STATUSES.includes(p.status));
+  const closedProjects = allFiltered.filter(p=>CLOSED_STATUSES.includes(p.status));
+
   grid.innerHTML = "";
-  empty.style.display = projects.length ? "none" : "block";
+  empty.style.display = allFiltered.length ? "none" : "block";
 
   const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
   const statusBadge= s=>{
@@ -875,7 +881,7 @@ function renderProjectBoard(){
 
   const allTasks = [...state.tasks, ...state.archive];
 
-  projects.forEach(p=>{
+  function buildCard(p){
     const taskCount = allTasks.filter(t=>{
       const tName = (t.title||"").split(" — ")[0].trim();
       return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase());
@@ -910,8 +916,40 @@ function renderProjectBoard(){
       </div>
     `;
     card.onclick = ()=>openProjectDetail(p.id);
-    grid.appendChild(card);
-  });
+    return card;
+  }
+
+  // Render open projects
+  openProjects.forEach(p=>grid.appendChild(buildCard(p)));
+
+  // Render closed projects section
+  if(closedProjects.length){
+    const closedSection = document.createElement("div");
+    closedSection.style.cssText = "margin-top:24px;";
+
+    // Collapsible header
+    const closedId = "closedProjectsBody";
+    let isCollapsed = localStorage.getItem("closedProjectsCollapsed") === "true";
+    const header = document.createElement("div");
+    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;padding:10px 18px;border-radius:999px;cursor:pointer;margin-bottom:12px;";
+    header.innerHTML = `<span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Closed / Completed / Dead &nbsp;·&nbsp; ${closedProjects.length} project${closedProjects.length!==1?"s":""}</span>
+      <span id="closedToggleIcon" style="font-size:12px;">${isCollapsed?"&#9660; Expand":"&#9650; Collapse"}</span>`;
+    header.onclick = ()=>{
+      isCollapsed = !isCollapsed;
+      localStorage.setItem("closedProjectsCollapsed", isCollapsed);
+      document.getElementById(closedId).style.display = isCollapsed ? "none" : "grid";
+      document.getElementById("closedToggleIcon").innerHTML = isCollapsed ? "&#9660; Expand" : "&#9650; Collapse";
+    };
+
+    const closedGrid = document.createElement("div");
+    closedGrid.id = closedId;
+    closedGrid.style.cssText = "display:"+(isCollapsed?"none":"grid")+";grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;opacity:.75;";
+    closedProjects.forEach(p=>closedGrid.appendChild(buildCard(p)));
+
+    closedSection.appendChild(header);
+    closedSection.appendChild(closedGrid);
+    grid.appendChild(closedSection);
+  }
 }
 
 document.getElementById("projectBoardSearch").oninput = ()=>renderProjectBoard();
