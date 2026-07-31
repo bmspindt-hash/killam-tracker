@@ -302,6 +302,21 @@ select{cursor:pointer;}
         </select>
       </div>
       <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Status</label>
+        <select id="pfStatus" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <option value="">— Select status —</option>
+          <option value="Not started">Not started</option>
+          <option value="Started">Started</option>
+          <option value="LOI">LOI</option>
+          <option value="Lease agreement">Lease agreement</option>
+          <option value="PSA">PSA</option>
+          <option value="Closed">Closed</option>
+          <option value="Completed">Completed</option>
+          <option value="Dead">Dead</option>
+          <option value="Working on other">Working on other</option>
+        </select>
+      </div>
+      <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
         <input id="pfSf" type="text" placeholder="e.g. 2,500" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
@@ -1258,6 +1273,7 @@ function showProjectForm(project){
   document.getElementById("pfAddress").value = project?.address      || "";
   document.getElementById("pfProspect").value= project?.prospect     || "";
   document.getElementById("pfType").value    = project?.type         || "";
+  document.getElementById("pfStatus").value  = project?.status       || "";
   document.getElementById("pfSf").value      = project?.sf           || "";
   document.getElementById("pfPriceSf").value = project?.price_per_sf || "";
   document.getElementById("pfNewNote").value = "";
@@ -1304,21 +1320,22 @@ document.getElementById("pfSave").onclick = async () => {
   const address     = document.getElementById("pfAddress").value.trim();
   const prospect    = document.getElementById("pfProspect").value.trim();
   const type        = document.getElementById("pfType").value;
+  const status      = document.getElementById("pfStatus").value;
   const sf          = document.getElementById("pfSf").value.trim();
   const price_per_sf= document.getElementById("pfPriceSf").value.trim();
   const notes       = serializeNotes(currentFormNotes);
   if(!name){ alert("Project name is required"); return; }
 
   if(editingProjectId){
-    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,notes});
+    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes});
     const p = (state.projects||[]).find(x=>x.id===editingProjectId);
-    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.notes=notes; }
+    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; }
     toast("Project updated","#2e7d32");
   } else {
     const id = uid();
-    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,notes});
+    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes});
     if(!state.projects) state.projects=[];
-    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,notes});
+    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes});
     toast("Project added","#2e7d32");
   }
   document.getElementById("projectForm").style.display = "none";
