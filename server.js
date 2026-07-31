@@ -201,6 +201,20 @@ app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Archive a single task immediately
+app.post("/api/newweek-single", requireAuth, async (req, res) => {
+  const { taskId, weekId } = req.body;
+  const task = await pool.query("SELECT * FROM tasks WHERE id=$1", [taskId]);
+  if(!task.rows.length) return res.json({ ok: true });
+  const t = task.rows[0];
+  await pool.query(
+    "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING",
+    [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, weekId]
+  );
+  await pool.query("DELETE FROM tasks WHERE id=$1", [taskId]);
+  res.json({ ok: true });
+});
+
 app.post("/api/newweek", requireAuth, async (req, res) => {
   const weekRes = await pool.query("SELECT value FROM meta WHERE key='weekId'");
   const currentWeekId = weekRes.rows[0]?.value;
