@@ -291,6 +291,13 @@ select{cursor:pointer;}
           <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--navy);font-size:13px;"><i class="ti ti-address-book"></i></button>
         </div>
       </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
+        </div>
+        <div id="pfProjectContactsList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:0;"></div>
+      </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
         <select id="pfType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
@@ -1026,6 +1033,29 @@ function openProjectDetail(projectId){
   ].filter(Boolean).join("");
 
   // Notes journal
+  // Contacts in detail view
+  let detailContactsEl = document.getElementById("detailProjectContacts");
+  if(!detailContactsEl){
+    detailContactsEl = document.createElement("div");
+    detailContactsEl.id = "detailProjectContacts";
+    detailContactsEl.style.cssText = "margin-top:12px;";
+    document.getElementById("detailProjectNotes").parentNode.insertBefore(detailContactsEl, document.getElementById("detailProjectNotes"));
+  }
+  const projContacts = parseProjectContacts(p.contacts);
+  if(projContacts.length){
+    detailContactsEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Contacts</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+      projContacts.map(c=>`<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;">
+        <div style="font-size:12px;font-weight:700;color:#fff;">${c.name||""}</div>
+        ${c.company?`<div style="font-size:11px;color:var(--gold);">${c.company}</div>`:""}
+        ${c.email?`<div style="font-size:11px;color:#cfd6dd;">${c.email}</div>`:""}
+        ${c.phone?`<div style="font-size:11px;color:#cfd6dd;">${c.phone}</div>`:""}
+      </div>`).join("") + '</div>';
+    detailContactsEl.style.display = "block";
+  } else {
+    detailContactsEl.style.display = "none";
+  }
+
   const notesEl = document.getElementById("detailProjectNotes");
   const entries = parseNotes(p.notes);
   if(entries.length){
@@ -1320,6 +1350,37 @@ function toggleProjectNotes(id){
   el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
+// ── Project Contact helpers ───────────────────────────────────
+function parseProjectContacts(raw){
+  if(!raw || raw==="[]" || raw==="") return [];
+  try { const p=JSON.parse(raw); if(Array.isArray(p)) return p; } catch(e){}
+  return [];
+}
+
+function serializeProjectContacts(arr){ return JSON.stringify(arr); }
+
+let currentProjectContacts = []; // working copy in form
+
+function renderProjectContactPills(containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  if(!currentProjectContacts.length){ el.innerHTML=""; return; }
+  el.innerHTML = currentProjectContacts.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--navy);">${c.name}</div>
+        ${c.company?`<div style="font-size:11px;color:#888;">${c.company}</div>`:""}
+        ${c.email?`<div style="font-size:11px;color:#888;">${c.email}</div>`:""}
+      </div>
+      <button onclick="removeProjectContact(${i})" style="background:none;border:none;cursor:pointer;color:#a32d2d;font-size:14px;padding:0 2px;">✕</button>
+    </div>`).join("");
+}
+
+function removeProjectContact(idx){
+  currentProjectContacts.splice(idx,1);
+  renderProjectContactPills("pfProjectContactsList");
+}
+
 // ── Project Journal helpers ────────────────────────────────────
 function parseNotes(raw){
   if(!raw) return [];
@@ -1371,6 +1432,8 @@ function showProjectForm(project){
   document.getElementById("pfNewNote").value = "";
   currentFormNotes = parseNotes(project?.notes || "");
   renderNotesList(currentFormNotes, "pfNotesList");
+  currentProjectContacts = parseProjectContacts(project?.contacts || "[]");
+  renderProjectContactPills("pfProjectContactsList");
   document.getElementById("projectForm").style.display = "block";
   document.getElementById("pfName").focus();
 }
@@ -1402,10 +1465,22 @@ document.getElementById("pfCancel").onclick = () => {
   editingProjectId = null;
 };
 
-document.getElementById("pfPickContact").onclick = () => openContactPicker(val=>{
+document.getElementById("pfPickContact").onclick = ()=>openContactPicker(val=>{
   const firstName = val.split(",")[0].trim();
   document.getElementById("pfProspect").value = firstName;
 });
+
+document.getElementById("pfPickProjectContacts").onclick = ()=>{
+  pickerSelected = currentProjectContacts.map(c=>({...c}));
+  document.getElementById("pickerSearch").value = "";
+  renderPickerSelected();
+  renderPickerList("");
+  pickerCallback = ()=>{
+    currentProjectContacts = [...pickerSelected];
+    renderProjectContactPills("pfProjectContactsList");
+  };
+  document.getElementById("contactPickerModal").style.display = "flex";
+};
 
 document.getElementById("pfSave").onclick = async () => {
   const name        = document.getElementById("pfName").value.trim();
@@ -1416,18 +1491,19 @@ document.getElementById("pfSave").onclick = async () => {
   const sf          = document.getElementById("pfSf").value.trim();
   const price_per_sf= document.getElementById("pfPriceSf").value.trim();
   const notes       = serializeNotes(currentFormNotes);
+  const contacts    = serializeProjectContacts(currentProjectContacts);
   if(!name){ alert("Project name is required"); return; }
 
   if(editingProjectId){
-    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes});
+    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes,contacts});
     const p = (state.projects||[]).find(x=>x.id===editingProjectId);
-    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; }
+    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; p.contacts=contacts; }
     toast("Project updated","#2e7d32");
   } else {
     const id = uid();
-    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes});
+    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts});
     if(!state.projects) state.projects=[];
-    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes});
+    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts});
     toast("Project added","#2e7d32");
   }
   document.getElementById("projectForm").style.display = "none";
