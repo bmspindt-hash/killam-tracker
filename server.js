@@ -76,6 +76,7 @@ async function initDB() {
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS sf         TEXT DEFAULT '';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS price_per_sf TEXT DEFAULT '';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS status     TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS contacts   TEXT DEFAULT '[]';
   `);
 
   const weekRow = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
