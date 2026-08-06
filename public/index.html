@@ -115,6 +115,82 @@ select{cursor:pointer;}
 
   <div id="loadingMsg" class="view empty-msg">Loading tasks…</div>
 
+  <!-- SHARED PROJECT FORM (used by board + directory) -->
+  <!-- Add/Edit form -->
+  <div id="projectForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
+    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="projectFormTitle">Add project</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
+        <input id="pfName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
+        <input id="pfAddress" type="text" placeholder="1100 Matamoros St, Laredo TX" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
+        <div style="display:flex;gap:6px;">
+          <input id="pfProspect" type="text" placeholder="Select or type prospect name" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--navy);font-size:13px;"><i class="ti ti-address-book"></i></button>
+        </div>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
+        </div>
+        <div id="pfProjectContactsList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:0;"></div>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
+        <select id="pfType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <option value="">— Select type —</option>
+          <option value="Lease">Lease</option>
+          <option value="Purchase">Purchase</option>
+          <option value="Sale">Sale</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Status</label>
+        <select id="pfStatus" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <option value="">— Select status —</option>
+          <option value="Not started">Not started</option>
+          <option value="Started">Started</option>
+          <option value="LOI">LOI</option>
+          <option value="Lease agreement">Lease agreement</option>
+          <option value="PSA">PSA</option>
+          <option value="Closed">Closed</option>
+          <option value="Completed">Completed</option>
+          <option value="Dead">Dead</option>
+          <option value="Working on other">Working on other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
+        <input id="pfSf" type="text" placeholder="e.g. 2,500" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Price per SF</label>
+        <input id="pfPriceSf" type="text" placeholder="e.g. $18.50" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
+        <!-- New note entry -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <textarea id="pfNewNote" placeholder="Add a new note..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:60px;resize:vertical;"></textarea>
+          <button id="pfAddNote" type="button" style="padding:8px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;align-self:flex-start;">+ Add note</button>
+        </div>
+        <!-- Journal entries list -->
+        <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;display:none;"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="pfSave" class="btn-gold" style="padding:8px 20px;">Save project</button>
+      <button id="pfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
+    </div>
+  </div>
+
   <!-- PROJECT BOARD (default home) -->
   <div id="projectBoardView" class="view" style="display:none;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
@@ -272,80 +348,7 @@ select{cursor:pointer;}
     </div>
   </div>
 
-  <!-- Add/Edit form -->
-  <div id="projectForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
-    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="projectFormTitle">Add project</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
-        <input id="pfName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
-        <input id="pfAddress" type="text" placeholder="1100 Matamoros St, Laredo TX" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
-        <div style="display:flex;gap:6px;">
-          <input id="pfProspect" type="text" placeholder="Select or type prospect name" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--navy);font-size:13px;"><i class="ti ti-address-book"></i></button>
-        </div>
-      </div>
-      <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
-        </div>
-        <div id="pfProjectContactsList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:0;"></div>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
-        <select id="pfType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <option value="">— Select type —</option>
-          <option value="Lease">Lease</option>
-          <option value="Purchase">Purchase</option>
-          <option value="Sale">Sale</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Status</label>
-        <select id="pfStatus" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <option value="">— Select status —</option>
-          <option value="Not started">Not started</option>
-          <option value="Started">Started</option>
-          <option value="LOI">LOI</option>
-          <option value="Lease agreement">Lease agreement</option>
-          <option value="PSA">PSA</option>
-          <option value="Closed">Closed</option>
-          <option value="Completed">Completed</option>
-          <option value="Dead">Dead</option>
-          <option value="Working on other">Working on other</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
-        <input id="pfSf" type="text" placeholder="e.g. 2,500" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Price per SF</label>
-        <input id="pfPriceSf" type="text" placeholder="e.g. $18.50" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
-        <!-- New note entry -->
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
-          <textarea id="pfNewNote" placeholder="Add a new note..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:60px;resize:vertical;"></textarea>
-          <button id="pfAddNote" type="button" style="padding:8px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;align-self:flex-start;">+ Add note</button>
-        </div>
-        <!-- Journal entries list -->
-        <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;display:none;"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button id="pfSave" class="btn-gold" style="padding:8px 20px;">Save project</button>
-      <button id="pfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
-    </div>
-  </div>
+
 
   <!-- Project cards -->
   <div id="projectGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"></div>
@@ -1009,7 +1012,11 @@ function toggleClosedPanel(){
 }
 document.getElementById("projectBoardSearch").oninput = ()=>renderProjectBoard();
 document.getElementById("projectBoardFilter").onchange = ()=>renderProjectBoard();
-document.getElementById("btnAddProjectBoard").onclick = ()=>{ showProjectForm(null); document.getElementById("projectForm").style.display="block"; document.getElementById("projectBoardView").style.display="block"; };
+document.getElementById("btnAddProjectBoard").onclick = ()=>{
+  showProjectBoard();
+  showProjectForm(null);
+  document.getElementById("projectForm").scrollIntoView({behavior:"smooth", block:"start"});
+};
 
 // ── Project Detail ─────────────────────────────────────────────
 function openProjectDetail(projectId){
