@@ -1009,7 +1009,7 @@ function toggleClosedPanel(){
 }
 document.getElementById("projectBoardSearch").oninput = ()=>renderProjectBoard();
 document.getElementById("projectBoardFilter").onchange = ()=>renderProjectBoard();
-document.getElementById("btnAddProjectBoard").onclick = ()=>{ showProjectForm(null); showProjects(); };
+document.getElementById("btnAddProjectBoard").onclick = ()=>{ showProjectForm(null); document.getElementById("projectForm").style.display="block"; document.getElementById("projectBoardView").style.display="block"; };
 
 // ── Project Detail ─────────────────────────────────────────────
 function openProjectDetail(projectId){
@@ -1275,7 +1275,7 @@ document.getElementById("detailNoteSave").onclick = async()=>{
   await apiFetch("/api/projects/"+p.id,"PUT",{
     name:p.name, address:p.address, prospect:p.prospect,
     type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
-    status:p.status, notes:p.notes
+    status:p.status, notes:p.notes, contacts:p.contacts||"[]"
   });
   document.getElementById("detailNoteText").value = "";
   document.getElementById("detailQuickNote").style.display = "none";
@@ -1463,6 +1463,7 @@ document.getElementById("btnAddProject").onclick = () => showProjectForm(null);
 document.getElementById("pfCancel").onclick = () => {
   document.getElementById("projectForm").style.display = "none";
   editingProjectId = null;
+  showProjectBoard();
 };
 
 document.getElementById("pfPickContact").onclick = ()=>openContactPicker(val=>{
@@ -1483,6 +1484,8 @@ document.getElementById("pfPickProjectContacts").onclick = ()=>{
 };
 
 document.getElementById("pfSave").onclick = async () => {
+  const saveBtn = document.getElementById("pfSave");
+  saveBtn.disabled = true; saveBtn.textContent = "Saving…";
   const name        = document.getElementById("pfName").value.trim();
   const address     = document.getElementById("pfAddress").value.trim();
   const prospect    = document.getElementById("pfProspect").value.trim();
@@ -1508,7 +1511,9 @@ document.getElementById("pfSave").onclick = async () => {
   }
   document.getElementById("projectForm").style.display = "none";
   editingProjectId = null;
-  renderProjects();
+  saveBtn.disabled = false;
+  saveBtn.textContent = "Save project";
+  showProjectBoard();
 };
 
 document.getElementById("btnProjects").onclick = showProjectBoard;
@@ -2068,7 +2073,7 @@ document.getElementById("ipSave").onclick = async () => {
   const type     = document.getElementById("ipType").value;
   if(!name){ alert("Project name is required"); return; }
   const id = uid();
-  await apiFetch("/api/projects", "POST", {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:""});
+  await apiFetch("/api/projects", "POST", {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:"", contacts:"[]"});
   if(!state.projects) state.projects = [];
   const newProject = {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:""};
   state.projects.push(newProject);
