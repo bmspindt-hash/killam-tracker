@@ -177,16 +177,16 @@ select{cursor:pointer;}
       <div style="grid-column:1/-1;">
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
         <!-- New note entry -->
-        <div style="position:relative;margin-bottom:12px;">
-          <textarea id="pfNewNote" placeholder="Add a new note..." style="width:100%;padding:8px 12px 36px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;box-sizing:border-box;"></textarea>
-          <button id="pfAddNote" type="button" style="position:absolute;bottom:8px;right:8px;padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">+ Add note</button>
+        <div style="margin-bottom:12px;">
+          <textarea id="pfNewNote" placeholder="Add a new note..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;box-sizing:border-box;"></textarea>
         </div>
         <!-- Journal entries list -->
         <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;display:none;"></div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
       <button id="pfSave" class="btn-gold" style="padding:8px 20px;">Save project</button>
+      <button id="pfAddNote" type="button" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">+ Add note</button>
       <button id="pfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
     </div>
   </div>
