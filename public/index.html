@@ -1828,27 +1828,34 @@ document.getElementById("btnDashboard").onclick = showDashboard;
 document.getElementById("btnDashBack").onclick  = hideDashboard;
 
 function renderDashboard(){
-  const today = todayStr();
-  const tasks  = state.tasks;
+  const today   = todayStr();
+  const tasks   = state.tasks;
   const archive = state.archive;
+  const projects = state.projects || [];
 
-  // ── Metrics ───────────────────────────────────────────────────
-  const active   = tasks.filter(t=>!t.done).length;
-  const dueWeek  = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd()).length;
-  const overdue  = tasks.filter(t=>!t.done && t.deadline && t.deadline < today).length;
-  const closedAll = archive.filter(t=>t.status==="Closed").length;
-  const loiCount   = [...tasks,...archive].filter(t=>t.status==="LOI").length;
-  const leaseCount = [...tasks,...archive].filter(t=>t.status==="Lease agreement").length;
-  const psaCount   = [...tasks,...archive].filter(t=>t.status==="PSA").length;
+  const CLOSED_STATUSES = ["Closed","Completed","Dead"];
+
+  // ── Project-based metrics ─────────────────────────────────────
+  const activeProjects  = projects.filter(p=>!CLOSED_STATUSES.includes(p.status)).length;
+  const closedProjects  = projects.filter(p=>CLOSED_STATUSES.includes(p.status)).length;
+  const loiProjects     = projects.filter(p=>p.status==="LOI").length;
+  const leaseProjects   = projects.filter(p=>p.status==="Lease agreement").length;
+  const psaProjects     = projects.filter(p=>p.status==="PSA").length;
+  const startedProjects = projects.filter(p=>p.status==="Started").length;
+
+  // ── Task-based metrics ────────────────────────────────────────
+  const activeTasks = tasks.filter(t=>!t.done).length;
+  const dueWeek     = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd()).length;
+  const overdue     = tasks.filter(t=>!t.done && t.deadline && t.deadline < today).length;
 
   const metrics = [
-    {label:"Active tasks",      value:active,     color:"var(--navy)"},
-    {label:"Due this week",     value:dueWeek,    color:"#b8924f"},
-    {label:"Overdue",           value:overdue,    color:"#a32d2d"},
-    {label:"At LOI",            value:loiCount,   color:"#1565c0"},
-    {label:"Lease agreement",   value:leaseCount, color:"#7b1fa2"},
-    {label:"At PSA",            value:psaCount,   color:"#6a1b9a"},
-    {label:"Total closed",      value:closedAll,  color:"#2e7d32"},
+    {label:"Active projects",   value:activeProjects,  color:"var(--navy)"},
+    {label:"Closed / Done",     value:closedProjects,  color:"#2e7d32"},
+    {label:"At LOI",            value:loiProjects,     color:"#1565c0"},
+    {label:"Lease agreement",   value:leaseProjects,   color:"#7b1fa2"},
+    {label:"At PSA",            value:psaProjects,     color:"#6a1b9a"},
+    {label:"Active tasks",      value:activeTasks,     color:"#4a90c4"},
+    {label:"Overdue tasks",     value:overdue,         color:"#a32d2d"},
   ];
 
   const mDiv = document.getElementById("dashMetrics");
@@ -1860,11 +1867,11 @@ function renderDashboard(){
     </div>`;
   });
 
-  // ── Pipeline bar chart ────────────────────────────────────────
-  const statuses = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Dead","Working on other"];
-  const statusColors = ["#9e9e9e","#4a90c4","#1565c0","#7b1fa2","#6a1b9a","#2e7d32","#c62828","#e65100"];
+  // ── Pipeline bar chart — now project-based ─────────────────────
+  const statuses = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Completed","Dead","Working on other"];
+  const statusColors = ["#9e9e9e","#4a90c4","#1565c0","#7b1fa2","#6a1b9a","#2e7d32","#43a047","#c62828","#e65100"];
+  const counts = statuses.map(s=>projects.filter(p=>p.status===s).length);
   const allTasks = [...tasks, ...archive];
-  const counts = statuses.map(s=>allTasks.filter(t=>t.status===s).length);
 
   if(pipelineChart) pipelineChart.destroy();
   pipelineChart = new Chart(document.getElementById("chartPipeline"),{
@@ -1895,7 +1902,7 @@ function renderDashboard(){
     monthLabels.push(d.toLocaleDateString(undefined,{month:"short",year:"2-digit"}));
   }
   const closedByMonth = months.map(m=>
-    archive.filter(t=>t.status==="Closed" && t.deadline && t.deadline.slice(0,7)===m).length
+    archive.filter(t=>(t.status==="Closed"||t.status==="Completed") && t.deadline && t.deadline.slice(0,7)===m).length
   );
 
   if(closedChart) closedChart.destroy();
@@ -1981,24 +1988,34 @@ function renderDashboard(){
 
   // ── Active projects ────────────────────────────────────────────
   const projDiv = document.getElementById("dashProjects");
-  const activeProjects = (state.projects||[]).filter(p=>p.status !== "Completed" && p.status !== "Dead" && p.status !== "Closed");
+  const CLOSED_STATUSES_DASH = ["Closed","Completed","Dead"];
+  const activeProjs = (state.projects||[]).filter(p=>!CLOSED_STATUSES_DASH.includes(p.status));
   const typeColor = t => t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
-  const statusBg  = s => s==="LOI"?"#e3f0ff":s==="PSA"?"#f3e5f5":s==="Started"?"#fff8e1":s==="Closed"||s==="Completed"?"#e8f5e9":"#f5f5f5";
-  if(!activeProjects.length){
+  const statusColors2 = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#43a047","Dead":"#c62828","Working on other":"#e65100"};
+
+  if(!activeProjs.length){
     projDiv.innerHTML = '<p style="color:#888;font-size:12px;">No active projects yet.</p>';
   } else {
     projDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
-    ${activeProjects.map(p=>`
-      <div style="background:var(--cream);border-radius:6px;padding:12px;">
+    ${activeProjs.map(p=>{
+      const taskCount = tasks.filter(t=>{
+        const tName=(t.title||"").split(" — ")[0].trim();
+        return tName===p.name||p.name.toLowerCase().includes(tName.toLowerCase())||tName.toLowerCase().includes(p.name.toLowerCase());
+      }).length;
+      const sc = statusColors2[p.status]||"#888";
+      return `<div style="background:var(--cream);border-radius:6px;padding:12px;cursor:pointer;" onclick="openProjectDetail('${p.id}');hideDashboard();">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);flex:1;">${p.name}</div>
           ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};margin-left:6px;white-space:nowrap;">${p.type}</span>`:""}
         </div>
         ${p.address?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-map-pin"></i> ${p.address}</div>`:""}
         ${p.prospect?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-user"></i> ${p.prospect}</div>`:""}
-        ${(p.sf||p.price_per_sf)?`<div style="font-size:11px;color:#888;margin-bottom:4px;">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</div>`:""}
-        ${p.status?`<span style="font-size:10px;font-weight:700;background:${statusBg(p.status)};padding:2px 8px;border-radius:999px;color:var(--navy);">${p.status}</span>`:""}
-      </div>`).join("")}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          ${p.status?`<span style="font-size:10px;font-weight:700;color:${sc};background:${sc}18;padding:2px 8px;border-radius:999px;">${p.status}</span>`:"<span></span>"}
+          <span style="font-size:10px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
+        </div>
+      </div>`;
+    }).join("")}
     </div>`;
   }
 }
