@@ -1827,6 +1827,21 @@ function hideDashboard(){
 document.getElementById("btnDashboard").onclick = showDashboard;
 document.getElementById("btnDashBack").onclick  = hideDashboard;
 
+function findProjectForTask(t){
+  const tName = (t.title||"").split(" — ")[0].trim();
+  return (state.projects||[]).find(p=>
+    p.name===tName ||
+    p.name.toLowerCase()===tName.toLowerCase() ||
+    tName.toLowerCase().includes(p.name.toLowerCase()) ||
+    p.name.toLowerCase().includes(tName.toLowerCase())
+  );
+}
+
+function goToProjectFromDash(projectId){
+  hideDashboard();
+  openProjectDetail(projectId);
+}
+
 function renderDashboard(){
   const today   = todayStr();
   const tasks   = state.tasks;
@@ -1930,14 +1945,18 @@ function renderDashboard(){
   if(!dueTasks.length){
     dueDiv.innerHTML = '<p style="color:#888;font-size:12px;">Nothing due this week 🎉</p>';
   } else {
-    dueDiv.innerHTML = dueTasks.map(t=>`
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+    dueDiv.innerHTML = dueTasks.map(t=>{
+      const proj = findProjectForTask(t);
+      const clickable = proj ? `onclick="goToProjectFromDash('${proj.id}')" style="cursor:pointer;"` : "";
+      const projLabel = proj ? `<span style="font-size:10px;font-weight:700;color:var(--gold);margin-left:4px;">→ ${proj.name}</span>` : "";
+      return `<div ${clickable} style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;${proj?"cursor:pointer;":""}${proj?"background:transparent;transition:background .15s;" : ""}">
         <div>
-          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}${projLabel}</div>
           <div style="font-size:11px;color:#888;">${t.task||""}</div>
         </div>
         <div style="font-size:11px;font-weight:600;color:#b8924f;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
 
   // ── Overdue list ──────────────────────────────────────────────
@@ -1946,14 +1965,17 @@ function renderDashboard(){
   if(!overdueTasks.length){
     overdueDiv.innerHTML = '<p style="color:#888;font-size:12px;">No overdue tasks 🎉</p>';
   } else {
-    overdueDiv.innerHTML = overdueTasks.map(t=>`
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+    overdueDiv.innerHTML = overdueTasks.map(t=>{
+      const proj = findProjectForTask(t);
+      const projLabel = proj ? `<span style="font-size:10px;font-weight:700;color:var(--gold);margin-left:4px;">→ ${proj.name}</span>` : "";
+      return `<div ${proj?`onclick="goToProjectFromDash('${proj.id}')"`:""} style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;${proj?"cursor:pointer;":""}">
         <div>
-          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}${projLabel}</div>
           <div style="font-size:11px;color:#888;">${t.task||""}</div>
         </div>
         <div style="font-size:11px;font-weight:600;color:#a32d2d;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
 
   // ── Contact activity ──────────────────────────────────────────
