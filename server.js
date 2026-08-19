@@ -77,6 +77,7 @@ async function initDB() {
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS price_per_sf TEXT DEFAULT '';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS status     TEXT DEFAULT '';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS contacts   TEXT DEFAULT '[]';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS priority   TEXT DEFAULT '';
   `);
 
   const weekRow = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
@@ -265,19 +266,19 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 });
 
 app.post("/api/projects", requireAuth, async (req, res) => {
-  const { id, name, address, prospect, type, sf, price_per_sf, status, notes, contacts } = req.body;
+  const { id, name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority } = req.body;
   await pool.query(
-    "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-    [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]"]
+    "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+    [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||""]
   );
   res.json({ ok: true });
 });
 
 app.put("/api/projects/:id", requireAuth, async (req, res) => {
-  const { name, address, prospect, type, sf, price_per_sf, status, notes, contacts } = req.body;
+  const { name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority } = req.body;
   await pool.query(
-    "UPDATE projects SET name=$1,address=$2,prospect=$3,type=$4,sf=$5,price_per_sf=$6,status=$7,notes=$8,contacts=$9 WHERE id=$10",
-    [name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", req.params.id]
+    "UPDATE projects SET name=$1,address=$2,prospect=$3,type=$4,sf=$5,price_per_sf=$6,status=$7,notes=$8,contacts=$9,priority=$10 WHERE id=$11",
+    [name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||"", req.params.id]
   );
   res.json({ ok: true });
 });
