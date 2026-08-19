@@ -167,6 +167,15 @@ select{cursor:pointer;}
         </select>
       </div>
       <div>
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Priority</label>
+        <select id="pfPriority" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <option value="">— No priority —</option>
+          <option value="High">🔴 High</option>
+          <option value="Medium">🟠 Medium</option>
+          <option value="Low">🟡 Low</option>
+        </select>
+      </div>
+      <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
         <input id="pfSf" type="text" placeholder="e.g. 2,500" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
@@ -932,7 +941,10 @@ function renderProjectBoard(){
     return matchSearch && matchFilter;
   });
 
-  const openProjects   = allFiltered.filter(p=>!CLOSED_STATUSES.includes(p.status));
+  const PRIORITY_ORDER = {"High":0,"Medium":1,"Low":2,"":3};
+  const openProjects   = allFiltered
+    .filter(p=>!CLOSED_STATUSES.includes(p.status))
+    .sort((a,b)=>(PRIORITY_ORDER[a.priority||""]??3)-(PRIORITY_ORDER[b.priority||""]??3));
   const closedProjects = allFiltered.filter(p=>CLOSED_STATUSES.includes(p.status));
 
   const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
@@ -955,7 +967,9 @@ function renderProjectBoard(){
     }).length;
 
     const card = document.createElement("div");
-    card.style.cssText = "background:#fff;border-radius:10px;padding:18px;border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s;position:relative;";
+    const prioBg = p.priority==="High"?"#fff5f5":p.priority==="Medium"?"#fff8f0":p.priority==="Low"?"#fffef0":"#fff";
+    const prioBorder = p.priority==="High"?"#ffcdd2":p.priority==="Medium"?"#ffe0b2":p.priority==="Low"?"#fff9c4":p.priority?"var(--border)":"var(--border)";
+    card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;`;
     card.onmouseenter = ()=>card.style.boxShadow="0 4px 16px rgba(0,0,0,.1)";
     card.onmouseleave = ()=>card.style.boxShadow="none";
     card.innerHTML = `
@@ -965,7 +979,10 @@ function renderProjectBoard(){
           ${p.address?`<div style="font-size:12px;color:#888;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>`:""}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;">
-          ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};white-space:nowrap;">${p.type}</span>`:""}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+            ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};white-space:nowrap;">${p.type}</span>`:""}
+            ${p.priority==="High"?'<span style="font-size:9px;font-weight:700;color:#c62828;background:#ffcdd2;padding:1px 7px;border-radius:999px;">HIGH</span>':p.priority==="Medium"?'<span style="font-size:9px;font-weight:700;color:#e65100;background:#ffe0b2;padding:1px 7px;border-radius:999px;">MED</span>':p.priority==="Low"?'<span style="font-size:9px;font-weight:700;color:#f9a825;background:#fff9c4;padding:1px 7px;border-radius:999px;">LOW</span>':""}
+          </div>
           ${activeTasks>0?`<span style="font-size:10px;background:var(--navy);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700;">${activeTasks} active</span>`:""}
         </div>
       </div>
@@ -1282,7 +1299,7 @@ document.getElementById("detailNoteSave").onclick = async()=>{
   await apiFetch("/api/projects/"+p.id,"PUT",{
     name:p.name, address:p.address, prospect:p.prospect,
     type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
-    status:p.status, notes:p.notes, contacts:p.contacts||"[]"
+    status:p.status, notes:p.notes, contacts:p.contacts||"[]", priority:p.priority||""
   });
   document.getElementById("detailNoteText").value = "";
   document.getElementById("detailQuickNote").style.display = "none";
@@ -1433,7 +1450,8 @@ function showProjectForm(project){
   document.getElementById("pfAddress").value = project?.address      || "";
   document.getElementById("pfProspect").value= project?.prospect     || "";
   document.getElementById("pfType").value    = project?.type         || "";
-  document.getElementById("pfStatus").value  = project?.status       || "";
+  document.getElementById("pfStatus").value   = project?.status       || "";
+  document.getElementById("pfPriority").value = project?.priority     || "";
   document.getElementById("pfSf").value      = project?.sf           || "";
   document.getElementById("pfPriceSf").value = project?.price_per_sf || "";
   document.getElementById("pfNewNote").value = "";
@@ -1498,6 +1516,7 @@ document.getElementById("pfSave").onclick = async () => {
   const prospect    = document.getElementById("pfProspect").value.trim();
   const type        = document.getElementById("pfType").value;
   const status      = document.getElementById("pfStatus").value;
+  const priority    = document.getElementById("pfPriority").value;
   const sf          = document.getElementById("pfSf").value.trim();
   const price_per_sf= document.getElementById("pfPriceSf").value.trim();
   const notes       = serializeNotes(currentFormNotes);
@@ -1505,15 +1524,15 @@ document.getElementById("pfSave").onclick = async () => {
   if(!name){ alert("Project name is required"); return; }
 
   if(editingProjectId){
-    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes,contacts});
+    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
     const p = (state.projects||[]).find(x=>x.id===editingProjectId);
-    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; p.contacts=contacts; }
+    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; p.contacts=contacts; p.priority=priority; }
     toast("Project updated","#2e7d32");
   } else {
     const id = uid();
-    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts});
+    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
     if(!state.projects) state.projects=[];
-    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts});
+    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
     toast("Project added","#2e7d32");
   }
   document.getElementById("projectForm").style.display = "none";
