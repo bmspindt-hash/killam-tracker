@@ -283,6 +283,12 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.patch("/api/projects/:id/priority", requireAuth, async (req, res) => {
+  const { priority } = req.body;
+  await pool.query("UPDATE projects SET priority=$1 WHERE id=$2", [priority||"", req.params.id]);
+  res.json({ ok: true });
+});
+
 app.patch("/api/projects/:id/status", requireAuth, async (req, res) => {
   const { status } = req.body;
   await pool.query("UPDATE projects SET status=$1 WHERE id=$2", [status||"", req.params.id]);
