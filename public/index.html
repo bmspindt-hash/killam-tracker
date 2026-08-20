@@ -981,7 +981,12 @@ function renderProjectBoard(){
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;">
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
             ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};white-space:nowrap;">${p.type}</span>`:""}
-            ${p.priority==="High"?'<span style="font-size:9px;font-weight:700;color:#c62828;background:#ffcdd2;padding:1px 7px;border-radius:999px;">HIGH</span>':p.priority==="Medium"?'<span style="font-size:9px;font-weight:700;color:#e65100;background:#ffe0b2;padding:1px 7px;border-radius:999px;">MED</span>':p.priority==="Low"?'<span style="font-size:9px;font-weight:700;color:#f9a825;background:#fff9c4;padding:1px 7px;border-radius:999px;">LOW</span>':""}
+            <select onchange="updateProjectPriority('${p.id}',this.value,this)" onclick="event.stopPropagation();" style="font-size:9px;font-weight:700;border:none;border-radius:999px;padding:2px 6px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit;${p.priority==='High'?'color:#c62828;background:#ffcdd2;':p.priority==='Medium'?'color:#e65100;background:#ffe0b2;':p.priority==='Low'?'color:#f9a825;background:#fff9c4;':'color:#888;background:#f0f0f0;'}">
+              <option value="" ${!p.priority?'selected':''}>N/A</option>
+              <option value="High" ${p.priority==='High'?'selected':''}>🔴 HIGH</option>
+              <option value="Medium" ${p.priority==='Medium'?'selected':''}>🟠 MED</option>
+              <option value="Low" ${p.priority==='Low'?'selected':''}>🟡 LOW</option>
+            </select>
           </div>
           ${activeTasks>0?`<span style="font-size:10px;background:var(--navy);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700;">${activeTasks} active</span>`:""}
         </div>
@@ -1017,6 +1022,28 @@ function renderProjectBoard(){
     closedProjects.forEach(p=>closedGrid.appendChild(buildCard(p)));
   } else {
     closedPanel.style.display = "none";
+  }
+}
+
+async function updateProjectPriority(id, priority, selectEl){
+  const p = (state.projects||[]).find(x=>x.id===id);
+  if(!p) return;
+  p.priority = priority;
+  // Restyle the select to match new priority
+  const styles = {
+    "High":   "color:#c62828;background:#ffcdd2;",
+    "Medium": "color:#e65100;background:#ffe0b2;",
+    "Low":    "color:#f9a825;background:#fff9c4;",
+    "":       "color:#888;background:#f0f0f0;"
+  };
+  selectEl.style.cssText = selectEl.style.cssText.replace(/color:[^;]+;background:[^;]+;/, styles[priority]||styles[""]);
+  try {
+    await apiFetch("/api/projects/"+id+"/priority","PATCH",{priority});
+    toast("Priority updated","#2e7d32");
+    // Re-sort and re-render board
+    renderProjectBoard();
+  } catch(e){
+    toast("Save failed","#c0392b");
   }
 }
 
