@@ -332,6 +332,25 @@ app.post("/api/generate-brief", requireAuth, async (req, res) => {
   }
 });
 
+// ── Change password ────────────────────────────────────────────
+app.post("/api/auth/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if(!currentPassword || !newPassword) return res.status(400).json({ error: "All fields required" });
+  if(newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters" });
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE id=$1", [req.user.id]);
+    if(!result.rows.length) return res.status(404).json({ error: "User not found" });
+    const user = result.rows[0];
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if(!match) return res.status(401).json({ error: "Current password is incorrect" });
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query("UPDATE users SET password=$1 WHERE id=$2", [hash, req.user.id]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
