@@ -64,9 +64,127 @@ select{cursor:pointer;}
 #toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;
   padding:12px 20px;border-radius:999px;font-size:12px;font-weight:600;
   opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+
+/* ── Mobile responsive ─────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Header */
+  #header { padding:12px 14px; flex-wrap:nowrap; }
+  #logo-pill { padding:5px 12px; }
+  #logo-pill img { height:32px; }
+  #hcenter h2 { font-size:14px; }
+  #weekLabel { font-size:11px; }
+  #hbtns { display:none !important; }
+  #hamburger { display:block !important; }
+
+  /* Views */
+  .view { padding:0 10px 10px; }
+
+  /* Project board */
+  #projectBoardGrid,
+  #closedProjectsGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Project board header */
+  #projectBoardView > div:first-child {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  #projectBoardView > div:first-child > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  #projectBoardSearch { width: 100% !important; }
+  #projectBoardFilter { width: 100% !important; }
+
+  /* Project detail header */
+  #projectDetailView > div:first-child > div:first-child > div:last-child {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Task table — make it scrollable horizontally */
+  #projectDetailView div[style*="overflow-x"] { overflow-x: auto; }
+
+  /* Detail task table minimum widths relaxed */
+  #detailTaskBody td { min-width: 0; font-size:12px; }
+
+  /* Dashboard */
+  #dashMetrics {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Archive table scrollable */
+  #archiveTable { min-width: 600px; }
+
+  /* Contacts grid */
+  #contactGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Project form grid */
+  #projectForm div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modals */
+  #contactPickerModal > div,
+  #projectPickerModal > div,
+  #inlineContactModal > div,
+  #inlineProjectModal > div,
+  #reportModal > div {
+    width: 92vw !important;
+    max-width: 92vw !important;
+    padding: 18px !important;
+  }
+
+  /* Login screen */
+  #loginScreen > div {
+    width: 90vw !important;
+    padding: 24px 20px !important;
+  }
+
+  /* Buttons wrap nicely */
+  #projectBoardView button,
+  #projectDetailView button {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  /* Project cards on board */
+  #projectBoardGrid > div,
+  #closedProjectsGrid > div {
+    padding: 14px;
+  }
+}
 </style>
 </head>
 <body>
+<!-- MOBILE MENU OVERLAY -->
+<div id="mobileMenuOverlay" onclick="toggleMobileMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8000;"></div>
+<div id="mobileMenu" style="display:none;position:fixed;top:0;left:0;width:75vw;max-width:280px;height:100vh;background:var(--navy);z-index:8001;flex-direction:column;padding:0;overflow-y:auto;transform:translateX(-100%);transition:transform .3s;">
+  <div style="padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:space-between;">
+    <p style="color:var(--gold);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:0;">Killam Development</p>
+    <button onclick="toggleMobileMenu()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+  </div>
+  <nav style="padding:12px 0;">
+    <a onclick="showProjectBoard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-building" style="font-size:18px;color:var(--gold);"></i> Projects</a>
+    <a onclick="showThisWeek();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-calendar-week" style="font-size:18px;color:var(--gold);"></i> This Week</a>
+    <a onclick="showDashboard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-chart-bar" style="font-size:18px;color:var(--gold);"></i> Dashboard</a>
+    <a onclick="showContacts();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-address-book" style="font-size:18px;color:var(--gold);"></i> Contacts</a>
+    <a onclick="showArchive();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-archive" style="font-size:18px;color:var(--gold);"></i> Archive</a>
+    <a onclick="exportData();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-download" style="font-size:18px;color:var(--gold);"></i> Export</a>
+  </nav>
+  <div style="padding:20px;margin-top:auto;border-top:1px solid rgba(255,255,255,.1);">
+    <button onclick="document.getElementById('btnLogout').click();toggleMobileMenu();" style="width:100%;padding:12px;background:rgba(255,100,100,.2);border:1px solid rgba(255,100,100,.4);border-radius:999px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;"><i class="ti ti-logout"></i> Sign out</button>
+  </div>
+</div>
+
 <!-- LOGIN SCREEN -->
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
@@ -102,6 +220,8 @@ select{cursor:pointer;}
         <div id="saveStatus"></div>
       </div>
     </div>
+    <!-- Hamburger for mobile -->
+    <button id="hamburger" onclick="toggleMobileMenu()" style="display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px 8px;">&#9776;</button>
     <div id="hbtns">
       <button id="btnProjects" class="btn-blue"><i class="ti ti-building"></i> Projects</button>
       <button id="btnThisWeek" class="btn-ghost"><i class="ti ti-calendar-week"></i> This week</button>
@@ -257,7 +377,7 @@ select{cursor:pointer;}
           <div id="detailProjectMeta" style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;"></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button id="btnDetailAddNote" class="btn-blue" style="padding:7px 14px;font-size:11px;"><i class="ti ti-notes"></i> Add note</button>
+          <button id="btnDetailAddNote" style="padding:7px 14px;font-size:11px;background:#4a90c4;color:#fff;border:1px solid #3a7aaa;border-radius:999px;font-family:inherit;font-weight:600;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-notes"></i> Add note</button>
           <button id="btnDetailEditProject" class="btn-ghost" style="padding:7px 14px;font-size:11px;"><i class="ti ti-pencil"></i> Edit project</button>
           <button id="btnDetailAddTask" class="btn-gold" style="padding:7px 14px;font-size:11px;"><i class="ti ti-plus"></i> Add task</button>
         </div>
@@ -1827,6 +1947,21 @@ document.getElementById("pickerDone").onclick = () => {
   if(pickerCallback) pickerCallback(lines);
   document.getElementById("contactPickerModal").style.display = "none";
 };
+
+// ── Mobile menu ────────────────────────────────────────────────
+function toggleMobileMenu(){
+  const menu    = document.getElementById("mobileMenu");
+  const overlay = document.getElementById("mobileMenuOverlay");
+  const isOpen  = menu.style.display === "flex";
+  if(isOpen){
+    menu.style.transform = "translateX(-100%)";
+    setTimeout(()=>{ menu.style.display="none"; overlay.style.display="none"; }, 300);
+  } else {
+    menu.style.display = "flex";
+    overlay.style.display = "block";
+    requestAnimationFrame(()=>{ menu.style.transform = "translateX(0)"; });
+  }
+}
 
 loadState();
 
