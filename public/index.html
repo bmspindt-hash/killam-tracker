@@ -293,6 +293,7 @@ select{cursor:pointer;}
           <option value="">— Select type —</option>
           <option value="Lease">Lease</option>
           <option value="Renewal">Renewal</option>
+          <option value="Construction">Construction</option>
           <option value="Purchase">Purchase</option>
           <option value="Sale">Sale</option>
         </select>
@@ -310,6 +311,10 @@ select{cursor:pointer;}
           <option value="Completed">Completed</option>
           <option value="Dead">Dead</option>
           <option value="Working on other">Working on other</option>
+          <option value="Land Prep">Land Prep</option>
+          <option value="Ground Up Build">Ground Up Build</option>
+          <option value="Interior Finishout">Interior Finishout</option>
+          <option value="Delivered">Delivered</option>
         </select>
       </div>
       <div>
@@ -359,6 +364,7 @@ select{cursor:pointer;}
           <option value="">All types</option>
           <option value="Lease">Lease</option>
           <option value="Renewal">Renewal</option>
+          <option value="Construction">Construction</option>
           <option value="Purchase">Purchase</option>
           <option value="Sale">Sale</option>
         </select>
@@ -707,6 +713,7 @@ select{cursor:pointer;}
           <option value="">— Select type —</option>
           <option value="Lease">Lease</option>
           <option value="Renewal">Renewal</option>
+          <option value="Construction">Construction</option>
           <option value="Purchase">Purchase</option>
           <option value="Sale">Sale</option>
         </select>
@@ -766,7 +773,7 @@ select{cursor:pointer;}
 <div id="toast"></div>
 
 <script>
-const STATUSES = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Completed","Dead","Working on other"];
+const STATUSES = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Completed","Dead","Working on other","Land Prep","Ground Up Build","Interior Finishout","Delivered"];
 
 // ── API base URL — auto-detects local vs deployed ──────────────
 const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
@@ -1095,9 +1102,9 @@ function renderProjectBoard(){
     .sort((a,b)=>(PRIORITY_ORDER[a.priority||""]??3)-(PRIORITY_ORDER[b.priority||""]??3));
   const closedProjects = allFiltered.filter(p=>CLOSED_STATUSES.includes(p.status));
 
-  const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
+  const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
   const statusBadge= s=>{
-    const colors = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#2e7d32","Dead":"#c62828","Working on other":"#e65100"};
+    const colors = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#2e7d32","Dead":"#c62828","Working on other":"#e65100","Land Prep":"#5d4037","Ground Up Build":"#4e342e","Interior Finishout":"#6d4c41","Delivered":"#2e7d32"};
     const c = colors[s]||"#888";
     return s?`<span style="font-size:10px;font-weight:700;color:${c};background:${c}18;padding:3px 10px;border-radius:999px;">${s}</span>`:"";
   };
@@ -2221,8 +2228,8 @@ function renderDashboard(){
   const projDiv = document.getElementById("dashProjects");
   const CLOSED_STATUSES_DASH = ["Closed","Completed","Dead"];
   const activeProjs = (state.projects||[]).filter(p=>!CLOSED_STATUSES_DASH.includes(p.status));
-  const typeColor = t => t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
-  const statusColors2 = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#43a047","Dead":"#c62828","Working on other":"#e65100"};
+  const typeColor = t => t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
+  const statusColors2 = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#43a047","Dead":"#c62828","Working on other":"#e65100","Land Prep":"#5d4037","Ground Up Build":"#4e342e","Interior Finishout":"#6d4c41","Delivered":"#2e7d32"};
 
   if(!activeProjs.length){
     projDiv.innerHTML = '<p style="color:#888;font-size:12px;">No active projects yet.</p>';
@@ -2402,7 +2409,7 @@ function buildProjectList(){
     return;
   }
 
-  const typeColor = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":"#888";
+  const typeColor = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
 
   [...projectNames].sort().forEach(name=>{
     const projData = (state.projects||[]).find(p=>p.name===name || name.toLowerCase().includes(p.name.toLowerCase()));
