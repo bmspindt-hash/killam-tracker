@@ -1262,18 +1262,8 @@ function openProjectDetail(projectId){
     detailContactsEl.style.display = "none";
   }
 
-  const notesEl = document.getElementById("detailProjectNotes");
-  const entries = parseNotes(p.notes);
-  if(entries.length){
-    notesEl.style.display="block";
-    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal</div>' +
-      entries.map(e=>`<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);align-items:flex-start;">
-        <div style="width:5px;height:5px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${formatNoteDate(e.date)}</div>
-          <div style="font-size:12px;color:#e0e0e0;line-height:1.5;">${e.text}</div>
-        </div></div>`).join("");
-  } else { notesEl.style.display="none"; }
+  detailEditingNoteIdx = null;
+  renderDetailNotes(p);
 
 
 
@@ -1281,6 +1271,106 @@ function openProjectDetail(projectId){
   document.getElementById("projectDetailView").style.display = "block";
   renderDetailTasks(p);
   renderDetailArchive(p);
+}
+
+// ── Detail view journal: editable entries ──────────────────────
+let detailEditingNoteIdx = null;
+
+function renderDetailNotes(p){
+  const notesEl = document.getElementById("detailProjectNotes");
+  const entries = parseNotes(p.notes);
+  if(entries.length){
+    notesEl.style.display="block";
+    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal</div>' +
+      entries.map((e,i)=>{
+        if(i===detailEditingNoteIdx){
+          return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">
+            <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:4px;">${formatNoteDate(e.date)}</div>
+            <textarea id="detailNoteEditText" style="width:100%;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(e.text)}</textarea>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button type="button" id="detailNoteEditSaveBtn" onclick="saveDetailNoteEdit(${i})" style="padding:5px 14px;background:var(--gold);color:var(--navy);border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
+              <button type="button" onclick="cancelDetailNoteEdit()" style="padding:5px 14px;background:transparent;color:#cfd6dd;border:1px solid rgba(255,255,255,.3);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
+            </div>
+          </div>`;
+        }
+        return `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);align-items:flex-start;">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${formatNoteDate(e.date)}</div>
+            <div style="font-size:12px;color:#e0e0e0;line-height:1.5;white-space:pre-wrap;">${e.text}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
+            <i class="ti ti-pencil" onclick="editDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Edit note"></i>
+            <i class="ti ti-trash" onclick="deleteDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Delete note"></i>
+          </div>
+        </div>`;
+      }).join("");
+  } else { notesEl.style.display="none"; }
+}
+
+function editDetailNote(idx){
+  detailEditingNoteIdx = idx;
+  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
+  if(!p) return;
+  renderDetailNotes(p);
+  setTimeout(()=>{
+    const t = document.getElementById("detailNoteEditText");
+    if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  }, 0);
+}
+
+function cancelDetailNoteEdit(){
+  detailEditingNoteIdx = null;
+  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
+  if(p) renderDetailNotes(p);
+}
+
+async function saveDetailNoteEdit(idx){
+  const ta = document.getElementById("detailNoteEditText");
+  const newText = ta.value.trim();
+  if(!newText) return;
+  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
+  if(!p) return;
+  const entries = parseNotes(p.notes);
+  entries[idx].text = newText;
+  const updatedNotes = serializeNotes(entries);
+  const saveBtn = document.getElementById("detailNoteEditSaveBtn");
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+  try {
+    await apiFetch("/api/projects/"+p.id, "PUT", {
+      name:p.name, address:p.address, prospect:p.prospect,
+      type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
+      status:p.status, notes:updatedNotes, contacts:p.contacts||"[]", priority:p.priority||""
+    });
+    p.notes = updatedNotes;
+    detailEditingNoteIdx = null;
+    renderDetailNotes(p);
+    toast("Note updated","#2e7d32");
+  } catch(e){
+    toast("Save failed","#c0392b");
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = "SAVE"; }
+  }
+}
+
+async function deleteDetailNote(idx){
+  if(!confirm("Delete this journal entry?")) return;
+  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
+  if(!p) return;
+  const entries = parseNotes(p.notes);
+  entries.splice(idx,1);
+  const updatedNotes = serializeNotes(entries);
+  try {
+    await apiFetch("/api/projects/"+p.id, "PUT", {
+      name:p.name, address:p.address, prospect:p.prospect,
+      type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
+      status:p.status, notes:updatedNotes, contacts:p.contacts||"[]", priority:p.priority||""
+    });
+    p.notes = updatedNotes;
+    renderDetailNotes(p);
+    toast("Note deleted","#888");
+  } catch(e){
+    toast("Delete failed","#c0392b");
+  }
 }
 
 function renderDetailArchive(p){
@@ -1609,18 +1699,72 @@ function formatNoteDate(d){
   catch(e){ return d; }
 }
 
+function escapeHtml(s){
+  return String(s==null?"":s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+let formEditingNoteIdx = null; // index of journal entry currently being edited in the project form
+
 function renderNotesList(entries, containerId){
   const el = document.getElementById(containerId);
   if(!entries.length){ el.style.display="none"; return; }
   el.style.display="block";
-  el.innerHTML = entries.map(e=>`
+  el.innerHTML = entries.map((e,i)=>{
+    if(i===formEditingNoteIdx){
+      return `<div style="padding:8px 6px;border-bottom:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:4px;">${formatNoteDate(e.date)}</div>
+        <textarea id="pfNoteEditText" style="width:100%;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(e.text)}</textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button type="button" onclick="saveFormNoteEdit(${i})" style="padding:5px 14px;background:var(--navy);color:#fff;border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
+          <button type="button" onclick="cancelFormNoteEdit()" style="padding:5px 14px;background:transparent;color:#888;border:1px solid var(--border);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
+        </div>
+      </div>`;
+    }
+    return `
     <div style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);align-items:flex-start;">
       <div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
       <div style="flex:1;">
         <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:2px;">${formatNoteDate(e.date)}</div>
-        <div style="font-size:12px;color:var(--text);line-height:1.5;">${e.text}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-wrap;">${e.text}</div>
       </div>
-    </div>`).join("");
+      <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
+        <i class="ti ti-pencil" onclick="editFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Edit note"></i>
+        <i class="ti ti-trash" onclick="deleteFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Delete note"></i>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function editFormNote(idx){
+  formEditingNoteIdx = idx;
+  renderNotesList(currentFormNotes, "pfNotesList");
+  setTimeout(()=>{
+    const t = document.getElementById("pfNoteEditText");
+    if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  }, 0);
+}
+
+function cancelFormNoteEdit(){
+  formEditingNoteIdx = null;
+  renderNotesList(currentFormNotes, "pfNotesList");
+}
+
+function saveFormNoteEdit(idx){
+  const ta = document.getElementById("pfNoteEditText");
+  const newText = ta.value.trim();
+  if(!newText) return;
+  currentFormNotes[idx].text = newText;
+  formEditingNoteIdx = null;
+  renderNotesList(currentFormNotes, "pfNotesList");
+}
+
+function deleteFormNote(idx){
+  if(!confirm("Delete this journal entry?")) return;
+  currentFormNotes.splice(idx,1);
+  formEditingNoteIdx = null;
+  renderNotesList(currentFormNotes, "pfNotesList");
 }
 
 let currentFormNotes = []; // working copy of notes in the form
@@ -1638,6 +1782,7 @@ function showProjectForm(project){
   document.getElementById("pfPriceSf").value = project?.price_per_sf || "";
   document.getElementById("pfNewNote").value = "";
   currentFormNotes = parseNotes(project?.notes || "");
+  formEditingNoteIdx = null;
   renderNotesList(currentFormNotes, "pfNotesList");
   currentProjectContacts = parseProjectContacts(project?.contacts || "[]");
   renderProjectContactPills("pfProjectContactsList");
