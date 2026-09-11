@@ -810,6 +810,13 @@ function weekRange(id){
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 
+function daysSince(dateStr){
+  if(!dateStr) return Infinity; // never opened / unknown — treat as stale
+  const then = new Date(dateStr).getTime();
+  if(isNaN(then)) return Infinity;
+  return Math.floor((Date.now() - then) / 86400000);
+}
+
 function toast(msg, color="#16273a"){
   const el = document.getElementById("toast");
   el.textContent = msg; el.style.background = color; el.style.opacity = "1";
@@ -1121,12 +1128,20 @@ function renderProjectBoard(){
       return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase());
     }).length;
 
+    // Idle glow: flags projects that haven't been opened recently. Skipped for
+    // closed/dead projects since those are expected to sit untouched.
+    const idleDays      = CLOSED_STATUSES.includes(p.status) ? 0 : daysSince(p.last_opened_at);
+    const isStaleRed    = idleDays >= 14;
+    const isStaleYellow = !isStaleRed && idleDays >= 7;
+    const glowColor     = isStaleRed ? "#c62828" : isStaleYellow ? "#f9a825" : null;
+    const glowShadow    = glowColor ? `0 0 0 2px ${glowColor}, 0 0 14px 2px ${glowColor}66` : "none";
+
     const card = document.createElement("div");
     const prioBg = p.priority==="High"?"#fff5f5":p.priority==="Medium"?"#fff8f0":p.priority==="Low"?"#fffef0":"#fff";
     const prioBorder = p.priority==="High"?"#ffcdd2":p.priority==="Medium"?"#ffe0b2":p.priority==="Low"?"#fff9c4":p.priority?"var(--border)":"var(--border)";
-    card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;`;
-    card.onmouseenter = ()=>card.style.boxShadow="0 4px 16px rgba(0,0,0,.1)";
-    card.onmouseleave = ()=>card.style.boxShadow="none";
+    card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;box-shadow:${glowShadow};`;
+    card.onmouseenter = ()=>card.style.boxShadow = glowColor ? `0 0 0 2px ${glowColor}, 0 0 18px 4px ${glowColor}88, 0 4px 16px rgba(0,0,0,.12)` : "0 4px 16px rgba(0,0,0,.1)";
+    card.onmouseleave = ()=>card.style.boxShadow = glowShadow;
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
         <div style="flex:1;">
@@ -1147,8 +1162,11 @@ function renderProjectBoard(){
         </div>
       </div>
       ${p.prospect?`<div style="font-size:12px;color:#555;margin-bottom:6px;"><i class="ti ti-user" style="margin-right:3px;"></i>${p.prospect}</div>`:""}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-        ${statusBadge(p.status)}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${statusBadge(p.status)}
+          ${glowColor?`<span style="font-size:10px;font-weight:700;color:${glowColor};background:${glowColor}18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-clock-pause" style="margin-right:3px;"></i>${idleDays}d idle</span>`:""}
+        </div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${(p.sf||p.price_per_sf)?`<span style="font-size:11px;color:#888;">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</span>`:""}
           <span style="font-size:11px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
@@ -1218,10 +1236,27 @@ document.getElementById("btnAddProjectBoard").onclick = ()=>{
 };
 
 // ── Project Detail ─────────────────────────────────────────────
+
+// Fire-and-forget: stamp last_opened_at so the board's idle glow clears.
+// Updates local state immediately (optimistic) so the board reflects it
+// next time it's shown, without waiting on the network round trip.
+async function markProjectOpened(p){
+  p.last_opened_at = new Date().toISOString();
+  try {
+    await apiFetch("/api/projects/"+p.id+"/opened", "PATCH");
+  } catch(e){
+    // Non-critical — worst case the glow re-appears until the next successful open.
+    console.error("Failed to mark project opened:", e);
+  }
+}
+
 function openProjectDetail(projectId){
   currentProjectId = projectId;
   const p = (state.projects||[]).find(x=>x.id===projectId);
   if(!p) return;
+
+  // Mark this project as just-viewed, which resets its idle-staleness glow on the board.
+  markProjectOpened(p);
 
   const typeColor = t=>t==="Lease"?"#b8924f":t==="Purchase"?"#6fcf97":t==="Sale"?"#f2994a":"#cfd6dd";
 
