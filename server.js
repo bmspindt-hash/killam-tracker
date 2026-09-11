@@ -78,6 +78,7 @@ async function initDB() {
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS status     TEXT DEFAULT '';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS contacts   TEXT DEFAULT '[]';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS priority   TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMP DEFAULT NOW();
   `);
 
   const weekRow = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
@@ -293,6 +294,15 @@ app.patch("/api/projects/:id/status", requireAuth, async (req, res) => {
   const { status } = req.body;
   await pool.query("UPDATE projects SET status=$1 WHERE id=$2", [status||"", req.params.id]);
   res.json({ ok: true });
+});
+
+// Mark a project as viewed — resets its "idle" clock for the staleness glow
+app.patch("/api/projects/:id/opened", requireAuth, async (req, res) => {
+  const result = await pool.query(
+    "UPDATE projects SET last_opened_at=NOW() WHERE id=$1 RETURNING last_opened_at",
+    [req.params.id]
+  );
+  res.json({ ok: true, last_opened_at: result.rows[0]?.last_opened_at });
 });
 
 app.delete("/api/projects/:id", requireAuth, async (req, res) => {
