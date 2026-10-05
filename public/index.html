@@ -340,7 +340,7 @@ select{cursor:pointer;}
         <div style="margin-bottom:12px;">
           <textarea id="pfNewNote" placeholder="Add a new note..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;box-sizing:border-box;"></textarea>
           <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <button type="button" onclick="pickPdfs(f=>addPendingPdfs('form',f))" style="padding:5px 12px;background:#fff;color:var(--navy);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach PDF</button>
+            <button type="button" onclick="pickFiles(f=>addPendingFiles('form',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:#fff;color:var(--navy);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
             <div id="pfNotePending" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
           </div>
         </div>
@@ -428,7 +428,7 @@ select{cursor:pointer;}
           </div>
         </div>
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <button type="button" onclick="pickPdfs(f=>addPendingPdfs('detail',f))" style="padding:5px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach PDF</button>
+          <button type="button" onclick="pickFiles(f=>addPendingFiles('detail',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
           <div id="detailNotePending" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
         </div>
       </div>
@@ -779,7 +779,7 @@ select{cursor:pointer;}
 </div>
 
 <div id="toast"></div>
-<input id="pdfFileInput" type="file" accept="application/pdf,.pdf" multiple style="display:none;">
+<input id="attachFileInput" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style="display:none;">
 
 <script>
 const STATUSES = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Completed","Dead","Working on other","Land Prep","Ground Up Build","Interior Finishout","Delivered"];
@@ -1264,7 +1264,7 @@ function openProjectDetail(projectId){
   const p = (state.projects||[]).find(x=>x.id===projectId);
   if(!p) return;
 
-  // Pending (not yet uploaded) PDFs belong to one project; drop them if we've switched projects.
+  // Pending (not yet uploaded) files belong to one project; drop them if we've switched projects.
   if(detailPendingFor !== projectId){ detailPendingFor = projectId; detailPendingFiles = []; renderPending("detail"); }
 
   // Mark this project as just-viewed, which resets its idle-staleness glow on the board.
@@ -1349,7 +1349,7 @@ function renderDetailNotes(p){
             ${attachmentChipsHtml(e,i,"detail",false)}
           </div>
           <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
-            <i class="ti ti-paperclip" onclick="pickPdfs(f=>addPdfsToNote('detail',${i},f))" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Attach PDF"></i>
+            <i class="ti ti-paperclip" onclick="pickFiles(f=>addFilesToNote('detail',${i},f))" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Attach a PDF or Word file"></i>
             <i class="ti ti-pencil" onclick="editDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Edit note"></i>
             <i class="ti ti-trash" onclick="deleteDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Delete note"></i>
           </div>
@@ -1408,7 +1408,7 @@ async function deleteDetailNote(idx){
   const entries = parseNotes(p.notes);
   const files = entries[idx].attachments || [];
   const n = files.length;
-  if(!confirm(n ? "Delete this journal entry and its "+n+" PDF"+(n>1?"s":"")+"?" : "Delete this journal entry?")) return;
+  if(!confirm(n ? "Delete this journal entry and its "+n+" file"+(n>1?"s":"")+"?" : "Delete this journal entry?")) return;
   entries.splice(idx,1);
   if(await saveDetailEntries(p, entries)){
     files.forEach(a=>deleteStoredFile(p.id, a.key));   // note is gone, so its files can go too
@@ -1607,14 +1607,14 @@ document.getElementById("detailNoteCancel").onclick = ()=>{
 
 document.getElementById("detailNoteSave").onclick = async()=>{
   const text = document.getElementById("detailNoteText").value.trim();
-  if(!text && !detailPendingFiles.length) return;      // a note can be text, PDFs, or both
+  if(!text && !detailPendingFiles.length) return;      // a note can be text, files, or both
   const p = (state.projects||[]).find(x=>x.id===currentProjectId);
   if(!p) return;
   const saveBtn = document.getElementById("detailNoteSave");
   saveBtn.disabled = true;
   saveBtn.textContent = detailPendingFiles.length ? "Uploading…" : "Saving…";
   try {
-    const atts = await uploadAllPdfs(p.id, detailPendingFiles);
+    const atts = await uploadAllAttachments(p.id, detailPendingFiles);
     const entry = {date: new Date().toISOString(), text};
     if(atts.length) entry.attachments = atts;
     const entries = parseNotes(p.notes);
@@ -1762,44 +1762,60 @@ function escapeHtml(s){
 }
 
 
-// ── PDF attachments (files live in Cloudflare R2; journal entries just hold references) ──
+// ── File attachments: PDF and Word (files live in Cloudflare R2; journal entries just hold references) ──
 // A journal entry now looks like: {date, text, attachments:[{key, name, size}]}
-const MAX_PDF_MB = 15;
+const MAX_ATTACH_MB = 15;
 let attachCb = null;             // what to do with the files the user just picked
-let detailPendingFiles = [];     // PDFs chosen in the detail view's "Add note" box (not uploaded yet)
+let detailPendingFiles = [];     // files chosen in the detail view's "Add note" box (not uploaded yet)
 let detailPendingFor   = null;   // project those pending files belong to
 let formPendingFiles   = [];     // same, for the Edit Project form
 let formProjectId      = null;   // project id used for file paths while the form is open (new projects need one before they're saved)
 let formNewKeys        = [];     // files uploaded during this form session that haven't been saved yet
 let formKeysToDelete   = [];     // already-saved files the user removed; deleted from storage only when the form is saved
 
+// Which kind of file? Works on a filename or a storage key (both end in the extension).
+function fileExt(nameOrKey){
+  const m = /\.(pdf|docx|doc)$/i.exec(nameOrKey || "");
+  return m ? m[1].toLowerCase() : "";
+}
+function fileIconHtml(nameOrKey, extraStyle){
+  const ext   = fileExt(nameOrKey);
+  const icon  = ext==="pdf" ? "ti-file-type-pdf" : ext==="docx" ? "ti-file-type-docx" : ext==="doc" ? "ti-file-type-doc" : "ti-file";
+  const color = ext==="pdf" ? "#e57373" : "#5b9bd5";     // red for PDF, Word-blue for .doc/.docx
+  return `<i class="ti ${icon}" style="font-size:14px;color:${color};${extraStyle||""}"></i>`;
+}
+
 function fmtBytes(n){
   if(!n) return "";
   return n < 1024*1024 ? Math.max(1, Math.round(n/1024)) + " KB" : (n/1024/1024).toFixed(1) + " MB";
 }
 
-function pickPdfs(cb){
+function pickFiles(cb){
   attachCb = cb;
-  const inp = document.getElementById("pdfFileInput");
+  const inp = document.getElementById("attachFileInput");
   inp.value = "";            // so picking the same file twice still fires onchange
   inp.click();
 }
-document.getElementById("pdfFileInput").onchange = (ev)=>{
+document.getElementById("attachFileInput").onchange = (ev)=>{
   const files = [...ev.target.files];
   if(files.length && attachCb) attachCb(files);
 };
 
-function validatePdfFiles(files){
+function validateAttachmentFiles(files){
   const ok = [];
   for(const f of files){
-    if(!(f.type==="application/pdf" || /\.pdf$/i.test(f.name))){ toast('"'+f.name+'" is not a PDF',"#c0392b"); continue; }
-    if(f.size > MAX_PDF_MB*1024*1024){ toast('"'+f.name+'" is over '+MAX_PDF_MB+' MB',"#c0392b"); continue; }
+    // Go mainly by extension: browsers often report an empty or odd type for Word files.
+    // A recognized MIME type also counts (e.g. a file saved without an extension).
+    // The server re-checks the real contents, so this is just a quick friendly filter.
+    const knownMime = ["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(f.type);
+    if(!fileExt(f.name) && !knownMime){ toast('"'+f.name+'" is not a PDF or Word file',"#c0392b"); continue; }
+    if(f.size > MAX_ATTACH_MB*1024*1024){ toast('"'+f.name+'" is over '+MAX_ATTACH_MB+' MB',"#c0392b"); continue; }
     ok.push(f);
   }
   return ok;
 }
 
-async function uploadPdfFile(projectId, file){
+async function uploadAttachmentFile(projectId, file){
   const fd = new FormData();
   fd.append("file", file);
   const res = await fetch(API+"/api/projects/"+encodeURIComponent(projectId)+"/attachments", {
@@ -1818,10 +1834,10 @@ async function uploadPdfFile(projectId, file){
 }
 
 // Upload several files. If one fails, remove the ones that already went up so nothing is orphaned.
-async function uploadAllPdfs(projectId, files){
+async function uploadAllAttachments(projectId, files){
   const done = [];
   try {
-    for(const f of files) done.push(await uploadPdfFile(projectId, f));
+    for(const f of files) done.push(await uploadAttachmentFile(projectId, f));
     return done;
   } catch(e){
     await Promise.all(done.map(a=>deleteStoredFile(projectId, a.key)));
@@ -1837,19 +1853,25 @@ async function deleteStoredFile(projectId, key){   // best-effort; failures only
   } catch(e){ console.error("Could not delete file:", e); }
 }
 
+// Browsers can show a PDF in a tab, but can't display Word files, so those download instead.
+function startDownload(url){ window.location.href = url; }
+
 async function openAttachment(att){
-  const w = window.open("", "_blank");   // open the tab immediately so popup blockers allow it
+  const isPdf = fileExt(att.key) === "pdf";
+  // For PDFs, open the tab right away (before the network call) so popup blockers allow it.
+  const w = isPdf ? window.open("", "_blank") : null;
   try {
-    const r = await apiFetch("/api/attachments/url?key="+encodeURIComponent(att.key)+"&name="+encodeURIComponent(att.name||"document.pdf"));
+    const r = await apiFetch("/api/attachments/url?key="+encodeURIComponent(att.key)+"&name="+encodeURIComponent(att.name||"document"));
     if(!r.url) throw new Error(r.error || "Could not open file");
-    if(w) w.location.href = r.url; else window.open(r.url, "_blank");
+    if(isPdf){ if(w) w.location.href = r.url; else window.open(r.url, "_blank"); }
+    else { toast("Downloading "+(att.name||"file")+"…"); startDownload(r.url); }
   } catch(e){
     if(w) w.close();
     toast(e.message || "Could not open file", "#c0392b");
   }
 }
 
-// Little "pill" for each attached PDF under a journal entry. scope = "detail" | "form".
+// Little "pill" for each attached file under a journal entry. scope = "detail" | "form".
 function attachmentChipsHtml(e, i, scope, readOnly){
   const list = e.attachments || [];
   if(!list.length) return "";
@@ -1858,14 +1880,14 @@ function attachmentChipsHtml(e, i, scope, readOnly){
     : "background:#fff;color:var(--navy);border:1px solid var(--border);";
   return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">' + list.map((a,j)=>`
     <span style="display:inline-flex;align-items:center;gap:6px;${chip}border-radius:999px;padding:3px ${readOnly?10:6}px 3px 10px;font-size:11px;max-width:100%;">
-      <i class="ti ti-file-type-pdf" style="font-size:14px;color:#e57373;flex-shrink:0;"></i>
+      ${fileIconHtml(a.key, "flex-shrink:0;")}
       <a href="#" onclick="openNoteAttachment('${scope}',${i},${j});return false;" title="${escapeHtml(a.name)}" style="color:inherit;text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;">${escapeHtml(a.name)}</a>
       <span style="opacity:.6;flex-shrink:0;">${fmtBytes(a.size)}</span>
-      ${readOnly ? "" : `<i class="ti ti-x" onclick="removeNoteAttachment('${scope}',${i},${j})" title="Remove PDF" style="cursor:pointer;opacity:.7;font-size:13px;flex-shrink:0;"></i>`}
+      ${readOnly ? "" : `<i class="ti ti-x" onclick="removeNoteAttachment('${scope}',${i},${j})" title="Remove file" style="cursor:pointer;opacity:.7;font-size:13px;flex-shrink:0;"></i>`}
     </span>`).join("") + '</div>';
 }
 
-// Chips for files picked but not yet uploaded (shown next to the "Attach PDF" button).
+// Chips for files picked but not yet uploaded (shown next to the "Attach file" button).
 function renderPending(scope){
   const files = scope==="detail" ? detailPendingFiles : formPendingFiles;
   const el = document.getElementById(scope==="detail" ? "detailNotePending" : "pfNotePending");
@@ -1875,17 +1897,17 @@ function renderPending(scope){
     : "background:#fff;color:var(--navy);border:1px solid var(--border);";
   el.innerHTML = files.map((f,k)=>`
     <span style="display:inline-flex;align-items:center;gap:6px;${chip}border-radius:999px;padding:3px 6px 3px 10px;font-size:11px;">
-      <i class="ti ti-file-type-pdf" style="font-size:14px;color:#e57373;"></i>${escapeHtml(f.name)}
+      ${fileIconHtml(f.name)}${escapeHtml(f.name)}
       <span style="opacity:.6;">${fmtBytes(f.size)}</span>
-      <i class="ti ti-x" onclick="removePendingPdf('${scope}',${k})" style="cursor:pointer;opacity:.7;font-size:13px;"></i>
+      <i class="ti ti-x" onclick="removePendingFile('${scope}',${k})" style="cursor:pointer;opacity:.7;font-size:13px;"></i>
     </span>`).join("");
 }
-function addPendingPdfs(scope, files){
-  const ok = validatePdfFiles(files);
+function addPendingFiles(scope, files){
+  const ok = validateAttachmentFiles(files);
   (scope==="detail" ? detailPendingFiles : formPendingFiles).push(...ok);
   renderPending(scope);
 }
-function removePendingPdf(scope, k){
+function removePendingFile(scope, k){
   (scope==="detail" ? detailPendingFiles : formPendingFiles).splice(k,1);
   renderPending(scope);
 }
@@ -1931,35 +1953,35 @@ function discardFormUploads(){
   formNewKeys = []; formKeysToDelete = []; formPendingFiles = [];
 }
 
-// Attach PDFs to an entry that already exists (paperclip icon on the entry).
-async function addPdfsToNote(scope, i, files){
-  files = validatePdfFiles(files);
+// Attach files to an entry that already exists (paperclip icon on the entry).
+async function addFilesToNote(scope, i, files){
+  files = validateAttachmentFiles(files);
   if(!files.length) return;
   toast("Uploading…");
   if(scope==="form"){
     try {
-      const atts = await uploadAllPdfs(formProjectId, files);
+      const atts = await uploadAllAttachments(formProjectId, files);
       const e = currentFormNotes[i];
       e.attachments = [...(e.attachments||[]), ...atts];
       formNewKeys.push(...atts.map(a=>a.key));
       renderNotesList(currentFormNotes, "pfNotesList");
-      toast("PDF attached","#2e7d32");
+      toast("File attached","#2e7d32");
     } catch(err){ toast(err.message,"#c0392b"); }
     return;
   }
   const p = (state.projects||[]).find(x=>x.id===currentProjectId);
   if(!p) return;
   let atts;
-  try { atts = await uploadAllPdfs(p.id, files); }
+  try { atts = await uploadAllAttachments(p.id, files); }
   catch(err){ toast(err.message,"#c0392b"); return; }
   const entries = parseNotes(p.notes);
   entries[i].attachments = [...(entries[i].attachments||[]), ...atts];
-  if(await saveDetailEntries(p, entries)){ renderDetailNotes(p); toast("PDF attached","#2e7d32"); }
+  if(await saveDetailEntries(p, entries)){ renderDetailNotes(p); toast("File attached","#2e7d32"); }
   else atts.forEach(a=>deleteStoredFile(p.id, a.key));   // note didn't save, so don't leave the files behind
 }
 
 async function removeNoteAttachment(scope, i, j){
-  if(!confirm("Remove this PDF from the note?")) return;
+  if(!confirm("Remove this file from the note?")) return;
   if(scope==="form"){
     const e = currentFormNotes[i];
     const [a] = e.attachments.splice(j,1);
@@ -1976,7 +1998,7 @@ async function removeNoteAttachment(scope, i, j){
   if(await saveDetailEntries(p, entries)){
     deleteStoredFile(p.id, a.key);      // only delete the file after the note no longer references it
     renderDetailNotes(p);
-    toast("PDF removed","#888");
+    toast("File removed","#888");
   }
 }
 
@@ -2007,7 +2029,7 @@ function renderNotesList(entries, containerId){
         ${attachmentChipsHtml(e,i,"form",false)}
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
-        <i class="ti ti-paperclip" onclick="pickPdfs(f=>addPdfsToNote('form',${i},f))" style="cursor:pointer;color:#888;font-size:14px;" title="Attach PDF"></i>
+        <i class="ti ti-paperclip" onclick="pickFiles(f=>addFilesToNote('form',${i},f))" style="cursor:pointer;color:#888;font-size:14px;" title="Attach a PDF or Word file"></i>
         <i class="ti ti-pencil" onclick="editFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Edit note"></i>
         <i class="ti ti-trash" onclick="deleteFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Delete note"></i>
       </div>
@@ -2041,7 +2063,7 @@ function saveFormNoteEdit(idx){
 function deleteFormNote(idx){
   const files = currentFormNotes[idx].attachments || [];
   const n = files.length;
-  if(!confirm(n ? "Delete this journal entry and its "+n+" PDF"+(n>1?"s":"")+"?" : "Delete this journal entry?")) return;
+  if(!confirm(n ? "Delete this journal entry and its "+n+" file"+(n>1?"s":"")+"?" : "Delete this journal entry?")) return;
   files.forEach(a=>discardOrDeferFile(a.key));
   currentFormNotes.splice(idx,1);
   formEditingNoteIdx = null;
@@ -2053,7 +2075,7 @@ let currentFormNotes = []; // working copy of notes in the form
 function showProjectForm(project){
   discardFormUploads();                       // clean up files from an earlier, unsaved form session
   editingProjectId = project ? project.id : null;
-  formProjectId = project ? project.id : uid();   // a new project needs its id up front so PDFs have a storage path
+  formProjectId = project ? project.id : uid();   // a new project needs its id up front so files have a storage path
   renderPending("form");
   document.getElementById("projectFormTitle").textContent = project ? "Edit project" : "Add project";
   document.getElementById("pfName").value    = project?.name         || "";
@@ -2076,12 +2098,12 @@ function showProjectForm(project){
 
 document.getElementById("pfAddNote").onclick = async ()=>{
   const text = document.getElementById("pfNewNote").value.trim();
-  if(!text && !formPendingFiles.length) return;       // a note can be text, PDFs, or both
+  if(!text && !formPendingFiles.length) return;       // a note can be text, files, or both
   const btn = document.getElementById("pfAddNote");
   btn.disabled = true;
   btn.textContent = formPendingFiles.length ? "Uploading…" : "Adding…";
   try {
-    const atts = await uploadAllPdfs(formProjectId, formPendingFiles);
+    const atts = await uploadAllAttachments(formProjectId, formPendingFiles);
     const entry = {date: new Date().toISOString(), text};
     if(atts.length){ entry.attachments = atts; formNewKeys.push(...atts.map(a=>a.key)); }
     currentFormNotes.unshift(entry);
@@ -2111,7 +2133,7 @@ async function deleteProject(id){
 
 document.getElementById("btnAddProject").onclick = () => showProjectForm(null);
 document.getElementById("pfCancel").onclick = () => {
-  discardFormUploads();     // throw away any PDFs uploaded in this session but never saved
+  discardFormUploads();     // throw away any files uploaded in this session but never saved
   document.getElementById("projectForm").style.display = "none";
   editingProjectId = null;
   showProjectBoard();
