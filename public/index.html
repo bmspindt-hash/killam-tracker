@@ -1,3019 +1,507 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Killam Development – Task Tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:#f4f4f4;font-family:"Montserrat",Arial,sans-serif;}
-:root{
-  --navy:#16273a;--gold:#b8924f;--gold2:#8f7038;
-  --cream:#f7f5f0;--gray:#f0f0f0;--border:#d0d0d0;
-  --text:#1a1a1a;--muted:#888;
-}
-button{font-family:"Montserrat",Arial,sans-serif;font-size:11px;font-weight:600;
-  letter-spacing:.06em;text-transform:uppercase;border-radius:999px;cursor:pointer;transition:opacity .15s;}
-button:hover{opacity:.85;}
-.btn-blue{background:#4a90c4;color:#fff;border:1px solid #3a7aaa;padding:8px 16px;}
-.btn-gold{background:var(--gold);color:#1c1305;border:1px solid var(--gold2);padding:8px 16px;}
-.btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);padding:8px 16px;}
-.btn-white{background:#fff;color:var(--navy);border:1px solid #fff;padding:8px 16px;}
-#header{background:var(--navy);color:#fff;padding:18px 20px;
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
-#logo-pill{background:#fff;border-radius:999px;padding:8px 18px;display:flex;align-items:center;}
-#logo-pill img{height:44px;width:auto;display:block;}
-#hcenter{display:flex;flex-direction:column;}
-#hcenter h2{color:#fff;font-weight:500;font-size:18px;}
-#weekLabel{color:#cfd6dd;font-size:13px;margin-top:4px;}
-#saveStatus{font-size:11px;margin-top:2px;min-height:16px;}
-#hbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-.view{padding:0 12px 12px;}
-table{width:100%;border-collapse:separate;border-spacing:0 5px;font-size:13px;}
-thead th{background:var(--navy);color:#fff;font-size:10px;font-weight:700;
-  letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;}
-thead th:first-child{border-radius:999px 0 0 999px;padding-left:14px;}
-thead th:last-child{border-radius:0 999px 999px 0;padding-right:14px;}
-.task-row td{background:#fff;padding:8px 6px;color:var(--text);vertical-align:top;}
-.task-row:nth-child(even) td{background:var(--gray);}
-.task-row td:first-child{border-radius:999px 0 0 999px;padding-left:14px;}
-.task-row td:last-child{border-radius:0 999px 999px 0;padding-right:14px;}
-.task-row.due-today td{background:#fbe7d4!important;}
-.task-row.overdue td{background:#f8d6d6!important;}
-textarea,select,input[type=date]{font-family:"Montserrat",Arial,sans-serif;font-size:12px;
-  color:var(--text);background:transparent;border:1px solid transparent;border-radius:4px;
-  width:100%;padding:4px 6px;transition:border-color .15s;}
-textarea{resize:none;overflow:hidden;field-sizing:content;min-height:30px;
-  line-height:1.5;white-space:pre-wrap;word-break:break-word;}
-textarea:focus,select:focus,input[type=date]:focus{outline:none;border-color:var(--gold);background:#fff8f0;}
-select{cursor:pointer;}
-.week-header td{background:var(--navy);color:#fff;border-radius:999px;padding:10px 18px;
-  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
-.week-gap td{padding:6px;}
-.empty-msg{color:var(--muted);font-size:13px;padding:16px 4px;}
-#archSecHdr{background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px;}
-#archSecHdr h3{color:#fff;font-weight:500;font-size:16px;}
-#toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;
-  padding:12px 20px;border-radius:999px;font-size:12px;font-weight:600;
-  opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
-
-/* ── Mobile responsive ─────────────────────────────────────── */
-@media (max-width: 768px) {
-
-  /* Header */
-  #header { padding:12px 14px; flex-wrap:nowrap; }
-  #logo-pill { padding:5px 12px; }
-  #logo-pill img { height:32px; }
-  #hcenter h2 { font-size:14px; }
-  #weekLabel { font-size:11px; }
-  #hbtns { display:none !important; }
-  #hamburger { display:block !important; }
-
-  /* Views */
-  .view { padding:0 10px 10px; }
-
-  /* Project board */
-  #projectBoardGrid,
-  #closedProjectsGrid {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Project board header */
-  #projectBoardView > div:first-child {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  #projectBoardView > div:first-child > div:last-child {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-  #projectBoardSearch { width: 100% !important; }
-  #projectBoardFilter { width: 100% !important; }
-
-  /* Project detail header */
-  #projectDetailView > div:first-child > div:first-child > div:last-child {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  /* Task table — make it scrollable horizontally */
-  #projectDetailView div[style*="overflow-x"] { overflow-x: auto; }
-
-  /* Detail task table minimum widths relaxed */
-  #detailTaskBody td { min-width: 0; font-size:12px; }
-
-  /* Dashboard */
-  #dashMetrics {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  div[style*="grid-template-columns:1fr 1fr"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Archive table scrollable */
-  #archiveTable { min-width: 600px; }
-
-  /* Contacts grid */
-  #contactGrid {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Project form grid */
-  #projectForm div[style*="grid-template-columns:1fr 1fr"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Modals */
-  #contactPickerModal > div,
-  #projectPickerModal > div,
-  #inlineContactModal > div,
-  #inlineProjectModal > div,
-  #reportModal > div {
-    width: 92vw !important;
-    max-width: 92vw !important;
-    padding: 18px !important;
-  }
-
-  /* Login screen */
-  #loginScreen > div {
-    width: 90vw !important;
-    padding: 24px 20px !important;
-  }
-
-  /* Buttons wrap nicely */
-  #projectBoardView button,
-  #projectDetailView button {
-    font-size: 10px;
-    padding: 6px 10px;
-  }
-
-  /* Project cards on board */
-  #projectBoardGrid > div,
-  #closedProjectsGrid > div {
-    padding: 14px;
-  }
-}
-</style>
-</head>
-<body>
-<!-- MOBILE MENU OVERLAY -->
-<div id="mobileMenuOverlay" onclick="toggleMobileMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8000;"></div>
-<div id="mobileMenu" style="display:none;position:fixed;top:0;left:0;width:75vw;max-width:280px;height:100vh;background:var(--navy);z-index:8001;flex-direction:column;padding:0;overflow-y:auto;transform:translateX(-100%);transition:transform .3s;">
-  <div style="padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:space-between;">
-    <p style="color:var(--gold);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:0;">Killam Development</p>
-    <button onclick="toggleMobileMenu()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
-  </div>
-  <nav style="padding:12px 0;">
-    <a onclick="showProjectBoard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-building" style="font-size:18px;color:var(--gold);"></i> Projects</a>
-    <a onclick="showThisWeek();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-calendar-week" style="font-size:18px;color:var(--gold);"></i> This Week</a>
-    <a onclick="showDashboard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-chart-bar" style="font-size:18px;color:var(--gold);"></i> Dashboard</a>
-    <a onclick="showContacts();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-address-book" style="font-size:18px;color:var(--gold);"></i> Contacts</a>
-    <a onclick="showArchive();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-archive" style="font-size:18px;color:var(--gold);"></i> Archive</a>
-    <a onclick="exportData();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-download" style="font-size:18px;color:var(--gold);"></i> Export</a>
-  </nav>
-  <div style="padding:20px;margin-top:auto;border-top:1px solid rgba(255,255,255,.1);">
-    <button onclick="document.getElementById('btnLogout').click();toggleMobileMenu();" style="width:100%;padding:12px;background:rgba(255,100,100,.2);border:1px solid rgba(255,100,100,.4);border-radius:999px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;"><i class="ti ti-logout"></i> Sign out</button>
-  </div>
-</div>
-
-<!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;overflow:hidden;">
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="background:var(--navy);border-radius:999px;padding:10px 24px;display:inline-flex;align-items:center;margin-bottom:16px;">
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJwAAABSCAYAAAChWr2JAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAABAKSURBVHhe7Z15eBRF+sc/lcxMrsFACBAghMMAcgRBJSvIoSJ44Lms+kMQBdHFY3/u4rLggRwqiEJQVAQUEMENCoqiKO6DhCMIsoCg3EeAHJM7kHMymcnU/jGQpHsScjKG6f48T/8x37e6Z6bnO1Vd1VVvCymlREfHQ/ioBR2dy4luOB2PohtOx6PohtPxKLrhdDyKbjgdj6IbTsejCC2Nw6WmpZGbn6+WK6VdmzYEBQWpZZ16oinDfb3xJ9KdAWq5EiR3RrUnol24OqBTT7zecBaLhR279gCQmp2Hf3gndRE3HA4HLRy5ICUdIsLpe8N16iLVsv67jdhKStRynRg2ZDDBwcFq+YrE6w23/rsfGDnuJQTQvFUoL82ZjhBCXUxBmiWVOVNeQwjBwyNuZ+mHb6qLXJL5C5bwymsLq32fapHw4J9vY/nit9WRKxZNdRqy07OwFdvUshsZaRlqqcbEbY1n2uzF9TcbENUrkoXvzFTLVzSaMpyUktQUi1p2IzM1vU6GSU5O4fFnpuIsdapDtSYktCmfL48hIKAm15xXDpoyHIAlKUUtuZFZhxrOZrMxctwLZGeeV4dqja/Bl5WLXiciop06dMWjKcMJIbAkVm+4ujSpE6e8zr79x9RyrZFSMuvVZxk86CZ1yCvQlOGoQQ0npSQzPV0tX5Lln67mk1XfUvtGWImUkpEP3sGzE8aqQ16D5gyXmpzCpTrm1iIrBbkFarlK9uz9lRdenl+na76KSKBP7668HzNdHfIqNGc4W1Ex2ZlZarmMjLQMuIQhK5KVlcWo8VMosdV/vK1Fi6asXh6Dv7+/OuRVaM5wVNOsZqbVrDktLS1lzFOTSUmp/fWeGoPRl5VLZhEe3lYd8jo0a7iqmtWa9lCnvjaPbfH71HKtkVLy5vT/Z+BN/dQhr0Rzhquup5qRVv0Y3FffbGDBwli1XCdGPXwXE54co5a9Fs0Zjmqa1OqGRI4ePc7T/3hDLdeJ6/pcw3vzpqllr0aThsvJysJWXKyWcTqdZKdnquUy8vPz+b9x/6SwwKoO1ZoWLUNYvTwGPz8/dcir0aThcEJqcqpaJffceUqquNcqpWT8cy9z4kSiOlRrDCYDn300mzZtWqtDXo82DQekJCWrpUs2p/PeXcR332+r9vquOqSUvD3zefr3i1aHNIFmDZeq6qlKKcmoYkhk0+atzJzzcYOY7fFH7+HJcaPVIc2gWcOlVNJxyEx1r+FS0jIZ++z0BpkB0vf6Hsx/c6pa1hSaNVxassVtLC4jPcOtFgsKDOCqJoEKra7knMvDaq1/h+NKRrOGc93iylZoWanuTWrTq8zELp2Df2D9e5OnziTx2F+n4HTWv7a8UtGs4YQQivE4h93BuZwcRZmL9IrqyYK3JrvViLVFSMGmn3YxY9Z8dUgzaNZwqAaAszIykaVVG+qRhx7gr+NH1Nt0CJi3YBVffbNBHdEEGjdccpmBLjUkcpE5M6dwY3TP+psOmPD3Nzh0+Iha9no0bbjUJNf6BilljWaJGI1GPls6l1ZhoepQrSkqtPLw4//k3Llz6pBXo2nD5WRlUWx13eKqSQ0HEBYWxqolszAYfdWhWnPmjIUxT03WVCdC04aTpeWruGo6LQmgf79oZk/7W4M0rXHbdjN15jy17LVo2nAVpyrVpEmtyNNPPcbDI4ap5dojBe8u/DdrvvpWHfFKNG04LvRUiwqLKMyr+TqGi3wwfwY9e1ytluvEMxNn8dvvB9Wy16EbLimlynuo1REQEEDssrlc1bSJOlRrrEXFPDxuEjlVjAV6C5o3XFqyhQxL9bN8q6Jjxw4se386wqdu+1ck8Uwajz75L0pLS9Uhr0HzhrNZizly8LBarhV3DLuVFyeOrXcnQgjYsm0PL8/wnuQ1ajRvOIAjB+p/7fTipOe4fWh/tVxrhBC8t+hzVq/5Wh3yCjRvOCEE9uL6rysVQrD8w9l07Fj/JIYCeG7Sm+w/8Ls6dMWjecM1JMHBwcQum0NAYP0XMxcX2Rg57l9kZytntFzpaMNwQiLruNWWnj268/7cKW7HqcuWmJjKqPGTvKoT4fUZMHNzc0k4fUYt15jmISF1Spt1+PBRbCWVL8ipLV06R3pNgmuvN5xO40IbTapOo0E3nI5H0Q2n41F0w+l4lMvSaUhJsfCXMc8jKiQhlcCSd6cR1bNHmbb445WsiHWfltOqZSj/Xjav0gzeUkoGDhupmrQo+Om7TyotX5FvN/zI7JilCu3WQX15fdokhVYTFixcyuovf1RoY0ffy5Nj67/I+aXpb7Flu+thJhXp2rkDyxe9pZYvicPhYNDtj6jlMsaNvo/xY0eVvV700Qo+XV35eguJZO2n79K2bRt1qMZcFsMlJJwmqt8DCKk03Kb1i+l3oyvFwfb4ndz90N8odSjHmAwmA9+v+aDKVAhOp5Om4dE4K+wngfSE7ZjNZkVZNZ+s+pznJiof8nHf8MF8tvwdhVYTJr/yBh8sWavQpkwcwytT/qHQaktCwmn6DHjQ7bxc5IevFjJwQM1zydntdpq1rfxcAvTudQ3xm8pTjw0Z/ii//LfyW31SSH7fuY5OnTqqQzXmD2lSLZZUxkx4pdKTOnfm36s0mxaYHbO40vNykVnzPlJL9WL/b0c5e9aVoCcvL4+9+y/vwh6PG85utzPqiUlkZLjP+3ps1HDGjyuv3rXGqVMJfPHVJoVmMBoUr7fv+JX4HbsUWn1Zt34jAHFbd2C3V232hsDDhhO88NIb7N5zUJFiXkroe0MP5s95tYKqPd6cv0RRuw0acB0fxrzoNu2poWu5r7/fCsCmLbvKfhcpJQaT0uwNgecMJyWffbGBpZ984zbZMSwslNhlczGZTApdS6hrNykkTz/xECMeuJsWLUMUZbfG7+PnnbsVWm2QUtIuojw33Z69h0lOTmFzhY5K9+6RhDZvVva6ofCc4YBim/3CJb4So9EXg6Hh/01XErNjFilqt4h2rRl+51BMJhOPP3K3oqwAZsV8rNBqyz13DFK8fmbiTM6cdi0oklJy350DFfGGwnOGE4InHr2f0SPvcmsikpLSGDV+Eg6HQ6FrhVOnElizbrNCS8/I4epew+jY8zaWrHCfjBm3ZTe7fnEfOqkJArj3rlsUj6PYvGW3ouW5/56h5cEGxHOGA0Dy7luvcm2vLop6TgjBjp/3M3lq7Z5L2hAcOpbA1BlvKbYZs2LUxWrElvh9bsda9PGn6mJuzJr3oVvPtKS4hMyMbDIzssk77/7YdCEEr7+9SC3XmOgb+tC6deUZBDp1Cqdnj+5quUHwsOHA39+f2GVzCWnu/oTjRR+vZWWscmzrcnPyZBLzP4hVbAsWf6EuViN27T7odqxVn3+vLqbg5MkE1n4dp9BMfkYCA/3dNjVxW/fwy+461nJCMHxYf7fWBuDey9Sc8kcYDqB9+wiWfzADH1/l2wsheH7y2+zdt1+hezOzY5Q9Uykl2zZ+QsaZnW5b1y4dFPviA2/MrXuP9d7ht6ol1/Xb8NvUcoNxWe40JCencOdfJiiHPoCVi2fR+9qoMu2d9z9i2ar1FUq5CG/bii9XvVfprSopJdcPGkFpxes9Idi5KZbAwEtnqly3fgPTZlXfDPn7+7F7y6Vr2nnvLGJFFbeAKtKjWySxyyvPB5eRkcGdIyYorl2jukeyamnlTfqKz74g5v1VCk0IwZoVMXTuXPmCbIfDwXUDHlBoAtgbvw6AgcMeobCoPCtn85BgNm9YiRCCofc+TnpG+RR3CfywdlG9HtF0WQyno1MVf0iTqqNddMPpeBTdcDoeRTecjkfRDafjURp1L3XNxjiKS+wAmHx9iGzbiut7lw+rfP/TVrILy9d+Ngn05/7bBpGZmcXGnfsI9DMx4vabAVj3ny0UFJdw6w1RtG3Tmo1x28nMLx8OCArw489DBwPww+atZBXYuC26F63DwsrKACQmJbPr4DGsToEJSa9O4fTo1rUs/uXGzRSVuIY5fIQgvHkwg/u75vedOZvI9gNHAYjq2IbeUT3LPlcTfwP3D3ONi8Xt2EVydl7ZMf1MRh664xZXLH4nyTn5RIQGM7j/n/ghbjtZ+VaGD7iBkJAQtu/czZnM82X7AkS2bk6/vtcrtD+KRl3DFeKH1RCECGpKnm8geyx5bNq+syyenV+E1WgGPzP4BeE0umabtGgRCiYzWaVGUiwWMjOzyHQYkX5m2rR2GSi7wLWv9Aty7Wson6mSnVeI1WimsKioTAOwpKby0+Ekzkl/fE2BFPgG8POZbPb/fqisTK5DUGQIQvibsRmDOHrezv4LiQbz8guwGs1YjWaOJqWTlpZOhsOI1WjmnK18ynzOhfd3Xvhe0lS+CDor13WMk/lOziYmcs5qx2owU2xz/fEKbSWIoKZYDUFYja5zV1TFExL/CBq14QAC/IyMHhLNXb06YvD1IbXYPQ+bv9OK2Wkl2Le8sm7m66oZDxw5wb5DR5BAsLC5TY3yL3Xt29S3+sTOv/x2BLtT0tEsGD30RqLDg5HAoSRlQkMfH8FNXdoS4lMCCCzpWYq4wceHIt8gDpw4jcHXt9LbSwB+Fz5bsHA3TKlTsu3QWYyqKV133DyA0UOi8TcZCfIzMXpINEMG1j+rU0PR6A13kbZtWmPy8cFeycM7cgkgWwSSXlg+Yn991DUIIMcuyL7QcvbpFlm+0wXyRCDZIpDUCvtWhe3CLag2oa55YpEdXbea7E7laZROyX8OJ5PuMGH0gV7duijiTY3gcDpJLoQQf/c/0EXyL3y2jEr+ZM38fCiSPuQ6qvgJ3XdpFFTxaRsPpaVOtsTvZO2PWyiyOwgQ7qm1Ojcz0TvMzLXtW5ZprcNaEUQpVmmgSBhoYpBEtHPPEXJ1sIHeYWb6dFBeqwEcP51EXPxOkpJdz1ZtGWxGSsn+s+n8sncfG7b/FyklwUZl7SiEoHszIz1CDNzXtyvhqlVOtoLzmH0clEon4VcFKFa3VaS9Gdf3aqecgAnQKSSQQB8HTvf/X6Om0RuuxOHkWJ4kp9RIoA8MilLWFgDHckrYZylgf5JynUSbq0w4pcQpJS38Kv9RT5x3sM9SwK+J7msskm1GTuRJDp9IAODm/n8i1OikUBo5kG7lnNNIE18nQ29SLvoRAgb2i2bAjdE0b95cEbtIy0BfjELQo6t7rXuR0/lO1/dKc5+ehHRyS1Qkvg2Q6tWTNOpe6tHjJ7DbXddiTcxmOrSPUMTPJiaRl1/+Y/j5+dElsvwmts1m4/jJUwBEduqomAyQmJRMbl7FnqCJLp1dP35iUhK5eeXHbR3WitAKxjl95ixJllRCQ0Lofo3yD3D85ClK7HZ6drtGoQMUFBRw+mwiIc2aEtKsGWnp6XRo356Dh48QGBDA1ReW31lSU8nOKX9CjcFgoFtX1/tcjHWIiKBJE3PZOejaOVIxRf/IseP4CEHXLp3LtMZAozacjvfR6JtUHe9CN5yOR9ENp+NRdMPpeBTdcDoe5X9I6W5Np7/14wAAAABJRU5ErkJggg==" alt="Killam" style="height:40px;width:auto;">
-      </div>
-      <h2 id="loginTitle" style="color:var(--navy);font-size:18px;font-weight:600;margin:0;">Sign in to Task Tracker</h2>
-    </div>
-    <div id="loginError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
-    <div style="margin-bottom:14px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Username</label>
-      <input id="loginUsername" type="text" placeholder="Enter your username" autocomplete="username"
-        style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
-    </div>
-    <div style="margin-bottom:24px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Password</label>
-      <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password"
-        style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
-    </div>
-    <button id="loginBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Sign in</button>
-    <p id="registerToggle" style="text-align:center;margin-top:14px;font-size:12px;color:#888;cursor:pointer;">First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span></p>
-    <p style="text-align:center;margin-top:8px;font-size:12px;"><span id="showChangePwBtn" style="color:#888;cursor:pointer;text-decoration:underline;">Change password</span></p>
-  <!-- Change password panel -->
-  <div id="changePwPanel" style="display:none;position:absolute;inset:0;background:#fff;border-radius:12px;padding:32px 28px;flex-direction:column;justify-content:center;overflow-y:auto;">
-    <button id="changePwBack" style="background:none;border:none;color:#888;font-size:12px;cursor:pointer;text-align:left;margin-bottom:20px;font-family:inherit;">← Back to sign in</button>
-    <h3 style="color:var(--navy);font-size:16px;font-weight:700;margin:0 0 20px;">Change password</h3>
-    <div id="changePwError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
-    <div id="changePwSuccess" style="display:none;background:#e8f5e9;color:#2e7d32;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
-    <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Username</label>
-      <input id="cpUsername" type="text" placeholder="Your username" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
-    </div>
-    <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Current password</label>
-      <input id="cpCurrent" type="password" placeholder="Current password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
-    </div>
-    <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">New password</label>
-      <input id="cpNew" type="password" placeholder="New password (min 6 characters)" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
-    </div>
-    <div style="margin-bottom:20px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Confirm new password</label>
-      <input id="cpConfirm" type="password" placeholder="Confirm new password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
-    </div>
-    <button id="cpSaveBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Save new password</button>
-  </div>
-  </div>
-</div>
-
-<div id="app">
-  <div id="header">
-    <div style="display:flex;align-items:center;gap:16px;">
-      <div id="logo-pill"><img src="data:image/png;base64,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" alt="Killam Development"></div>
-      <div id="hcenter">
-        <h2>Project Tracker</h2>
-        <div id="weekLabel"></div>
-        <div id="saveStatus"></div>
-      </div>
-    </div>
-    <!-- Hamburger for mobile -->
-    <button id="hamburger" onclick="toggleMobileMenu()" style="display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px 8px;">&#9776;</button>
-    <div id="hbtns">
-      <button id="btnProjects" class="btn-blue"><i class="ti ti-building"></i> Projects</button>
-      <button id="btnThisWeek" class="btn-ghost"><i class="ti ti-calendar-week"></i> This week</button>
-      <button id="btnDashboard" class="btn-ghost"><i class="ti ti-chart-bar"></i> Dashboard</button>
-      <button id="btnContacts" class="btn-ghost"><i class="ti ti-address-book"></i> Contacts</button>
-      <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> Archive</button>
-      <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
-      <button id="btnLogout" class="btn-ghost" style="border-color:rgba(255,100,100,.5);"><i class="ti ti-logout"></i> Sign out</button>
-    </div>
-  </div>
-
-  <div id="loadingMsg" class="view empty-msg">Loading tasks…</div>
-
-  <!-- SHARED PROJECT FORM (used by board + directory) -->
-  <!-- Add/Edit form -->
-  <div id="projectForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
-    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="projectFormTitle">Add project</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
-        <input id="pfName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
-        <input id="pfAddress" type="text" placeholder="1100 Matamoros St, Laredo TX" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
-        <div style="display:flex;gap:6px;">
-          <input id="pfProspect" type="text" placeholder="Select or type prospect name" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--navy);font-size:13px;"><i class="ti ti-address-book"></i></button>
-        </div>
-      </div>
-      <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
-        </div>
-        <div id="pfProjectContactsList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:0;"></div>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
-        <select id="pfType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <option value="">— Select type —</option>
-          <option value="Lease">Lease</option>
-          <option value="Renewal">Renewal</option>
-          <option value="Construction">Construction</option>
-          <option value="Purchase">Purchase</option>
-          <option value="Sale">Sale</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Status</label>
-        <select id="pfStatus" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <option value="">— Select status —</option>
-          <option value="Not started">Not started</option>
-          <option value="Started">Started</option>
-          <option value="LOI">LOI</option>
-          <option value="Lease agreement">Lease agreement</option>
-          <option value="PSA">PSA</option>
-          <option value="Closed">Closed</option>
-          <option value="Completed">Completed</option>
-          <option value="Dead">Dead</option>
-          <option value="Working on other">Working on other</option>
-          <option value="Land Prep">Land Prep</option>
-          <option value="Ground Up Build">Ground Up Build</option>
-          <option value="Interior Finishout">Interior Finishout</option>
-          <option value="Delivered">Delivered</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Priority</label>
-        <select id="pfPriority" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <option value="">— No priority —</option>
-          <option value="High">🔴 High</option>
-          <option value="Medium">🟠 Medium</option>
-          <option value="Low">🟡 Low</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
-        <input id="pfSf" type="text" placeholder="e.g. 2,500" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Price per SF</label>
-        <input id="pfPriceSf" type="text" placeholder="e.g. $18.50" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
-        <!-- New note entry -->
-        <div style="margin-bottom:12px;">
-          <textarea id="pfNewNote" placeholder="Add a new note..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;box-sizing:border-box;"></textarea>
-        </div>
-        <!-- Journal entries list -->
-        <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;display:none;"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
-      <button id="pfSave" class="btn-gold" style="padding:8px 20px;">Save project</button>
-      <button id="pfAddNote" type="button" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">+ Add note</button>
-      <button id="pfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
-    </div>
-  </div>
-
-  <!-- PROJECT BOARD (default home) -->
-  <div id="projectBoardView" class="view" style="display:none;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-      <div>
-        <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0;">Killam Development</p>
-        <h2 style="font-size:18px;font-weight:600;color:var(--navy);margin:4px 0 0;">Project board</h2>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <input id="projectBoardSearch" type="text" placeholder="Search projects…" style="padding:7px 12px;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:12px;width:200px;">
-        <select id="projectBoardFilter" style="padding:7px 12px;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:12px;cursor:pointer;">
-          <option value="">All types</option>
-          <option value="Lease">Lease</option>
-          <option value="Renewal">Renewal</option>
-          <option value="Construction">Construction</option>
-          <option value="Purchase">Purchase</option>
-          <option value="Sale">Sale</option>
-        </select>
-        <button id="btnAddProjectBoard" class="btn-blue" style="padding:8px 16px;"><i class="ti ti-plus"></i> New project</button>
-      </div>
-    </div>
-    <!-- Active projects panel -->
-    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div>
-          <p style="font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.07em;margin:0;">Active projects</p>
-          <p id="activeProjectCount" style="font-size:11px;color:#888;margin:2px 0 0;"></p>
-        </div>
-      </div>
-      <div id="projectBoardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
-      <p id="projectBoardEmpty" class="empty-msg" style="display:none;">No active projects. Click New project to get started.</p>
-    </div>
-
-    <!-- Closed projects panel -->
-    <div id="closedProjectsPanel" style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:16px;display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="toggleClosedPanel()">
-        <div>
-          <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin:0;">Closed / Completed / Dead</p>
-          <p id="closedProjectCount" style="font-size:11px;color:#aaa;margin:2px 0 0;"></p>
-        </div>
-        <button id="closedPanelToggleBtn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">&#9660; Expand</button>
-      </div>
-      <div id="closedProjectsGrid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;opacity:.8;"></div>
-    </div>
-  </div>
-
-  <!-- PROJECT DETAIL VIEW -->
-  <div id="projectDetailView" class="view" style="display:none;">
-    <!-- Header with back button -->
-    <div style="background:var(--navy);border-radius:8px;padding:20px;margin-bottom:16px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-        <div>
-          <button id="btnBackToBoard" style="background:none;border:none;color:var(--gold);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;padding:0;margin-bottom:8px;"><i class="ti ti-arrow-left"></i> Back to projects</button>
-          <h2 id="detailProjectName" style="color:#fff;font-size:20px;font-weight:600;margin:0;"></h2>
-          <p id="detailProjectAddress" style="color:#cfd6dd;font-size:13px;margin:4px 0 0;"></p>
-          <div id="detailProjectMeta" style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;"></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button id="btnDetailAddNote" style="padding:7px 14px;font-size:11px;background:#4a90c4;color:#fff;border:1px solid #3a7aaa;border-radius:999px;font-family:inherit;font-weight:600;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-notes"></i> Add note</button>
-          <button id="btnDetailEditProject" class="btn-ghost" style="padding:7px 14px;font-size:11px;"><i class="ti ti-pencil"></i> Edit project</button>
-          <button id="btnDetailAddTask" class="btn-gold" style="padding:7px 14px;font-size:11px;"><i class="ti ti-plus"></i> Add task</button>
-        </div>
-      </div>
-      <div id="detailProjectNotes" style="margin-top:12px;padding:10px;background:rgba(255,255,255,.08);border-radius:6px;font-size:12px;color:#cfd6dd;display:none;"></div>
-      <!-- Quick add note -->
-      <div id="detailQuickNote" style="display:none;margin-top:10px;">
-        <div style="display:flex;gap:8px;">
-          <textarea id="detailNoteText" placeholder="Type your note..." style="flex:1;padding:8px 12px;border:none;border-radius:6px;font-family:inherit;font-size:12px;min-height:50px;resize:none;background:rgba(255,255,255,.12);color:#fff;"></textarea>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <button id="detailNoteSave" style="padding:6px 12px;background:var(--gold);color:#1c1305;border:none;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">Save</button>
-            <button id="detailNoteCancel" style="padding:6px 12px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:11px;cursor:pointer;">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Project tasks table -->
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:separate;border-spacing:0 5px;font-size:13px;">
-        <thead>
-          <tr>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;border-radius:999px 0 0 999px;padding-left:14px;width:32px;"></th>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:200px;">Task</th>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:120px;">Status</th>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:200px;">Status notes</th>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:110px;">Deadline</th>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;min-width:180px;">Contact</th>
-            <th style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;border-radius:0 999px 999px 0;padding-right:14px;width:36px;"></th>
-          </tr>
-        </thead>
-        <tbody id="detailTaskBody"></tbody>
-      </table>
-    </div>
-    <p id="detailTaskEmpty" class="empty-msg" style="display:none;">No tasks for this project yet. Click Add task to get started.</p>
-  </div>
-
-  <!-- THIS WEEK VIEW (former active view) -->
-  <div id="thisWeekView" class="view" style="display:none;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-      <div>
-        <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0;">Weekly tracker</p>
-        <h2 id="weekLabel" style="font-size:18px;font-weight:600;color:var(--navy);margin:4px 0 0;"></h2>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button id="btnAdd" class="btn-blue" style="padding:8px 16px;"><i class="ti ti-plus"></i> Add task</button>
-      </div>
-    </div>
-
-  <div id="activeView" class="view" style="display:none;">
-    <div style="overflow-x:auto;">
-      <table>
-        <thead><tr>
-          <th style="width:32px;"></th>
-          <th style="min-width:130px;">Project</th>
-          <th style="min-width:160px;">Task</th>
-          <th style="min-width:120px;">Status</th>
-          <th style="min-width:180px;">Status notes</th>
-          <th style="min-width:120px;">Deadline</th>
-          <th style="min-width:150px;">Contact info</th>
-          <th style="width:36px;"></th>
-        </tr></thead>
-        <tbody id="taskBody"></tbody>
-      </table>
-    </div>
-    <p id="emptyMsg" class="empty-msg" style="display:none;">No tasks yet this week. Click Add task to get started.</p>
-  </div><!-- end activeView -->
-  </div><!-- end thisWeekView -->
-
-  <div id="archiveView" class="view" style="display:none;">
-    <div id="archSecHdr">
-      <h3>Archived (completed) tasks</h3>
-      <button id="btnBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to projects</button>
-    </div>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead><tr>
-          <th style="min-width:130px;">Project</th>
-          <th style="min-width:160px;">Task</th>
-          <th style="min-width:110px;">Status</th>
-          <th style="min-width:180px;">Status notes</th>
-          <th style="min-width:110px;">Deadline</th>
-          <th style="min-width:150px;">Contact info</th>
-          <th style="min-width:100px;">Week</th>
-        </tr></thead>
-        <tbody id="archiveBody"></tbody>
-      </table>
-    </div>
-    <p id="archiveEmptyMsg" class="empty-msg" style="display:none;">Nothing archived yet.</p>
-  </div>
-</div>
-<!-- PROJECTS VIEW -->
-<div id="projectsView" class="view" style="display:none;">
-  <div style="background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-    <h3 style="color:#fff;font-weight:500;font-size:16px;"><i class="ti ti-building"></i> Project Directory</h3>
-    <div style="display:flex;gap:8px;">
-      <button id="btnAddProject" class="btn-blue"><i class="ti ti-plus"></i> Add project</button>
-      <button id="btnProjectsBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to projects</button>
-    </div>
-  </div>
-
-
-
-  <!-- Project cards -->
-  <div id="projectGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"></div>
-  <p id="projectsEmpty" class="empty-msg" style="display:none;">No projects yet. Click Add project to get started.</p>
-</div>
-
-<!-- CONTACTS VIEW -->
-<div id="contactsView" class="view" style="display:none;">
-  <div style="background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-    <h3 style="color:#fff;font-weight:500;font-size:16px;"><i class="ti ti-address-book"></i> Contact Directory</h3>
-    <div style="display:flex;gap:8px;">
-      <button id="btnAddContact" class="btn-blue"><i class="ti ti-plus"></i> Add contact</button>
-      <button id="btnContactsBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to projects</button>
-    </div>
-  </div>
-
-  <!-- Add/Edit form -->
-  <div id="contactForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
-    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="contactFormTitle">Add contact</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
-        <input id="cfName" type="text" placeholder="Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
-        <input id="cfCompany" type="text" placeholder="Killam Development" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
-        <input id="cfEmail" type="email" placeholder="jane@example.com" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
-        <input id="cfPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Notes</label>
-        <textarea id="cfNotes" placeholder="Met at ICSC 2025, prefers email..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;"></textarea>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button id="cfSave" class="btn-gold" style="padding:8px 20px;">Save contact</button>
-      <button id="cfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Contact cards grid -->
-  <div id="contactGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;"></div>
-  <p id="contactsEmpty" class="empty-msg" style="display:none;">No contacts yet. Click Add contact to get started.</p>
-</div>
-
-<!-- DASHBOARD VIEW -->
-<div id="dashboardView" class="view" style="display:none;">
-  <div style="background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-    <h3 style="color:#fff;font-weight:500;font-size:16px;"><i class="ti ti-chart-bar"></i> Pipeline Dashboard</h3>
-    <div style="display:flex;gap:8px;">
-      <button id="btnGenerateReport" class="btn-gold"><i class="ti ti-file-text"></i> Generate report</button>
-      <button id="btnDashBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to projects</button>
-    </div>
-  </div>
-
-  <!-- Metric tiles -->
-  <div id="dashMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;"></div>
-
-  <!-- Charts row -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-    <div style="background:#fff;border-radius:8px;padding:20px;height:280px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Deal pipeline by status</p>
-      <div style="position:relative;height:200px;"><canvas id="chartPipeline"></canvas></div>
-    </div>
-    <div style="background:#fff;border-radius:8px;padding:20px;height:280px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Closed deals by month</p>
-      <div style="position:relative;height:200px;"><canvas id="chartClosed"></canvas></div>
-    </div>
-  </div>
-
-  <!-- Due this week & overdue -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-    <div style="background:#fff;border-radius:8px;padding:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Due this week</p>
-        <button onclick="toggleSection('dueWeek')" id="toggleBtn-dueWeek" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
-      </div>
-      <div id="section-dueWeek"><div id="dashDueWeek"></div></div>
-    </div>
-    <div style="background:#fff;border-radius:8px;padding:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a32d2d;margin:0;">Overdue tasks</p>
-        <button onclick="toggleSection('overdue')" id="toggleBtn-overdue" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
-      </div>
-      <div id="section-overdue"><div id="dashOverdue"></div></div>
-    </div>
-  </div>
-
-  <!-- Contact activity -->
-  <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Contact activity</p>
-      <button onclick="toggleSection('contacts')" id="toggleBtn-contacts" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
-    </div>
-    <div id="section-contacts"><div id="dashContacts"></div></div>
-  </div>
-
-  <!-- Projects activity -->
-  <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Active projects</p>
-      <button onclick="toggleSection('projects')" id="toggleBtn-projects" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
-    </div>
-    <div id="section-projects"><div id="dashProjects"></div></div>
-  </div>
-</div>
-
-<!-- PROJECT PICKER MODAL -->
-<div id="projectPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <p style="font-size:13px;font-weight:700;color:var(--navy);">Select a project</p>
-      <button id="projPickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
-    </div>
-    <input id="projPickerSearch" type="text" placeholder="Search by name or address..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
-    <div id="projPickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
-    <button id="projPickerCreate" style="padding:10px 14px;width:100%;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-plus"></i> Create new project</button>
-  </div>
-</div>
-
-<!-- CONTACT PICKER MODAL -->
-<div id="contactPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <p style="font-size:13px;font-weight:700;color:var(--navy);">Add contacts to task</p>
-      <button id="pickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
-    </div>
-    <div id="pickerSelected" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:0;"></div>
-    <input id="pickerSearch" type="text" placeholder="Search by name or company..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
-    <div id="pickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
-    <div style="display:flex;gap:8px;">
-      <button id="pickerCreateContact" style="padding:10px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;white-space:nowrap;"><i class="ti ti-plus"></i> New contact</button>
-      <button id="pickerDone" class="btn-gold" style="padding:10px;flex:1;font-size:12px;">Done — add to task</button>
-    </div>
-  </div>
-</div>
-
-<!-- INLINE CREATE CONTACT MODAL -->
-<div id="inlineContactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:460px;max-width:90vw;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <p style="font-size:14px;font-weight:700;color:var(--navy);">Create new contact</p>
-      <button id="inlineContactClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
-        <input id="icName" type="text" placeholder="Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
-        <input id="icCompany" type="text" placeholder="Company name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
-        <input id="icEmail" type="email" placeholder="jane@example.com" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
-        <input id="icPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button id="icSave" class="btn-gold" style="padding:10px 20px;">Save & add to task</button>
-      <button id="icCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:#888;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- INLINE CREATE PROJECT MODAL -->
-<div id="inlineProjectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:500px;max-width:90vw;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <p style="font-size:14px;font-weight:700;color:var(--navy);">Create new project</p>
-      <button id="inlineProjectClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
-        <input id="ipName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
-        <input id="ipAddress" type="text" placeholder="1100 Matamoros St" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
-        <input id="ipProspect" type="text" placeholder="Prospect name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
-        <select id="ipType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <option value="">— Select type —</option>
-          <option value="Lease">Lease</option>
-          <option value="Renewal">Renewal</option>
-          <option value="Construction">Construction</option>
-          <option value="Purchase">Purchase</option>
-          <option value="Sale">Sale</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button id="ipSave" class="btn-gold" style="padding:10px 20px;">Save & add to task</button>
-      <button id="ipCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:#888;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- REPORT MODAL -->
-<div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;">
-
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <p style="font-size:15px;font-weight:700;color:var(--navy);margin:0;">Generate executive report</p>
-      <button id="reportModalClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
-    </div>
-
-    <!-- Tabs -->
-    <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;">
-      <button id="tabByWeek" onclick="switchReportTab('week')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy);border-bottom:2px solid var(--navy);margin-bottom:-2px;">By Week</button>
-      <button id="tabByProject" onclick="switchReportTab('project')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;">By Project</button>
-    </div>
-
-    <!-- By Week tab -->
-    <div id="reportTabWeek" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-      <p style="font-size:12px;color:#888;margin-bottom:10px;">Select one or more weeks to include in the report.</p>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <button onclick="reportSelectAll('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
-        <button onclick="reportSelectNone('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
-      </div>
-      <div id="reportWeekList" style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;min-height:180px;"></div>
-    </div>
-
-    <!-- By Project tab -->
-    <div id="reportTabProject" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
-      <p style="font-size:12px;color:#888;margin-bottom:10px;">Select one or more projects to include in the report. All tasks across all weeks will be included for each selected project.</p>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <button onclick="reportSelectAll('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
-        <button onclick="reportSelectNone('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
-      </div>
-      <div id="reportProjectList" style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;min-height:180px;"></div>
-    </div>
-
-    <!-- Footer -->
-    <div style="margin-top:16px;">
-      <div id="reportStatus" style="font-size:12px;color:#888;margin-bottom:10px;min-height:18px;"></div>
-      <button id="reportGenerateBtn" class="btn-gold" style="padding:12px;width:100%;font-size:13px;"><i class="ti ti-file-text"></i> Generate PDF report</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<script>
-const STATUSES = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Completed","Dead","Working on other","Land Prep","Ground Up Build","Interior Finishout","Delivered"];
-
-// ── API base URL — auto-detects local vs deployed ──────────────
-const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "";  // same origin when deployed on Railway
-
-let state = { weekId:"", tasks:[], archive:[] };
-let saveTimer = null;
-
-// ── Utilities ──────────────────────────────────────────────────
-function uid(){ return Math.random().toString(36).slice(2,10); }
-
-function weekLabel(id){
-  if(!id) return "";
-  const [y,w] = id.split("-W").map(Number);
-  const d = new Date(Date.UTC(y,0,1+(w-1)*7));
-  const dow = d.getUTCDay();
-  const mon = new Date(d); mon.setUTCDate(d.getUTCDate()-((dow+6)%7));
-  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate()+6);
-  const fmt = x=>x.toLocaleDateString(undefined,{month:"short",day:"numeric"});
-  return fmt(mon)+" – "+fmt(sun)+", "+y+" ("+id+")";
-}
-
-function weekRange(id){
-  if(!id) return id;
-  const [y,w] = id.split("-W").map(Number);
-  const d = new Date(Date.UTC(y,0,1+(w-1)*7));
-  const dow = d.getUTCDay();
-  const mon = new Date(d); mon.setUTCDate(d.getUTCDate()-((dow+6)%7));
-  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate()+6);
-  const fmt = x=>x.toLocaleDateString(undefined,{month:"short",day:"numeric"});
-  return fmt(mon)+" – "+fmt(sun)+", "+y;
-}
-
-function todayStr(){ return new Date().toISOString().slice(0,10); }
-
-function daysSince(dateStr){
-  if(!dateStr) return Infinity; // never opened / unknown — treat as stale
-  const then = new Date(dateStr).getTime();
-  if(isNaN(then)) return Infinity;
-  return Math.floor((Date.now() - then) / 86400000);
-}
-
-function toast(msg, color="#16273a"){
-  const el = document.getElementById("toast");
-  el.textContent = msg; el.style.background = color; el.style.opacity = "1";
-  clearTimeout(el._t); el._t = setTimeout(()=>el.style.opacity="0", 3000);
-}
-
-// ── API calls ──────────────────────────────────────────────────
-function getToken(){ return localStorage.getItem("kd_token") || ""; }
-
-async function apiFetch(path, method="GET", body){
-  const opts = { method, headers:{"Content-Type":"application/json","Authorization":"Bearer "+getToken()} };
-  if(body) opts.body = JSON.stringify(body);
-  const res = await fetch(API+path, opts);
-  if(res.status === 401){
-    localStorage.removeItem("kd_token");
-    localStorage.removeItem("kd_username");
-    showLoginScreen();
-    throw new Error("Session expired — please sign in again");
-  }
-  return res.json();
-}
-
-function showLoginScreen(isRegister=false){
-  document.getElementById("app").style.display = "none";
-  document.getElementById("loginScreen").style.display = "flex";
-  document.getElementById("loginTitle").textContent = isRegister ? "Create your account" : "Sign in to Task Tracker";
-  document.getElementById("loginBtn").textContent   = isRegister ? "Create account" : "Sign in";
-  document.getElementById("loginBtn").dataset.mode  = isRegister ? "register" : "login";
-  document.getElementById("loginError").style.display = "none";
-  document.getElementById("loginUsername").value = "";
-  document.getElementById("loginPassword").value = "";
-  document.getElementById("loginUsername").focus();
-}
-
-async function loadState(){
-  document.getElementById("loadingMsg").style.display = "block";
-  document.getElementById("loadingMsg").textContent = "Loading tasks…";
-  document.getElementById("activeView").style.display = "none";
-  try {
-    const data = await apiFetch("/api/state");
-    state = data;
-    if(!state.contacts) state.contacts = [];
-    if(!state.projects) state.projects = [];
-    document.getElementById("loadingMsg").style.display = "none";
-    showProjectBoard();
-  } catch(e) {
-    console.error("Load error:", e);
-    if(!e.message.includes("Session expired")){
-      document.getElementById("loadingMsg").textContent = "⚠ Could not load tasks: " + e.message + ". Try reloading.";
-    }
-  }
-}
-
-// Debounced save — waits 800ms after last keystroke
-function scheduleSave(task){
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>saveTask(task), 800);
-}
-
-async function saveTask(t){
-  try {
-    await apiFetch("/api/tasks/"+t.id, "PUT", t);
-    toast("✓ Saved","#2e7d32");
-  } catch(e){ toast("⚠ Save failed","#c0392b"); }
-}
-
-async function saveArchiveEntry(t){
-  try {
-    await apiFetch("/api/archive/"+t.id, "PUT", t);
-    toast("✓ Saved","#2e7d32");
-  } catch(e){ toast("⚠ Save failed","#c0392b"); }
-}
-
-// ── Render active tasks ────────────────────────────────────────
-function mkTa(val, onInput, placeholder){
-  const el = document.createElement("textarea");
-  el.value = val||""; el.placeholder = placeholder||"";
-  el.oninput = ()=>onInput(el.value);
-  return el;
-}
-
-function render(){
-  document.getElementById("weekLabel").textContent = weekLabel(state.weekId);
-  const tbody = document.getElementById("taskBody");
-  tbody.innerHTML = "";
-  const today = todayStr();
-  document.getElementById("emptyMsg").style.display = state.tasks.length ? "none" : "block";
-
-  state.tasks.forEach(t=>{
-    const tr = document.createElement("tr");
-    tr.className = "task-row";
-    if(!t.done && t.deadline){
-      if(t.deadline===today) tr.className+=" due-today";
-      else if(t.deadline<today) tr.className+=" overdue";
-    }
-
-    // Checkbox
-    const tdCb = document.createElement("td");
-    const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=!!t.done;
-    cb.style="width:16px;height:16px;cursor:pointer;";
-    cb.onchange = async()=>{
-      t.done = cb.checked;
-      await saveTask(t);
-      if(cb.checked){
-        // Auto-archive: move to archive immediately
-        await apiFetch("/api/newweek-single","POST",{taskId: t.id, weekId: state.weekId});
-        state.archive.unshift({...t, weekCompleted: state.weekId, done: true});
-        state.tasks = state.tasks.filter(x=>x.id!==t.id);
-      }
-      render();
-    };
-    tdCb.appendChild(cb); tr.appendChild(tdCb);
-
-    // Project
-    const tdP = document.createElement("td");
-    tdP.style.position = "relative";
-    const projWrap = document.createElement("div");
-    projWrap.style.cssText = "display:flex;gap:4px;align-items:flex-start;";
-    const projTa = mkTa(t.title, v=>{ t.title=v; scheduleSave(t); }, "Project name or address");
-    projTa.style.flex = "1";
-    const projPickBtn = document.createElement("button");
-    projPickBtn.innerHTML = '<i class="ti ti-building"></i>';
-    projPickBtn.title = "Pick from projects";
-    projPickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
-    projPickBtn.onclick = ()=> openProjectPicker(val=>{
-      projTa.value = val;
-      t.title = val;
-      scheduleSave(t);
-    });
-    projWrap.appendChild(projTa);
-    projWrap.appendChild(projPickBtn);
-    tdP.appendChild(projWrap);
-    tr.appendChild(tdP);
-
-    // Task
-    const tdT = document.createElement("td");
-    tdT.appendChild(mkTa(t.task, v=>{ t.task=v; scheduleSave(t); }, "Task description"));
-    tr.appendChild(tdT);
-
-    // Status
-    const tdS = document.createElement("td");
-    const sel = document.createElement("select");
-    STATUSES.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; if(t.status===s) o.selected=true; sel.appendChild(o); });
-    sel.onchange = async()=>{ t.status=sel.value; await saveTask(t); };
-    tdS.appendChild(sel); tr.appendChild(tdS);
-
-    // Notes
-    const tdN = document.createElement("td");
-    tdN.appendChild(mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes"));
-    tr.appendChild(tdN);
-
-    // Deadline
-    const tdD = document.createElement("td");
-    const dl = document.createElement("input"); dl.type="date"; dl.value=t.deadline||"";
-    if(!t.done && t.deadline){
-      if(t.deadline===today){ dl.style.color="#8a4a12"; dl.style.fontWeight="600"; }
-      else if(t.deadline<today){ dl.style.color="#a32d2d"; dl.style.fontWeight="600"; }
-    }
-    dl.onchange = async()=>{ t.deadline=dl.value; await saveTask(t); render(); };
-    tdD.appendChild(dl); tr.appendChild(tdD);
-
-    // Contact
-    const tdC = document.createElement("td");
-    tdC.style.position = "relative";
-    const contactWrap = document.createElement("div");
-    contactWrap.style.cssText = "display:flex;gap:4px;align-items:flex-start;";
-    const contactTa = mkTa(t.contact, v=>{ t.contact=v; scheduleSave(t); }, "Contact info");
-    contactTa.style.flex = "1";
-    const pickBtn = document.createElement("button");
-    pickBtn.innerHTML = '<i class="ti ti-address-book"></i>';
-    pickBtn.title = "Pick from contacts";
-    pickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
-    pickBtn.onclick = ()=> openContactPicker(val=>{
-      const existing = contactTa.value.trim();
-      contactTa.value = existing ? existing + "\n" + val : val;
-      t.contact = contactTa.value;
-      scheduleSave(t);
-    });
-    contactWrap.appendChild(contactTa);
-    contactWrap.appendChild(pickBtn);
-    tdC.appendChild(contactWrap);
-    tr.appendChild(tdC);
-
-    // Delete
-    const tdDel = document.createElement("td");
-    const del = document.createElement("button");
-    del.innerHTML='<i class="ti ti-trash"></i>';
-    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--navy);border-radius:999px;font-size:13px;";
-    del.onclick = async()=>{
-      await apiFetch("/api/tasks/"+t.id,"DELETE");
-      state.tasks = state.tasks.filter(x=>x.id!==t.id);
-      render(); toast("Task deleted","#888");
-    };
-    tdDel.appendChild(del); tr.appendChild(tdDel);
-
-    tbody.appendChild(tr);
-  });
-}
-
-// ── Render archive ─────────────────────────────────────────────
-function renderArchive(){
-  const tbody = document.getElementById("archiveBody");
-  tbody.innerHTML = "";
-  document.getElementById("archiveEmptyMsg").style.display = state.archive.length ? "none" : "block";
-  if(!state.archive.length) return;
-
-  const groups = {};
-  state.archive.forEach(t=>{ const w=t.weekCompleted||"Unknown"; if(!groups[w]) groups[w]=[]; groups[w].push(t); });
-
-  let weekIndex = 0;
-  Object.keys(groups).forEach(week=>{
-    const wkId = "archweek-"+weekIndex++;
-    const htr = document.createElement("tr"); htr.className="week-header";
-    const htd = document.createElement("td"); htd.colSpan=7;
-    htd.style.cursor = "pointer";
-    htd.style.userSelect = "none";
-    const label = week+" · "+weekRange(week)+" · "+groups[week].length+" task"+(groups[week].length!==1?"s":"");
-    htd.innerHTML = `<span>${label}</span><span id="toggle-${wkId}" style="float:right;font-size:12px;opacity:.8;">&#9650; Collapse</span>`;
-    htd.onclick = ()=>{
-      const rows = tbody.querySelectorAll("."+wkId);
-      const toggleEl = document.getElementById("toggle-"+wkId);
-      const isCollapsed = rows[0] && rows[0].style.display === "none";
-      rows.forEach(r=>r.style.display = isCollapsed ? "" : "none");
-      toggleEl.innerHTML = isCollapsed ? "&#9650; Collapse" : "&#9660; Expand";
-    };
-    htr.appendChild(htd); tbody.appendChild(htr);
-
-    groups[week].forEach((t,idx)=>{
-      const tr = document.createElement("tr"); tr.className="task-row "+wkId;
-      const bg = idx%2===0?"#fff":"var(--gray)";
-
-      const mkTd=(content,round)=>{
-        const td=document.createElement("td");
-        td.style.background=bg; td.style.color="var(--text)"; td.style.padding="8px 8px"; td.style.verticalAlign="top";
-        if(round==="left"){ td.style.borderRadius="999px 0 0 999px"; td.style.paddingLeft="14px"; }
-        if(round==="right"){ td.style.borderRadius="0 999px 999px 0"; td.style.paddingRight="14px"; }
-        if(content) td.appendChild(content);
-        return td;
-      };
-
-      const arcTa=(field,ph)=>{
-        const el=document.createElement("textarea");
-        el.value=t[field]||""; el.placeholder=ph||"";
-        el.oninput=()=>{ t[field]=el.value; clearTimeout(el._t); el._t=setTimeout(()=>saveArchiveEntry(t),800); };
-        return el;
-      };
-
-      tr.appendChild(mkTd(arcTa("title","Project"),"left"));
-      tr.appendChild(mkTd(arcTa("task","Task")));
-      const stTd=mkTd(null); stTd.textContent=t.status||"—"; stTd.style.fontSize="12px"; tr.appendChild(stTd);
-      tr.appendChild(mkTd(arcTa("notes","Notes")));
-      const dlTd=mkTd(null); dlTd.textContent=t.deadline||"—"; dlTd.style.fontSize="12px"; tr.appendChild(dlTd);
-      tr.appendChild(mkTd(arcTa("contact","Contact")));
-      const wkTd=mkTd(null,"right"); wkTd.textContent=t.weekCompleted||"—"; wkTd.style.fontSize="11px"; tr.appendChild(wkTd);
-
-      tbody.appendChild(tr);
-    });
-
-    const gap=document.createElement("tr"); gap.className="week-gap";
-    const gtd=document.createElement("td"); gtd.colSpan=7; gap.appendChild(gtd); tbody.appendChild(gap);
-  });
-}
-
-// ── Button actions ─────────────────────────────────────────────
-document.getElementById("btnAdd").onclick = async()=>{
-  const t={id:uid(),title:"",task:"",status:"Not started",notes:"",deadline:"",contact:"",done:false};
-  await apiFetch("/api/tasks","POST",{...t,week_id:state.weekId});
-  state.tasks.push(t);
-  render();
-};
-
-// ── Project Board ──────────────────────────────────────────────
-let currentProjectId = null;
-
-function renderProjectBoard(){
-  const search = document.getElementById("projectBoardSearch").value.toLowerCase();
-  const filter = document.getElementById("projectBoardFilter").value;
-
-  const CLOSED_STATUSES = ["Closed","Completed","Dead"];
-
-  const allFiltered = (state.projects||[]).filter(p=>{
-    const matchSearch = !search || p.name.toLowerCase().includes(search) || (p.address||"").toLowerCase().includes(search) || (p.prospect||"").toLowerCase().includes(search);
-    const matchFilter = !filter || p.type===filter;
-    return matchSearch && matchFilter;
-  });
-
-  const PRIORITY_ORDER = {"High":0,"Medium":1,"Low":2,"":3};
-  const openProjects   = allFiltered
-    .filter(p=>!CLOSED_STATUSES.includes(p.status))
-    .sort((a,b)=>(PRIORITY_ORDER[a.priority||""]??3)-(PRIORITY_ORDER[b.priority||""]??3));
-  const closedProjects = allFiltered.filter(p=>CLOSED_STATUSES.includes(p.status));
-
-  const typeColor  = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
-  const statusBadge= s=>{
-    const colors = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#2e7d32","Dead":"#c62828","Working on other":"#e65100","Land Prep":"#5d4037","Ground Up Build":"#4e342e","Interior Finishout":"#6d4c41","Delivered":"#2e7d32"};
-    const c = colors[s]||"#888";
-    return s?`<span style="font-size:10px;font-weight:700;color:${c};background:${c}18;padding:3px 10px;border-radius:999px;">${s}</span>`:"";
-  };
-
-  const allTasks = [...state.tasks, ...state.archive];
-
-  function buildCard(p){
-    const taskCount = allTasks.filter(t=>{
-      const tName = (t.title||"").split(" — ")[0].trim();
-      return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase());
-    }).length;
-    const activeTasks = state.tasks.filter(t=>{
-      const tName = (t.title||"").split(" — ")[0].trim();
-      return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase());
-    }).length;
-
-    // Idle glow: flags projects that haven't been opened recently. Skipped for
-    // closed/dead projects since those are expected to sit untouched.
-    const idleDays      = CLOSED_STATUSES.includes(p.status) ? 0 : daysSince(p.last_opened_at);
-    const isStaleRed    = idleDays >= 14;
-    const isStaleYellow = !isStaleRed && idleDays >= 7;
-    const glowColor     = isStaleRed ? "#c62828" : isStaleYellow ? "#f9a825" : null;
-    const glowShadow    = glowColor ? `0 0 0 2px ${glowColor}, 0 0 14px 2px ${glowColor}66` : "none";
-
-    const card = document.createElement("div");
-    const prioBg = p.priority==="High"?"#fff5f5":p.priority==="Medium"?"#fff8f0":p.priority==="Low"?"#fffef0":"#fff";
-    const prioBorder = p.priority==="High"?"#ffcdd2":p.priority==="Medium"?"#ffe0b2":p.priority==="Low"?"#fff9c4":p.priority?"var(--border)":"var(--border)";
-    card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;box-shadow:${glowShadow};`;
-    card.onmouseenter = ()=>card.style.boxShadow = glowColor ? `0 0 0 2px ${glowColor}, 0 0 18px 4px ${glowColor}88, 0 4px 16px rgba(0,0,0,.12)` : "0 4px 16px rgba(0,0,0,.1)";
-    card.onmouseleave = ()=>card.style.boxShadow = glowShadow;
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div style="flex:1;">
-          <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:3px;">${p.name}</div>
-          ${p.address?`<div style="font-size:12px;color:#888;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>`:""}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;">
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-            ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};white-space:nowrap;">${p.type}</span>`:""}
-            <select onchange="updateProjectPriority('${p.id}',this.value,this)" onclick="event.stopPropagation();" style="font-size:9px;font-weight:700;border:none;border-radius:999px;padding:2px 6px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit;${p.priority==='High'?'color:#c62828;background:#ffcdd2;':p.priority==='Medium'?'color:#e65100;background:#ffe0b2;':p.priority==='Low'?'color:#f9a825;background:#fff9c4;':'color:#888;background:#f0f0f0;'}">
-              <option value="" ${!p.priority?'selected':''}>N/A</option>
-              <option value="High" ${p.priority==='High'?'selected':''}>🔴 HIGH</option>
-              <option value="Medium" ${p.priority==='Medium'?'selected':''}>🟠 MED</option>
-              <option value="Low" ${p.priority==='Low'?'selected':''}>🟡 LOW</option>
-            </select>
-          </div>
-          ${activeTasks>0?`<span style="font-size:10px;background:var(--navy);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700;">${activeTasks} active</span>`:""}
-        </div>
-      </div>
-      ${p.prospect?`<div style="font-size:12px;color:#555;margin-bottom:6px;"><i class="ti ti-user" style="margin-right:3px;"></i>${p.prospect}</div>`:""}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          ${statusBadge(p.status)}
-          ${glowColor?`<span style="font-size:10px;font-weight:700;color:${glowColor};background:${glowColor}18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-clock-pause" style="margin-right:3px;"></i>${idleDays}d idle</span>`:""}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          ${(p.sf||p.price_per_sf)?`<span style="font-size:11px;color:#888;">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</span>`:""}
-          <span style="font-size:11px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
-        </div>
-      </div>
-    `;
-    card.onclick = ()=>openProjectDetail(p.id);
-    return card;
-  }
-
-  // Active projects panel
-  const grid  = document.getElementById("projectBoardGrid");
-  const empty = document.getElementById("projectBoardEmpty");
-  grid.innerHTML = "";
-  empty.style.display = openProjects.length ? "none" : "block";
-  document.getElementById("activeProjectCount").textContent = openProjects.length+" project"+(openProjects.length!==1?"s":"");
-  openProjects.forEach(p=>grid.appendChild(buildCard(p)));
-
-  // Closed projects panel
-  const closedPanel = document.getElementById("closedProjectsPanel");
-  const closedGrid  = document.getElementById("closedProjectsGrid");
-  if(closedProjects.length){
-    closedPanel.style.display = "block";
-    closedGrid.innerHTML = "";
-    document.getElementById("closedProjectCount").textContent = closedProjects.length+" project"+(closedProjects.length!==1?"s":"");
-    closedProjects.forEach(p=>closedGrid.appendChild(buildCard(p)));
-  } else {
-    closedPanel.style.display = "none";
-  }
-}
-
-async function updateProjectPriority(id, priority, selectEl){
-  const p = (state.projects||[]).find(x=>x.id===id);
-  if(!p) return;
-  p.priority = priority;
-  // Restyle the select to match new priority
-  const styles = {
-    "High":   "color:#c62828;background:#ffcdd2;",
-    "Medium": "color:#e65100;background:#ffe0b2;",
-    "Low":    "color:#f9a825;background:#fff9c4;",
-    "":       "color:#888;background:#f0f0f0;"
-  };
-  selectEl.style.cssText = selectEl.style.cssText.replace(/color:[^;]+;background:[^;]+;/, styles[priority]||styles[""]);
-  try {
-    await apiFetch("/api/projects/"+id+"/priority","PATCH",{priority});
-    toast("Priority updated","#2e7d32");
-    // Re-sort and re-render board
-    renderProjectBoard();
-  } catch(e){
-    toast("Save failed","#c0392b");
-  }
-}
-
-function toggleClosedPanel(){
-  const g   = document.getElementById("closedProjectsGrid");
-  const btn = document.getElementById("closedPanelToggleBtn");
-  const collapsed = g.style.display==="none"||g.style.display==="";
-  g.style.display = collapsed ? "grid" : "none";
-  btn.innerHTML   = collapsed ? "&#9650; Collapse" : "&#9660; Expand";
-}
-document.getElementById("projectBoardSearch").oninput = ()=>renderProjectBoard();
-document.getElementById("projectBoardFilter").onchange = ()=>renderProjectBoard();
-document.getElementById("btnAddProjectBoard").onclick = ()=>{
-  showProjectBoard();
-  showProjectForm(null);
-  document.getElementById("projectForm").scrollIntoView({behavior:"smooth", block:"start"});
-};
-
-// ── Project Detail ─────────────────────────────────────────────
-
-// Fire-and-forget: stamp last_opened_at so the board's idle glow clears.
-// Updates local state immediately (optimistic) so the board reflects it
-// next time it's shown, without waiting on the network round trip.
-async function markProjectOpened(p){
-  p.last_opened_at = new Date().toISOString();
-  try {
-    await apiFetch("/api/projects/"+p.id+"/opened", "PATCH");
-  } catch(e){
-    // Non-critical — worst case the glow re-appears until the next successful open.
-    console.error("Failed to mark project opened:", e);
-  }
-}
-
-function openProjectDetail(projectId){
-  currentProjectId = projectId;
-  const p = (state.projects||[]).find(x=>x.id===projectId);
-  if(!p) return;
-
-  // Mark this project as just-viewed, which resets its idle-staleness glow on the board.
-  markProjectOpened(p);
-
-  const typeColor = t=>t==="Lease"?"#b8924f":t==="Purchase"?"#6fcf97":t==="Sale"?"#f2994a":"#cfd6dd";
-
-  document.getElementById("detailProjectName").textContent = p.name;
-  document.getElementById("detailProjectAddress").textContent = p.address||"";
-
-  // Meta badges
-  const meta = document.getElementById("detailProjectMeta");
-  meta.innerHTML = [
-    p.type    && `<span style="font-size:11px;font-weight:700;color:${typeColor(p.type)};background:rgba(255,255,255,.15);padding:3px 10px;border-radius:999px;">${p.type}</span>`,
-    p.status  && `<span style="font-size:11px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:999px;">${p.status}</span>`,
-    p.prospect&& `<span style="font-size:11px;color:#cfd6dd;"><i class="ti ti-user"></i> ${p.prospect}</span>`,
-    p.sf      && `<span style="font-size:11px;color:#cfd6dd;"><i class="ti ti-ruler"></i> ${p.sf} SF</span>`,
-    p.price_per_sf && `<span style="font-size:11px;color:#cfd6dd;">$${p.price_per_sf}/SF</span>`,
-  ].filter(Boolean).join("");
-
-  // Notes journal
-  // Contacts in detail view
-  let detailContactsEl = document.getElementById("detailProjectContacts");
-  if(!detailContactsEl){
-    detailContactsEl = document.createElement("div");
-    detailContactsEl.id = "detailProjectContacts";
-    detailContactsEl.style.cssText = "margin-top:12px;";
-    document.getElementById("detailProjectNotes").parentNode.insertBefore(detailContactsEl, document.getElementById("detailProjectNotes"));
-  }
-  const projContacts = parseProjectContacts(p.contacts);
-  if(projContacts.length){
-    detailContactsEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Contacts</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-      projContacts.map(c=>`<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;">
-        <div style="font-size:12px;font-weight:700;color:#fff;">${c.name||""}</div>
-        ${c.company?`<div style="font-size:11px;color:var(--gold);">${c.company}</div>`:""}
-        ${c.email?`<div style="font-size:11px;color:#cfd6dd;">${c.email}</div>`:""}
-        ${c.phone?`<div style="font-size:11px;color:#cfd6dd;">${c.phone}</div>`:""}
-      </div>`).join("") + '</div>';
-    detailContactsEl.style.display = "block";
-  } else {
-    detailContactsEl.style.display = "none";
-  }
-
-  detailEditingNoteIdx = null;
-  renderDetailNotes(p);
-
-
-
-  hideAllViews();
-  document.getElementById("projectDetailView").style.display = "block";
-  renderDetailTasks(p);
-  renderDetailArchive(p);
-}
-
-// ── Detail view journal: editable entries ──────────────────────
-let detailEditingNoteIdx = null;
-
-function renderDetailNotes(p){
-  const notesEl = document.getElementById("detailProjectNotes");
-  const entries = parseNotes(p.notes);
-  if(entries.length){
-    notesEl.style.display="block";
-    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal</div>' +
-      entries.map((e,i)=>{
-        if(i===detailEditingNoteIdx){
-          return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">
-            <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:4px;">${formatNoteDate(e.date)}</div>
-            <textarea id="detailNoteEditText" style="width:100%;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(e.text)}</textarea>
-            <div style="display:flex;gap:8px;margin-top:6px;">
-              <button type="button" id="detailNoteEditSaveBtn" onclick="saveDetailNoteEdit(${i})" style="padding:5px 14px;background:var(--gold);color:var(--navy);border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
-              <button type="button" onclick="cancelDetailNoteEdit()" style="padding:5px 14px;background:transparent;color:#cfd6dd;border:1px solid rgba(255,255,255,.3);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
-            </div>
-          </div>`;
-        }
-        return `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);align-items:flex-start;">
-          <div style="width:5px;height:5px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
-          <div style="flex:1;">
-            <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${formatNoteDate(e.date)}</div>
-            <div style="font-size:12px;color:#e0e0e0;line-height:1.5;white-space:pre-wrap;">${e.text}</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
-            <i class="ti ti-pencil" onclick="editDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Edit note"></i>
-            <i class="ti ti-trash" onclick="deleteDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Delete note"></i>
-          </div>
-        </div>`;
-      }).join("");
-  } else { notesEl.style.display="none"; }
-}
-
-function editDetailNote(idx){
-  detailEditingNoteIdx = idx;
-  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
-  if(!p) return;
-  renderDetailNotes(p);
-  setTimeout(()=>{
-    const t = document.getElementById("detailNoteEditText");
-    if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
-  }, 0);
-}
-
-function cancelDetailNoteEdit(){
-  detailEditingNoteIdx = null;
-  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
-  if(p) renderDetailNotes(p);
-}
-
-async function saveDetailNoteEdit(idx){
-  const ta = document.getElementById("detailNoteEditText");
-  const newText = ta.value.trim();
-  if(!newText) return;
-  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
-  if(!p) return;
-  const entries = parseNotes(p.notes);
-  entries[idx].text = newText;
-  const updatedNotes = serializeNotes(entries);
-  const saveBtn = document.getElementById("detailNoteEditSaveBtn");
-  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
-  try {
-    await apiFetch("/api/projects/"+p.id, "PUT", {
-      name:p.name, address:p.address, prospect:p.prospect,
-      type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
-      status:p.status, notes:updatedNotes, contacts:p.contacts||"[]", priority:p.priority||""
-    });
-    p.notes = updatedNotes;
-    detailEditingNoteIdx = null;
-    renderDetailNotes(p);
-    toast("Note updated","#2e7d32");
-  } catch(e){
-    toast("Save failed","#c0392b");
-    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = "SAVE"; }
-  }
-}
-
-async function deleteDetailNote(idx){
-  if(!confirm("Delete this journal entry?")) return;
-  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
-  if(!p) return;
-  const entries = parseNotes(p.notes);
-  entries.splice(idx,1);
-  const updatedNotes = serializeNotes(entries);
-  try {
-    await apiFetch("/api/projects/"+p.id, "PUT", {
-      name:p.name, address:p.address, prospect:p.prospect,
-      type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
-      status:p.status, notes:updatedNotes, contacts:p.contacts||"[]", priority:p.priority||""
-    });
-    p.notes = updatedNotes;
-    renderDetailNotes(p);
-    toast("Note deleted","#888");
-  } catch(e){
-    toast("Delete failed","#c0392b");
-  }
-}
-
-function renderDetailArchive(p){
-  // Remove existing archive section if any
-  const existing = document.getElementById("detailArchiveSection");
-  if(existing) existing.remove();
-
-  // Find archived tasks for this project
-  const archived = (state.archive||[]).filter(t=>{
-    const tName = (t.title||"").split(" — ")[0].trim();
-    return tName===p.name ||
-      tName.toLowerCase().includes(p.name.toLowerCase()) ||
-      p.name.toLowerCase().includes(tName.toLowerCase()) ||
-      (t.title||"").includes(p.name);
-  });
-
-  if(!archived.length) return;
-
-  // Build section after the task table
-  const section = document.createElement("div");
-  section.id = "detailArchiveSection";
-  section.style.cssText = "margin-top:24px;";
-
-  // Collapsible header
-  let collapsed = true;
-  const header = document.createElement("div");
-  header.style.cssText = "display:flex;align-items:center;justify-content:space-between;background:#f0f0f0;border-radius:999px;padding:10px 18px;cursor:pointer;margin-bottom:0;";
-  header.innerHTML = `<span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#888;">Completed tasks &nbsp;·&nbsp; ${archived.length} task${archived.length!==1?"s":""}</span>
-    <span id="archToggleIcon" style="font-size:12px;color:#888;">&#9660; Expand</span>`;
-
-  const body = document.createElement("div");
-  body.style.display = "none";
-  body.style.marginTop = "10px";
-  body.style.overflowX = "auto";
-
-  header.onclick = ()=>{
-    collapsed = !collapsed;
-    body.style.display = collapsed ? "none" : "block";
-    header.querySelector("#archToggleIcon").innerHTML = collapsed ? "&#9660; Expand" : "&#9650; Collapse";
-  };
-
-  // Table
-  const table = document.createElement("table");
-  table.style.cssText = "width:100%;border-collapse:separate;border-spacing:0 4px;font-size:12px;";
-  table.innerHTML = `<thead><tr>
-    <th style="background:#888;color:#fff;padding:8px 14px;text-align:left;border-radius:999px 0 0 999px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Task</th>
-    <th style="background:#888;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Status</th>
-    <th style="background:#888;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Notes</th>
-    <th style="background:#888;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Deadline</th>
-    <th style="background:#888;color:#fff;padding:8px 14px;text-align:left;border-radius:0 999px 999px 0;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Week</th>
-  </tr></thead>`;
-
-  const tbody = document.createElement("tbody");
-  archived.forEach((t,i)=>{
-    const bg = i%2===0?"#fafafa":"#f4f4f4";
-    const tr = document.createElement("tr");
-    [
-      {val:t.task||"—",   round:"left"},
-      {val:t.status||"—", round:""},
-      {val:t.notes||"—",  round:""},
-      {val:t.deadline||"—",round:""},
-      {val:t.weekCompleted||"—",round:"right"}
-    ].forEach(({val,round})=>{
-      const td = document.createElement("td");
-      td.textContent = val;
-      td.style.cssText = `background:${bg};color:#555;padding:8px 10px;vertical-align:top;font-size:12px;`;
-      if(round==="left")  { td.style.borderRadius="999px 0 0 999px"; td.style.paddingLeft="14px"; }
-      if(round==="right") { td.style.borderRadius="0 999px 999px 0"; td.style.paddingRight="14px"; }
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-
-  table.appendChild(tbody);
-  body.appendChild(table);
-  section.appendChild(header);
-  section.appendChild(body);
-
-  // Append after task empty message or task table
-  const detailView = document.getElementById("projectDetailView");
-  detailView.appendChild(section);
-}
-
-function renderDetailTasks(p){
-  const tbody  = document.getElementById("detailTaskBody");
-  const empty  = document.getElementById("detailTaskEmpty");
-  tbody.innerHTML = "";
-
-  // Match tasks to this project
-  const projTasks = state.tasks.filter(t=>{
-    const tName = (t.title||"").split(" — ")[0].trim();
-    return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase()) || (t.title||"").includes(p.name);
-  });
-
-  empty.style.display = projTasks.length ? "none" : "block";
-  const today = todayStr();
-
-  projTasks.forEach((t,idx)=>{
-    const tr = document.createElement("tr");
-    tr.className = "task-row";
-    const bg = idx%2===0?"#fff":"var(--gray)";
-    if(!t.done && t.deadline){
-      if(t.deadline===today) tr.className+=" due-today";
-      else if(t.deadline<today) tr.className+=" overdue";
-    }
-
-    const mkTd=(content,round,extraStyle)=>{
-      const td=document.createElement("td");
-      td.style.background=bg; td.style.color="var(--text)"; td.style.padding="8px 8px"; td.style.verticalAlign="top";
-      if(round==="left"){ td.style.borderRadius="999px 0 0 999px"; td.style.paddingLeft="14px"; }
-      if(round==="right"){ td.style.borderRadius="0 999px 999px 0"; td.style.paddingRight="14px"; }
-      if(extraStyle) Object.assign(td.style, extraStyle);
-      if(content) td.appendChild(content);
-      return td;
-    };
-
-    // Checkbox
-    const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=!!t.done;
-    cb.style="width:16px;height:16px;cursor:pointer;";
-    cb.onchange = async()=>{
-      t.done = cb.checked;
-      await saveTask(t);
-      if(cb.checked){
-        await apiFetch("/api/newweek-single","POST",{taskId: t.id, weekId: state.weekId});
-        state.archive.unshift({...t, weekCompleted: state.weekId, done: true});
-        state.tasks = state.tasks.filter(x=>x.id!==t.id);
-      }
-      renderDetailTasks(p);
-      renderProjectBoard();
-    };
-    tr.appendChild(mkTd(cb,"left"));
-
-    // Task textarea
-    const taskTa = mkTa(t.task, v=>{ t.task=v; scheduleSave(t); }, "Task description");
-    tr.appendChild(mkTd(taskTa));
-
-    // Status
-    const sel = document.createElement("select");
-    STATUSES.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; if(t.status===s) o.selected=true; sel.appendChild(o); });
-    sel.onchange = async()=>{ t.status=sel.value; await saveTask(t); };
-    tr.appendChild(mkTd(sel));
-
-    // Notes
-    const notesTa = mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes");
-    tr.appendChild(mkTd(notesTa));
-
-    // Deadline
-    const dl = document.createElement("input"); dl.type="date"; dl.value=t.deadline||"";
-    if(!t.done && t.deadline){
-      if(t.deadline===today){ dl.style.color="#8a4a12"; dl.style.fontWeight="600"; }
-      else if(t.deadline<today){ dl.style.color="#a32d2d"; dl.style.fontWeight="600"; }
-    }
-    dl.onchange = async()=>{ t.deadline=dl.value; await saveTask(t); renderDetailTasks(p); };
-    tr.appendChild(mkTd(dl));
-
-    // Contact with picker
-    const ctWrap = document.createElement("div"); ctWrap.style.cssText="display:flex;gap:4px;align-items:flex-start;";
-    const ctTa = mkTa(t.contact, v=>{ t.contact=v; scheduleSave(t); }, "Contact info"); ctTa.style.flex="1";
-    const pickBtn = document.createElement("button");
-    pickBtn.innerHTML='<i class="ti ti-address-book"></i>';
-    pickBtn.style.cssText="padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
-    pickBtn.onclick=()=>openContactPicker(val=>{ ctTa.value=val; t.contact=val; scheduleSave(t); });
-    ctWrap.appendChild(ctTa); ctWrap.appendChild(pickBtn);
-    tr.appendChild(mkTd(ctWrap));
-
-    // Delete
-    const del = document.createElement("button");
-    del.innerHTML='<i class="ti ti-trash"></i>';
-    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--navy);border-radius:999px;font-size:13px;cursor:pointer;";
-    del.onclick=async()=>{ await apiFetch("/api/tasks/"+t.id,"DELETE"); state.tasks=state.tasks.filter(x=>x.id!==t.id); renderDetailTasks(p); };
-    tr.appendChild(mkTd(del,"right"));
-
-    tbody.appendChild(tr);
-  });
-}
-
-document.getElementById("btnBackToBoard").onclick = showProjectBoard;
-
-document.getElementById("btnDetailAddNote").onclick = ()=>{
-  const qn = document.getElementById("detailQuickNote");
-  qn.style.display = qn.style.display==="none" ? "block" : "none";
-  if(qn.style.display==="block") document.getElementById("detailNoteText").focus();
-};
-
-document.getElementById("detailNoteCancel").onclick = ()=>{
-  document.getElementById("detailQuickNote").style.display = "none";
-  document.getElementById("detailNoteText").value = "";
-};
-
-document.getElementById("detailNoteSave").onclick = async()=>{
-  const text = document.getElementById("detailNoteText").value.trim();
-  if(!text) return;
-  const p = (state.projects||[]).find(x=>x.id===currentProjectId);
-  if(!p) return;
-  const entries = parseNotes(p.notes);
-  entries.unshift({date: new Date().toISOString(), text});
-  p.notes = serializeNotes(entries);
-  await apiFetch("/api/projects/"+p.id,"PUT",{
-    name:p.name, address:p.address, prospect:p.prospect,
-    type:p.type, sf:p.sf, price_per_sf:p.price_per_sf,
-    status:p.status, notes:p.notes, contacts:p.contacts||"[]", priority:p.priority||""
-  });
-  document.getElementById("detailNoteText").value = "";
-  document.getElementById("detailQuickNote").style.display = "none";
-  // Refresh detail view
-  openProjectDetail(p.id);
-  toast("Note saved","#2e7d32");
-};
-document.getElementById("btnDetailEditProject").onclick = ()=>{
-  const p=(state.projects||[]).find(x=>x.id===currentProjectId);
-  if(p){ showProjectForm(p); showProjects(); }
-};
-document.getElementById("btnDetailAddTask").onclick = async()=>{
-  const p=(state.projects||[]).find(x=>x.id===currentProjectId);
-  const title = p ? p.name+" — "+p.address : "";
-  const t={id:uid(),title:title.trim(),task:"",status:"Not started",notes:"",deadline:"",contact:"",done:false};
-  await apiFetch("/api/tasks","POST",{...t,week_id:state.weekId});
-  state.tasks.push(t);
-  renderDetailTasks(p);
-};
-
-
-
-// ── Projects ──────────────────────────────────────────────────
-let editingProjectId = null;
-
-function showProjects(){
-  hideAllViews();
-  document.getElementById("projectsView").style.display = "block";
-  renderProjects();
-}
-
-function hideProjects(){
-  showProjectBoard();
-}
-
-function renderProjects(){
-  const grid  = document.getElementById("projectGrid");
-  const empty = document.getElementById("projectsEmpty");
-  const projects = state.projects || [];
-  grid.innerHTML = "";
-  empty.style.display = projects.length ? "none" : "block";
-
-  projects.forEach(p => {
-    const card = document.createElement("div");
-    card.style.cssText = "background:#fff;border-radius:8px;padding:16px;border:1px solid var(--border);";
-    const notesId = "pnotes-"+p.id;
-    const typeColor = p.type==="Lease"?"#1565c0":p.type==="Purchase"?"#2e7d32":p.type==="Sale"?"#b8924f":"#888";
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div style="flex:1;">
-          <div style="font-size:14px;font-weight:700;color:var(--navy);">${p.name||"(no name)"}</div>
-          ${p.address ? `<div style="font-size:12px;color:#666;margin-top:2px;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>` : ""}
-          ${p.type ? `<div style="font-size:11px;font-weight:700;color:${typeColor};text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">${p.type}</div>` : ""}
-        </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;margin-left:8px;">
-          ${p.notes ? `<button onclick="toggleProjectNotes('${p.id}')" title="Notes" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--gold);font-family:inherit;"><i class="ti ti-notes"></i></button>` : ""}
-          <button onclick="editProject('${p.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--navy);font-family:inherit;"><i class="ti ti-pencil"></i></button>
-          <button onclick="deleteProject('${p.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
-        </div>
-      </div>
-      ${p.prospect ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-user" style="margin-right:4px;"></i>${p.prospect}</div>` : ""}
-      ${(p.sf || p.price_per_sf) ? `<div style="font-size:12px;color:#555;margin-bottom:4px;">${p.sf ? `<span style="margin-right:12px;"><i class="ti ti-ruler" style="margin-right:3px;"></i>${p.sf} SF</span>` : ""}${p.price_per_sf ? `<span><i class="ti ti-currency-dollar" style="margin-right:3px;"></i>${p.price_per_sf}/SF</span>` : ""}</div>` : ""}
-      ${p.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${p.notes}</div>` : ""}
-    `;
-    grid.appendChild(card);
-  });
-}
-
-function toggleProjectNotes(id){
-  const el = document.getElementById("pnotes-"+id);
-  if(!el) return;
-  el.style.display = el.style.display === "none" ? "block" : "none";
-}
-
-// ── Project Contact helpers ───────────────────────────────────
-function parseProjectContacts(raw){
-  if(!raw || raw==="[]" || raw==="") return [];
-  try { const p=JSON.parse(raw); if(Array.isArray(p)) return p; } catch(e){}
-  return [];
-}
-
-function serializeProjectContacts(arr){ return JSON.stringify(arr); }
-
-let currentProjectContacts = []; // working copy in form
-
-function renderProjectContactPills(containerId){
-  const el = document.getElementById(containerId);
-  if(!el) return;
-  if(!currentProjectContacts.length){ el.innerHTML=""; return; }
-  el.innerHTML = currentProjectContacts.map((c,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--navy);">${c.name}</div>
-        ${c.company?`<div style="font-size:11px;color:#888;">${c.company}</div>`:""}
-        ${c.email?`<div style="font-size:11px;color:#888;">${c.email}</div>`:""}
-      </div>
-      <button onclick="removeProjectContact(${i})" style="background:none;border:none;cursor:pointer;color:#a32d2d;font-size:14px;padding:0 2px;">✕</button>
-    </div>`).join("");
-}
-
-function removeProjectContact(idx){
-  currentProjectContacts.splice(idx,1);
-  renderProjectContactPills("pfProjectContactsList");
-}
-
-// ── Project Journal helpers ────────────────────────────────────
-function parseNotes(raw){
-  if(!raw) return [];
-  // Already JSON array?
-  try {
-    const parsed = JSON.parse(raw);
-    if(Array.isArray(parsed)) return parsed;
-  } catch(e){}
-  // Plain text — wrap as legacy entry
-  return [{date:"Previous notes", text:raw.trim()}];
-}
-
-function serializeNotes(entries){
-  return JSON.stringify(entries);
-}
-
-function formatNoteDate(d){
-  if(d==="Previous notes") return "Previous notes";
-  try { return new Date(d).toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}); }
-  catch(e){ return d; }
-}
-
-function escapeHtml(s){
-  return String(s==null?"":s)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-}
-
-let formEditingNoteIdx = null; // index of journal entry currently being edited in the project form
-
-function renderNotesList(entries, containerId){
-  const el = document.getElementById(containerId);
-  if(!entries.length){ el.style.display="none"; return; }
-  el.style.display="block";
-  el.innerHTML = entries.map((e,i)=>{
-    if(i===formEditingNoteIdx){
-      return `<div style="padding:8px 6px;border-bottom:1px solid var(--border);">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:4px;">${formatNoteDate(e.date)}</div>
-        <textarea id="pfNoteEditText" style="width:100%;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(e.text)}</textarea>
-        <div style="display:flex;gap:8px;margin-top:6px;">
-          <button type="button" onclick="saveFormNoteEdit(${i})" style="padding:5px 14px;background:var(--navy);color:#fff;border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
-          <button type="button" onclick="cancelFormNoteEdit()" style="padding:5px 14px;background:transparent;color:#888;border:1px solid var(--border);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
-        </div>
-      </div>`;
-    }
-    return `
-    <div style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);align-items:flex-start;">
-      <div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
-      <div style="flex:1;">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:2px;">${formatNoteDate(e.date)}</div>
-        <div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-wrap;">${e.text}</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
-        <i class="ti ti-pencil" onclick="editFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Edit note"></i>
-        <i class="ti ti-trash" onclick="deleteFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Delete note"></i>
-      </div>
-    </div>`;
-  }).join("");
-}
-
-function editFormNote(idx){
-  formEditingNoteIdx = idx;
-  renderNotesList(currentFormNotes, "pfNotesList");
-  setTimeout(()=>{
-    const t = document.getElementById("pfNoteEditText");
-    if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
-  }, 0);
-}
-
-function cancelFormNoteEdit(){
-  formEditingNoteIdx = null;
-  renderNotesList(currentFormNotes, "pfNotesList");
-}
-
-function saveFormNoteEdit(idx){
-  const ta = document.getElementById("pfNoteEditText");
-  const newText = ta.value.trim();
-  if(!newText) return;
-  currentFormNotes[idx].text = newText;
-  formEditingNoteIdx = null;
-  renderNotesList(currentFormNotes, "pfNotesList");
-}
-
-function deleteFormNote(idx){
-  if(!confirm("Delete this journal entry?")) return;
-  currentFormNotes.splice(idx,1);
-  formEditingNoteIdx = null;
-  renderNotesList(currentFormNotes, "pfNotesList");
-}
-
-let currentFormNotes = []; // working copy of notes in the form
-
-function showProjectForm(project){
-  editingProjectId = project ? project.id : null;
-  document.getElementById("projectFormTitle").textContent = project ? "Edit project" : "Add project";
-  document.getElementById("pfName").value    = project?.name         || "";
-  document.getElementById("pfAddress").value = project?.address      || "";
-  document.getElementById("pfProspect").value= project?.prospect     || "";
-  document.getElementById("pfType").value    = project?.type         || "";
-  document.getElementById("pfStatus").value   = project?.status       || "";
-  document.getElementById("pfPriority").value = project?.priority     || "";
-  document.getElementById("pfSf").value      = project?.sf           || "";
-  document.getElementById("pfPriceSf").value = project?.price_per_sf || "";
-  document.getElementById("pfNewNote").value = "";
-  currentFormNotes = parseNotes(project?.notes || "");
-  formEditingNoteIdx = null;
-  renderNotesList(currentFormNotes, "pfNotesList");
-  currentProjectContacts = parseProjectContacts(project?.contacts || "[]");
-  renderProjectContactPills("pfProjectContactsList");
-  document.getElementById("projectForm").style.display = "block";
-  document.getElementById("pfName").focus();
-}
-
-document.getElementById("pfAddNote").onclick = ()=>{
-  const text = document.getElementById("pfNewNote").value.trim();
-  if(!text) return;
-  currentFormNotes.unshift({date: new Date().toISOString(), text});
-  document.getElementById("pfNewNote").value = "";
-  renderNotesList(currentFormNotes, "pfNotesList");
-};
-
-function editProject(id){
-  const p = (state.projects||[]).find(x=>x.id===id);
-  if(p) showProjectForm(p);
-}
-
-async function deleteProject(id){
-  if(!confirm("Delete this project?")) return;
-  await apiFetch("/api/projects/"+id,"DELETE");
-  state.projects = (state.projects||[]).filter(x=>x.id!==id);
-  renderProjects();
-  toast("Project deleted","#888");
-}
-
-document.getElementById("btnAddProject").onclick = () => showProjectForm(null);
-document.getElementById("pfCancel").onclick = () => {
-  document.getElementById("projectForm").style.display = "none";
-  editingProjectId = null;
-  showProjectBoard();
-};
-
-document.getElementById("pfPickContact").onclick = ()=>openContactPicker(val=>{
-  const firstName = val.split(",")[0].trim();
-  document.getElementById("pfProspect").value = firstName;
+const express   = require("express");
+const cors      = require("cors");
+const path      = require("path");
+const bcrypt    = require("bcryptjs");
+const jwt       = require("jsonwebtoken");
+const { Pool }  = require("pg");
+const crypto    = require("crypto");
+const multer    = require("multer");
+const {
+  S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand,
+  DeleteObjectCommand, ListObjectsV2Command
+} = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+
+const app  = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || "killam-dev-secret-change-in-production";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-document.getElementById("pfPickProjectContacts").onclick = ()=>{
-  pickerSelected = currentProjectContacts.map(c=>({...c}));
-  document.getElementById("pickerSearch").value = "";
-  renderPickerSelected();
-  renderPickerList("");
-  pickerCallback = ()=>{
-    currentProjectContacts = [...pickerSelected];
-    renderProjectContactPills("pfProjectContactsList");
-  };
-  document.getElementById("contactPickerModal").style.display = "flex";
-};
 
-document.getElementById("pfSave").onclick = async () => {
-  const saveBtn = document.getElementById("pfSave");
-  saveBtn.disabled = true; saveBtn.textContent = "Saving…";
-  const name        = document.getElementById("pfName").value.trim();
-  const address     = document.getElementById("pfAddress").value.trim();
-  const prospect    = document.getElementById("pfProspect").value.trim();
-  const type        = document.getElementById("pfType").value;
-  const status      = document.getElementById("pfStatus").value;
-  const priority    = document.getElementById("pfPriority").value;
-  const sf          = document.getElementById("pfSf").value.trim();
-  const price_per_sf= document.getElementById("pfPriceSf").value.trim();
-  const notes       = serializeNotes(currentFormNotes);
-  const contacts    = serializeProjectContacts(currentProjectContacts);
-  if(!name){ alert("Project name is required"); return; }
+// ── Cloudflare R2 (S3-compatible) file storage ─────────────────
+// Needs four env vars on Railway: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+// R2_SECRET_ACCESS_KEY, R2_BUCKET. Without them the app still runs;
+// attachment endpoints just return a clear "not configured" error.
+const R2_BUCKET = process.env.R2_BUCKET;
+const r2Enabled = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID &&
+                     process.env.R2_SECRET_ACCESS_KEY && R2_BUCKET);
+const r2 = r2Enabled ? new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+  },
+  // Newer AWS SDK versions add checksum headers by default; only send them when required.
+  requestChecksumCalculation:  "WHEN_REQUIRED",
+  responseChecksumValidation:  "WHEN_REQUIRED"
+}) : null;
+if (!r2Enabled) console.warn("R2 not configured — PDF attachments are disabled.");
 
-  if(editingProjectId){
-    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
-    const p = (state.projects||[]).find(x=>x.id===editingProjectId);
-    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; p.contacts=contacts; p.priority=priority; }
-    toast("Project updated","#2e7d32");
-  } else {
-    const id = uid();
-    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
-    if(!state.projects) state.projects=[];
-    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
-    toast("Project added","#2e7d32");
-  }
-  document.getElementById("projectForm").style.display = "none";
-  editingProjectId = null;
-  saveBtn.disabled = false;
-  saveBtn.textContent = "Save project";
-  showProjectBoard();
-};
+const MAX_PDF_BYTES = 15 * 1024 * 1024; // 15 MB per file
+const uploadPdf = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PDF_BYTES, files: 1 }
+}).single("file");
 
-document.getElementById("btnProjects").onclick = showProjectBoard;
-document.getElementById("btnThisWeek").onclick = showThisWeek;
-document.getElementById("btnProjectsBack").onclick = hideProjects;
+const ID_RE  = /^[A-Za-z0-9_-]{1,64}$/;
+// Every stored object must look exactly like: projects/<projectId>/<uuid>.pdf
+const KEY_RE = /^projects\/([A-Za-z0-9_-]{1,64})\/[0-9a-f-]{36}\.pdf$/;
 
-// ── Project Picker ─────────────────────────────────────────────
-let projPickerCallback = null;
-
-function openProjectPicker(callback){
-  projPickerCallback = callback;
-  document.getElementById("projPickerSearch").value = "";
-  renderProjectPickerList("");
-  document.getElementById("projectPickerModal").style.display = "flex";
-  document.getElementById("projPickerSearch").focus();
+function requireR2(req, res, next) {
+  if (!r2Enabled) return res.status(503).json({ error: "File storage is not configured on the server yet." });
+  next();
 }
 
-function renderProjectPickerList(query){
-  const list = document.getElementById("projPickerList");
-  const projects = (state.projects||[]).filter(p=>
-    !query ||
-    p.name.toLowerCase().includes(query.toLowerCase()) ||
-    (p.address||"").toLowerCase().includes(query.toLowerCase())
-  );
-  list.innerHTML = "";
-  if(!projects.length){
-    list.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No projects found.</p>';
-    return;
-  }
-  projects.forEach(p=>{
-    const row = document.createElement("div");
-    row.style.cssText = "padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;";
-    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--navy);">${p.name}</div>
-      <div style="font-size:11px;color:#888;">${[p.address,p.type].filter(Boolean).join(" · ")}</div>`;
-    row.onmouseenter = ()=>row.style.background="var(--cream)";
-    row.onmouseleave = ()=>row.style.background="";
-    row.onclick = ()=>{
-      const display = [p.name, p.address].filter(Boolean).join(" — ");
-      if(projPickerCallback) projPickerCallback(display);
-      document.getElementById("projectPickerModal").style.display = "none";
-    };
-    list.appendChild(row);
-  });
+// Make a user-supplied filename safe to put in a Content-Disposition header.
+function safeFilename(name) {
+  let n = String(name || "document.pdf")
+    .replace(/[\u0000-\u001f\u007f"\\\/]/g, "")  // control chars, quotes, slashes
+    .trim()
+    .slice(0, 150);
+  if (!n) n = "document.pdf";
+  if (!/\.pdf$/i.test(n)) n += ".pdf";
+  return n;
 }
 
-document.getElementById("projPickerSearch").oninput = e => renderProjectPickerList(e.target.value);
-document.getElementById("projPickerClose").onclick  = () => {
-  document.getElementById("projectPickerModal").style.display = "none";
-};
-
-// ── Contacts ──────────────────────────────────────────────────
-let editingContactId = null;
-let pickerCallback   = null;
-
-// ── View management ───────────────────────────────────────────
-const ALL_VIEWS = ["projectBoardView","projectDetailView","thisWeekView","activeView","archiveView","dashboardView","contactsView","projectsView"];
-
-function hideAllViews(){
-  ALL_VIEWS.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+// Delete every file stored under a project (used when the project is deleted).
+async function deleteProjectFiles(projectId) {
+  if (!r2Enabled || !ID_RE.test(projectId)) return;
+  let token;
+  do {
+    const list = await r2.send(new ListObjectsV2Command({
+      Bucket: R2_BUCKET, Prefix: `projects/${projectId}/`, ContinuationToken: token
+    }));
+    await Promise.all((list.Contents || []).map(o =>
+      r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: o.Key }))
+    ));
+    token = list.IsTruncated ? list.NextContinuationToken : undefined;
+  } while (token);
 }
 
-function showProjectBoard(){
-  hideAllViews();
-  document.getElementById("projectBoardView").style.display = "block";
-  renderProjectBoard();
-}
-
-function showThisWeek(){
-  hideAllViews();
-  document.getElementById("thisWeekView").style.display = "block";
-  document.getElementById("activeView").style.display   = "block";
-  render();
-}
-
-function showContacts(){
-  hideAllViews();
-  document.getElementById("contactsView").style.display = "block";
-  renderContacts();
-}
-
-function hideContacts(){
-  showProjectBoard();
-}
-
-function renderContacts(){
-  const grid  = document.getElementById("contactGrid");
-  const empty = document.getElementById("contactsEmpty");
-  const contacts = state.contacts || [];
-  grid.innerHTML  = "";
-  empty.style.display = contacts.length ? "none" : "block";
-
-  contacts.forEach(c => {
-    const card = document.createElement("div");
-    card.style.cssText = "background:#fff;border-radius:8px;padding:16px;border:1px solid var(--border);";
-    const notesId = "notes-"+c.id;
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div>
-          <div style="font-size:14px;font-weight:700;color:var(--navy);">${c.name||"(no name)"}</div>
-          <div style="font-size:12px;color:var(--gold);font-weight:600;">${c.company||""}</div>
-        </div>
-        <div style="display:flex;gap:6px;">
-          ${c.notes ? `<button onclick="toggleNotes('${c.id}')" title="Notes" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--gold);font-family:inherit;"><i class="ti ti-notes"></i></button>` : ""}
-          <button onclick="editContact('${c.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--navy);font-family:inherit;"><i class="ti ti-pencil"></i></button>
-          <button onclick="deleteContact('${c.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
-        </div>
-      </div>
-      ${c.email ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${c.email}</div>` : ""}
-      ${c.phone ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${c.phone}</div>` : ""}
-      ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${c.notes}</div>` : ""}
-    `;
-    grid.appendChild(card);
-  });
-}
-
-function toggleNotes(id){
-  const el = document.getElementById("notes-"+id);
-  if(!el) return;
-  el.style.display = el.style.display === "none" ? "block" : "none";
-}
-
-function showContactForm(contact){
-  editingContactId = contact ? contact.id : null;
-  document.getElementById("contactFormTitle").textContent = contact ? "Edit contact" : "Add contact";
-  document.getElementById("cfName").value    = contact?.name    || "";
-  document.getElementById("cfCompany").value = contact?.company || "";
-  document.getElementById("cfEmail").value   = contact?.email   || "";
-  document.getElementById("cfPhone").value   = contact?.phone   || "";
-  document.getElementById("cfNotes").value   = contact?.notes   || "";
-  document.getElementById("contactForm").style.display = "block";
-  document.getElementById("cfName").focus();
-}
-
-function editContact(id){
-  const c = (state.contacts||[]).find(x=>x.id===id);
-  if(c) showContactForm(c);
-}
-
-async function deleteContact(id){
-  if(!confirm("Delete this contact?")) return;
-  await apiFetch("/api/contacts/"+id,"DELETE");
-  state.contacts = (state.contacts||[]).filter(x=>x.id!==id);
-  renderContacts();
-  toast("Contact deleted","#888");
-}
-
-document.getElementById("btnAddContact").onclick = () => showContactForm(null);
-document.getElementById("cfCancel").onclick = () => {
-  document.getElementById("contactForm").style.display = "none";
-  editingContactId = null;
-};
-
-document.getElementById("cfSave").onclick = async () => {
-  const name    = document.getElementById("cfName").value.trim();
-  const company = document.getElementById("cfCompany").value.trim();
-  const email   = document.getElementById("cfEmail").value.trim();
-  const phone   = document.getElementById("cfPhone").value.trim();
-  const notes   = document.getElementById("cfNotes").value.trim();
-  if(!name){ alert("Name is required"); return; }
-
-  if(editingContactId){
-    await apiFetch("/api/contacts/"+editingContactId,"PUT",{name,company,email,phone,notes});
-    const c = (state.contacts||[]).find(x=>x.id===editingContactId);
-    if(c){ c.name=name; c.company=company; c.email=email; c.phone=phone; c.notes=notes; }
-    toast("Contact updated","#2e7d32");
-  } else {
-    const id = uid();
-    await apiFetch("/api/contacts","POST",{id,name,company,email,phone,notes});
-    if(!state.contacts) state.contacts=[];
-    state.contacts.push({id,name,company,email,phone,notes});
-    toast("Contact added","#2e7d32");
-  }
-  document.getElementById("contactForm").style.display = "none";
-  editingContactId = null;
-  renderContacts();
-};
-
-document.getElementById("btnContacts").onclick   = showContacts;
-document.getElementById("btnContactsBack").onclick = hideContacts;
-
-// ── Contact Picker ─────────────────────────────────────────────
-let pickerSelected = []; // array of selected contact objects
-
-function openContactPicker(callback){
-  pickerCallback = callback;
-  pickerSelected = [];
-  document.getElementById("pickerSearch").value = "";
-  document.getElementById("pickerSelected").innerHTML = "";
-  renderPickerList("");
-  document.getElementById("contactPickerModal").style.display = "flex";
-  document.getElementById("pickerSearch").focus();
-}
-
-function renderPickerSelected(){
-  const el = document.getElementById("pickerSelected");
-  el.innerHTML = "";
-  if(!pickerSelected.length){
-    el.style.display = "none";
-    return;
-  }
-  el.style.display = "flex";
-  pickerSelected.forEach((c,i)=>{
-    const tag = document.createElement("div");
-    tag.style.cssText = "background:var(--navy);color:#fff;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;";
-    tag.innerHTML = `${c.name} <span style="cursor:pointer;opacity:.7;" data-i="${i}">✕</span>`;
-    tag.querySelector("span").onclick = (e)=>{
-      pickerSelected.splice(parseInt(e.target.dataset.i),1);
-      renderPickerSelected();
-      renderPickerList(document.getElementById("pickerSearch").value);
-    };
-    el.appendChild(tag);
-  });
-}
-
-function renderPickerList(query){
-  const list = document.getElementById("pickerList");
-  const selectedIds = pickerSelected.map(c=>c.id);
-  const contacts = (state.contacts||[]).filter(c=>
-    !selectedIds.includes(c.id) && (
-      !query ||
-      c.name.toLowerCase().includes(query.toLowerCase()) ||
-      (c.company||"").toLowerCase().includes(query.toLowerCase())
-    )
-  );
-  list.innerHTML = "";
-  if(!contacts.length){
-    list.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No more contacts found.</p>';
-    return;
-  }
-  contacts.forEach(c=>{
-    const row = document.createElement("div");
-    row.style.cssText = "padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;";
-    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--navy);">${c.name}</div>
-      <div style="font-size:11px;color:#888;">${[c.company,c.email,c.phone].filter(Boolean).join(" · ")}</div>`;
-    row.onmouseenter = ()=>row.style.background="var(--cream)";
-    row.onmouseleave = ()=>row.style.background="";
-    row.onclick = ()=>{
-      pickerSelected.push(c);
-      document.getElementById("pickerSearch").value = "";
-      renderPickerSelected();
-      renderPickerList("");
-      document.getElementById("pickerSearch").focus();
-    };
-    list.appendChild(row);
-  });
-}
-
-document.getElementById("pickerSearch").oninput = e => renderPickerList(e.target.value);
-document.getElementById("pickerClose").onclick = () => {
-  document.getElementById("contactPickerModal").style.display = "none";
-};
-document.getElementById("pickerDone").onclick = () => {
-  if(!pickerSelected.length){ document.getElementById("contactPickerModal").style.display="none"; return; }
-  const lines = pickerSelected.map(c=>[c.name,c.company,c.email,c.phone].filter(Boolean).join(", ")).join("\n");
-  if(pickerCallback) pickerCallback(lines);
-  document.getElementById("contactPickerModal").style.display = "none";
-};
-
-// ── Mobile menu ────────────────────────────────────────────────
-function toggleMobileMenu(){
-  const menu    = document.getElementById("mobileMenu");
-  const overlay = document.getElementById("mobileMenuOverlay");
-  const isOpen  = menu.style.display === "flex";
-  if(isOpen){
-    menu.style.transform = "translateX(-100%)";
-    setTimeout(()=>{ menu.style.display="none"; overlay.style.display="none"; }, 300);
-  } else {
-    menu.style.display = "flex";
-    overlay.style.display = "block";
-    requestAnimationFrame(()=>{ menu.style.transform = "translateX(0)"; });
-  }
-}
-
-loadState();
-
-document.getElementById("btnExport").onclick = ()=>{
-  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url;
-  a.download="killam-tracker-"+new Date().toISOString().slice(0,10)+".json";
-  a.click(); URL.revokeObjectURL(url);
-};
-
-document.getElementById("btnArchive").onclick = showArchive;
-function showArchive(){
-  hideAllViews();
-  document.getElementById("archiveView").style.display="block";
-  renderArchive();
-}
-
-function goActive(){
-  showProjectBoard();
-}
-document.getElementById("btnBack").onclick = goActive;
-
-// ── Dashboard ──────────────────────────────────────────────────
-let pipelineChart = null;
-let closedChart   = null;
-
-function toggleSection(id){
-  const section = document.getElementById("section-"+id);
-  const btn     = document.getElementById("toggleBtn-"+id);
-  if(!section) return;
-  const collapsed = section.style.display === "none";
-  section.style.display = collapsed ? "block" : "none";
-  btn.innerHTML = collapsed ? "&#9650; Collapse" : "&#9660; Expand";
-}
-
-function showDashboard(){
-  hideAllViews();
-  document.getElementById("dashboardView").style.display = "block";
-  renderDashboard();
-}
-
-function hideDashboard(){
-  showProjectBoard();
-}
-
-document.getElementById("btnDashboard").onclick = showDashboard;
-document.getElementById("btnDashBack").onclick  = hideDashboard;
-
-function findProjectForTask(t){
-  const tName = (t.title||"").split(" — ")[0].trim();
-  return (state.projects||[]).find(p=>
-    p.name===tName ||
-    p.name.toLowerCase()===tName.toLowerCase() ||
-    tName.toLowerCase().includes(p.name.toLowerCase()) ||
-    p.name.toLowerCase().includes(tName.toLowerCase())
-  );
-}
-
-function goToProjectFromDash(projectId){
-  hideDashboard();
-  openProjectDetail(projectId);
-}
-
-function renderDashboard(){
-  const today   = todayStr();
-  const tasks   = state.tasks;
-  const archive = state.archive;
-  const projects = state.projects || [];
-
-  const CLOSED_STATUSES = ["Closed","Completed","Dead"];
-
-  // ── Project-based metrics ─────────────────────────────────────
-  const activeProjects  = projects.filter(p=>!CLOSED_STATUSES.includes(p.status)).length;
-  const closedProjects  = projects.filter(p=>CLOSED_STATUSES.includes(p.status)).length;
-  const loiProjects     = projects.filter(p=>p.status==="LOI").length;
-  const leaseProjects   = projects.filter(p=>p.status==="Lease agreement").length;
-  const psaProjects     = projects.filter(p=>p.status==="PSA").length;
-  const startedProjects = projects.filter(p=>p.status==="Started").length;
-
-  // ── Task-based metrics ────────────────────────────────────────
-  const activeTasks = tasks.filter(t=>!t.done).length;
-  const dueWeek     = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd()).length;
-  const overdue     = tasks.filter(t=>!t.done && t.deadline && t.deadline < today).length;
-
-  const metrics = [
-    {label:"Active projects",   value:activeProjects,  color:"var(--navy)"},
-    {label:"Closed / Done",     value:closedProjects,  color:"#2e7d32"},
-    {label:"At LOI",            value:loiProjects,     color:"#1565c0"},
-    {label:"Lease agreement",   value:leaseProjects,   color:"#7b1fa2"},
-    {label:"At PSA",            value:psaProjects,     color:"#6a1b9a"},
-    {label:"Active tasks",      value:activeTasks,     color:"#4a90c4"},
-    {label:"Overdue tasks",     value:overdue,         color:"#a32d2d"},
-  ];
-
-  const mDiv = document.getElementById("dashMetrics");
-  mDiv.innerHTML = "";
-  metrics.forEach(m=>{
-    mDiv.innerHTML += `<div style="background:#fff;border-radius:8px;padding:16px;text-align:center;">
-      <div style="font-size:32px;font-weight:700;color:${m.color};">${m.value}</div>
-      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#888;margin-top:4px;">${m.label}</div>
-    </div>`;
-  });
-
-  // ── Pipeline bar chart — now project-based ─────────────────────
-  const statuses = ["Not started","Started","LOI","Lease agreement","PSA","Closed","Completed","Dead","Working on other"];
-  const statusColors = ["#9e9e9e","#4a90c4","#1565c0","#7b1fa2","#6a1b9a","#2e7d32","#43a047","#c62828","#e65100"];
-  const counts = statuses.map(s=>projects.filter(p=>p.status===s).length);
-  const allTasks = [...tasks, ...archive];
-
-  if(pipelineChart) pipelineChart.destroy();
-  pipelineChart = new Chart(document.getElementById("chartPipeline"),{
-    type:"bar",
-    data:{
-      labels: statuses.map(s=>s.length>12?s.slice(0,12)+"…":s),
-      datasets:[{
-        data: counts,
-        backgroundColor: statusColors,
-        borderRadius: 6,
-      }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true,ticks:{stepSize:1,precision:0},grid:{color:"#f0f0f0"}},
-              x:{grid:{display:false}}}
-    }
-  });
-
-  // ── Closed by month chart ─────────────────────────────────────
-  const now = new Date();
-  const months = [];
-  const monthLabels = [];
-  for(let i=5;i>=0;i--){
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
-    monthLabels.push(d.toLocaleDateString(undefined,{month:"short",year:"2-digit"}));
-  }
-  const closedByMonth = months.map(m=>
-    archive.filter(t=>(t.status==="Closed"||t.status==="Completed") && t.deadline && t.deadline.slice(0,7)===m).length
-  );
-
-  if(closedChart) closedChart.destroy();
-  closedChart = new Chart(document.getElementById("chartClosed"),{
-    type:"bar",
-    data:{
-      labels: monthLabels,
-      datasets:[{
-        data: closedByMonth,
-        backgroundColor:"#2e7d32",
-        borderRadius:6,
-      }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true,ticks:{stepSize:1,precision:0},grid:{color:"#f0f0f0"}},
-              x:{grid:{display:false}}}
-    }
-  });
-
-  // ── Due this week list ────────────────────────────────────────
-  const dueDiv = document.getElementById("dashDueWeek");
-  const dueTasks = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd());
-  if(!dueTasks.length){
-    dueDiv.innerHTML = '<p style="color:#888;font-size:12px;">Nothing due this week 🎉</p>';
-  } else {
-    dueDiv.innerHTML = dueTasks.map(t=>{
-      const proj = findProjectForTask(t);
-      const clickable = proj ? `onclick="goToProjectFromDash('${proj.id}')" style="cursor:pointer;"` : "";
-      const projLabel = proj ? `<span style="font-size:10px;font-weight:700;color:var(--gold);margin-left:4px;">→ ${proj.name}</span>` : "";
-      return `<div ${clickable} style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;${proj?"cursor:pointer;":""}${proj?"background:transparent;transition:background .15s;" : ""}">
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}${projLabel}</div>
-          <div style="font-size:11px;color:#888;">${t.task||""}</div>
-        </div>
-        <div style="font-size:11px;font-weight:600;color:#b8924f;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
-      </div>`;
-    }).join("");
-  }
-
-  // ── Overdue list ──────────────────────────────────────────────
-  const overdueDiv = document.getElementById("dashOverdue");
-  const overdueTasks = tasks.filter(t=>!t.done && t.deadline && t.deadline < today);
-  if(!overdueTasks.length){
-    overdueDiv.innerHTML = '<p style="color:#888;font-size:12px;">No overdue tasks 🎉</p>';
-  } else {
-    overdueDiv.innerHTML = overdueTasks.map(t=>{
-      const proj = findProjectForTask(t);
-      const projLabel = proj ? `<span style="font-size:10px;font-weight:700;color:var(--gold);margin-left:4px;">→ ${proj.name}</span>` : "";
-      return `<div ${proj?`onclick="goToProjectFromDash('${proj.id}')"`:""} style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;${proj?"cursor:pointer;":""}">
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}${projLabel}</div>
-          <div style="font-size:11px;color:#888;">${t.task||""}</div>
-        </div>
-        <div style="font-size:11px;font-weight:600;color:#a32d2d;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
-      </div>`;
-    }).join("");
-  }
-
-  // ── Contact activity ──────────────────────────────────────────
-  // Match contacts by name from directory
-  const contactTaskMap = {};
-  [...tasks,...archive].forEach(t=>{
-    if(!t.contact) return;
-    // Each line is one contact entry
-    const lines = t.contact.split("\n").map(l=>l.trim()).filter(Boolean);
-    lines.forEach(line=>{
-      // First part before comma is typically the name
-      const name = line.split(",")[0].trim();
-      if(!name || name==="—" || name==="N/A") return;
-      if(!contactTaskMap[name]) contactTaskMap[name] = {tasks:[], info:line};
-      contactTaskMap[name].tasks.push(t.title||"(untitled)");
-    });
-  });
-  const contactDiv = document.getElementById("dashContacts");
-  const contactEntries = Object.entries(contactTaskMap).sort((a,b)=>b[1].tasks.length-a[1].tasks.length).slice(0,12);
-  if(!contactEntries.length){
-    contactDiv.innerHTML = '<p style="color:#888;font-size:12px;">No contacts yet.</p>';
-  } else {
-    contactDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
-    ${contactEntries.map(([name,data])=>`
-      <div style="background:var(--cream);border-radius:6px;padding:12px;">
-        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;">${name}</div>
-        <div style="font-size:11px;color:#888;margin-bottom:4px;">${[...new Set(data.tasks)].join(", ")}</div>
-        <div style="font-size:10px;font-weight:700;color:var(--gold);">${data.tasks.length} task${data.tasks.length!==1?"s":""}</div>
-      </div>`).join("")}
-    </div>`;
-  }
-
-  // ── Active projects ────────────────────────────────────────────
-  const projDiv = document.getElementById("dashProjects");
-  const CLOSED_STATUSES_DASH = ["Closed","Completed","Dead"];
-  const activeProjs = (state.projects||[]).filter(p=>!CLOSED_STATUSES_DASH.includes(p.status));
-  const typeColor = t => t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
-  const statusColors2 = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#43a047","Dead":"#c62828","Working on other":"#e65100","Land Prep":"#5d4037","Ground Up Build":"#4e342e","Interior Finishout":"#6d4c41","Delivered":"#2e7d32"};
-
-  if(!activeProjs.length){
-    projDiv.innerHTML = '<p style="color:#888;font-size:12px;">No active projects yet.</p>';
-  } else {
-    projDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
-    ${activeProjs.map(p=>{
-      const taskCount = tasks.filter(t=>{
-        const tName=(t.title||"").split(" — ")[0].trim();
-        return tName===p.name||p.name.toLowerCase().includes(tName.toLowerCase())||tName.toLowerCase().includes(p.name.toLowerCase());
-      }).length;
-      const sc = statusColors2[p.status]||"#888";
-      return `<div style="background:var(--cream);border-radius:6px;padding:12px;cursor:pointer;" onclick="openProjectDetail('${p.id}');hideDashboard();">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-          <div style="font-size:13px;font-weight:700;color:var(--navy);flex:1;">${p.name}</div>
-          ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};margin-left:6px;white-space:nowrap;">${p.type}</span>`:""}
-        </div>
-        ${p.address?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-map-pin"></i> ${p.address}</div>`:""}
-        ${p.prospect?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-user"></i> ${p.prospect}</div>`:""}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-          ${p.status?`<span style="font-size:10px;font-weight:700;color:${sc};background:${sc}18;padding:2px 8px;border-radius:999px;">${p.status}</span>`:"<span></span>"}
-          <span style="font-size:10px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
-        </div>
-      </div>`;
-    }).join("")}
-    </div>`;
-  }
-}
-
-function weekEnd(){
-  const d = new Date();
-  const dow = d.getDay()||7;
-  const sun = new Date(d); sun.setDate(d.getDate()+(7-dow));
-  return sun.toISOString().slice(0,10);
-}
-// ── Inline create contact from picker ─────────────────────────
-document.getElementById("pickerCreateContact").onclick = () => {
-  document.getElementById("contactPickerModal").style.display = "none";
-  document.getElementById("icName").value = "";
-  document.getElementById("icCompany").value = "";
-  document.getElementById("icEmail").value = "";
-  document.getElementById("icPhone").value = "";
-  document.getElementById("inlineContactModal").style.display = "flex";
-  document.getElementById("icName").focus();
-};
-
-document.getElementById("inlineContactClose").onclick = () => {
-  document.getElementById("inlineContactModal").style.display = "none";
-  document.getElementById("contactPickerModal").style.display = "flex";
-};
-
-document.getElementById("icCancel").onclick = () => {
-  document.getElementById("inlineContactModal").style.display = "none";
-  document.getElementById("contactPickerModal").style.display = "flex";
-};
-
-document.getElementById("icSave").onclick = async () => {
-  const name    = document.getElementById("icName").value.trim();
-  const company = document.getElementById("icCompany").value.trim();
-  const email   = document.getElementById("icEmail").value.trim();
-  const phone   = document.getElementById("icPhone").value.trim();
-  if(!name){ alert("Name is required"); return; }
-  const id = uid();
-  await apiFetch("/api/contacts", "POST", {id, name, company, email, phone, notes:""});
-  if(!state.contacts) state.contacts = [];
-  const newContact = {id, name, company, email, phone, notes:""};
-  state.contacts.push(newContact);
-  state.contacts.sort((a,b)=>a.name.localeCompare(b.name));
-  // Add to selected in picker and close inline modal
-  pickerSelected.push(newContact);
-  document.getElementById("inlineContactModal").style.display = "none";
-  // Fire done immediately — add the new contact to task
-  const lines = pickerSelected.map(c=>[c.name,c.company,c.email,c.phone].filter(Boolean).join(", ")).join("\n");
-  if(pickerCallback) pickerCallback(lines);
-  document.getElementById("contactPickerModal").style.display = "none";
-  toast("Contact created and added to task", "#2e7d32");
-};
-
-// ── Inline create project from picker ─────────────────────────
-document.getElementById("projPickerCreate").onclick = () => {
-  document.getElementById("projectPickerModal").style.display = "none";
-  document.getElementById("ipName").value = "";
-  document.getElementById("ipAddress").value = "";
-  document.getElementById("ipProspect").value = "";
-  document.getElementById("ipType").value = "";
-  document.getElementById("inlineProjectModal").style.display = "flex";
-  document.getElementById("ipName").focus();
-};
-
-document.getElementById("inlineProjectClose").onclick = () => {
-  document.getElementById("inlineProjectModal").style.display = "none";
-  document.getElementById("projectPickerModal").style.display = "flex";
-};
-
-document.getElementById("ipCancel").onclick = () => {
-  document.getElementById("inlineProjectModal").style.display = "none";
-  document.getElementById("projectPickerModal").style.display = "flex";
-};
-
-document.getElementById("ipSave").onclick = async () => {
-  const name     = document.getElementById("ipName").value.trim();
-  const address  = document.getElementById("ipAddress").value.trim();
-  const prospect = document.getElementById("ipProspect").value.trim();
-  const type     = document.getElementById("ipType").value;
-  if(!name){ alert("Project name is required"); return; }
-  const id = uid();
-  await apiFetch("/api/projects", "POST", {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:"", contacts:"[]"});
-  if(!state.projects) state.projects = [];
-  const newProject = {id, name, address, prospect, type, sf:"", price_per_sf:"", status:"", notes:""};
-  state.projects.push(newProject);
-  state.projects.sort((a,b)=>a.name.localeCompare(b.name));
-  // Auto-fill task project cell and close
-  const display = [name, address].filter(Boolean).join(" — ");
-  if(projPickerCallback) projPickerCallback(display);
-  document.getElementById("inlineProjectModal").style.display = "none";
-  document.getElementById("projectPickerModal").style.display = "none";
-  toast("Project created and added to task", "#2e7d32");
-};
-
-// ── Report generation ─────────────────────────────────────────
-let reportMode = "week"; // "week" or "project"
-
-function switchReportTab(mode){
-  reportMode = mode;
-  document.getElementById("reportTabWeek").style.display    = mode==="week"    ? "flex" : "none";
-  document.getElementById("reportTabProject").style.display = mode==="project" ? "flex" : "none";
-  document.getElementById("tabByWeek").style.color          = mode==="week"    ? "var(--navy)" : "#888";
-  document.getElementById("tabByWeek").style.borderBottomColor = mode==="week" ? "var(--navy)" : "transparent";
-  document.getElementById("tabByProject").style.color          = mode==="project" ? "var(--navy)" : "#888";
-  document.getElementById("tabByProject").style.borderBottomColor = mode==="project" ? "var(--navy)" : "transparent";
-}
-
-function reportSelectAll(mode){
-  const listId = mode==="week" ? "reportWeekList" : "reportProjectList";
-  document.getElementById(listId).querySelectorAll("input").forEach(cb=>cb.checked=true);
-}
-function reportSelectNone(mode){
-  const listId = mode==="week" ? "reportWeekList" : "reportProjectList";
-  document.getElementById(listId).querySelectorAll("input").forEach(cb=>cb.checked=false);
-}
-
-function buildWeekList(){
-  const groups = {};
-  state.archive.forEach(t=>{ const w=t.weekCompleted||"Unknown"; if(!groups[w]) groups[w]=[]; groups[w].push(t); });
-  const weekList = document.getElementById("reportWeekList");
-  weekList.innerHTML = "";
-  const allWeeks = [];
-  if(state.tasks.length){
-    allWeeks.push({id:state.weekId, label:state.weekId+" · "+weekRange(state.weekId)+" (current week)", isCurrent:true});
-  }
-  Object.keys(groups).sort().reverse().forEach(w=>{
-    allWeeks.push({id:w, label:w+" · "+weekRange(w)+" · "+groups[w].length+" task"+(groups[w].length!==1?"s":""), isCurrent:false});
-  });
-  if(!allWeeks.length){
-    weekList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No tasks yet.</p>';
-    return;
-  }
-  allWeeks.forEach(wk=>{
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;";
-    row.innerHTML = `<input type="checkbox" id="wk-${wk.id}" value="${wk.id}" style="width:16px;height:16px;cursor:pointer;" ${wk.isCurrent?"checked":""}><label for="wk-${wk.id}" style="font-size:13px;color:var(--navy);cursor:pointer;flex:1;">${wk.label}</label>`;
-    row.onclick = e=>{ if(e.target.tagName!=="INPUT") row.querySelector("input").click(); };
-    weekList.appendChild(row);
-  });
-}
-
-function buildProjectList(){
-  const projList = document.getElementById("reportProjectList");
-  projList.innerHTML = "";
-
-  // Collect all unique project names from tasks + archive + project directory
-  const projectNames = new Set();
-  [...state.tasks, ...state.archive].forEach(t=>{ if(t.title) projectNames.add(t.title.split(" — ")[0].trim()); });
-  (state.projects||[]).forEach(p=>{ if(p.name) projectNames.add(p.name); });
-
-  if(!projectNames.size){
-    projList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No projects yet.</p>';
-    return;
-  }
-
-  const typeColor = t=>t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
-
-  [...projectNames].sort().forEach(name=>{
-    const projData = (state.projects||[]).find(p=>p.name===name || name.toLowerCase().includes(p.name.toLowerCase()));
-    const taskCount = [...state.tasks,...state.archive].filter(t=>(t.title||"").split(" — ")[0].trim()===name).length;
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:flex-start;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;";
-    const safeId = "proj-"+name.replace(/[^a-zA-Z0-9]/g,"_");
-    row.innerHTML = `<input type="checkbox" id="${safeId}" value="${name}" style="width:16px;height:16px;cursor:pointer;margin-top:2px;">
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;color:var(--navy);">${name}</div>
-        <div style="font-size:11px;color:#888;margin-top:2px;">
-          ${projData?.address?projData.address+" · ":""}
-          ${projData?.type?`<span style="color:${typeColor(projData.type)};font-weight:600;">${projData.type}</span> · `:""}
-          ${taskCount} task${taskCount!==1?"s":""}
-        </div>
-      </div>`;
-    row.onclick = e=>{ if(e.target.tagName!=="INPUT") row.querySelector("input").click(); };
-    projList.appendChild(row);
-  });
-}
-
-document.getElementById("btnGenerateReport").onclick = () => {
-  document.getElementById("reportStatus").textContent = "";
-  reportMode = "week";
-  switchReportTab("week");
-  buildWeekList();
-  buildProjectList();
-  document.getElementById("reportModal").style.display = "flex";
-};
-
-document.getElementById("reportModalClose").onclick = ()=>{ document.getElementById("reportModal").style.display="none"; };
-
-document.getElementById("reportGenerateBtn").onclick = async () => {
-  const statusEl = document.getElementById("reportStatus");
-  const btn      = document.getElementById("reportGenerateBtn");
-  let allTasks   = [];
-  let reportTitle = "";
-
-  if(reportMode === "week"){
-    const selected = [...document.getElementById("reportWeekList").querySelectorAll("input:checked")].map(cb=>cb.value);
-    if(!selected.length){ alert("Please select at least one week."); return; }
-    selected.forEach(wk=>{
-      if(wk === state.weekId){
-        state.tasks.forEach(t=>allTasks.push({...t, weekCompleted: wk+" (current)"}));
-      } else {
-        state.archive.filter(t=>t.weekCompleted===wk).forEach(t=>allTasks.push(t));
-      }
-    });
-    reportTitle = selected.map(w=>weekRange(w)).join(", ");
-  } else {
-    const selected = [...document.getElementById("reportProjectList").querySelectorAll("input:checked")].map(cb=>cb.value);
-    if(!selected.length){ alert("Please select at least one project."); return; }
-    // Collect ALL tasks (current + archive) matching selected projects
-    [...state.tasks.map(t=>({...t, weekCompleted:state.weekId+" (current)"})), ...state.archive].forEach(t=>{
-      const projName = (t.title||"").split(" — ")[0].trim();
-      if(selected.some(s=>s===projName || projName.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(projName.toLowerCase()))){
-        allTasks.push(t);
-      }
-    });
-    reportTitle = selected.join(", ");
-  }
-
-  if(!allTasks.length){ alert("No tasks found for the selected items."); return; }
-
-  btn.disabled = true;
-  btn.textContent = "Generating…";
-
-  statusEl.textContent = "⏳ Capturing dashboard…";
-  // Capture dashboard as image
-  let dashImg = null;
-  try {
-    const dashEl = document.getElementById("dashboardView");
-    const metricsEl = document.getElementById("dashMetrics");
-    const canvas = await html2canvas(metricsEl, {scale:1.5, useCORS:true, backgroundColor:"#ffffff"});
-    dashImg = canvas.toDataURL("image/png");
-  } catch(e){ console.warn("Dashboard capture failed:", e); }
-
-  statusEl.textContent = "⏳ Generating AI narrative…";
-
-  // Build prompt
-  const weekLabels = reportTitle;
-  const closed   = allTasks.filter(t=>t.status==="Closed"||t.status==="Completed").length;
-  const loi      = allTasks.filter(t=>t.status==="LOI").length;
-  const started  = allTasks.filter(t=>t.status==="Started").length;
-
-  // Group tasks by project name and enrich with project directory data
-  const projectGroups = {};
-  allTasks.forEach(t=>{
-    const projName = (t.title||"General").split(" — ")[0].trim();
-    if(!projectGroups[projName]) projectGroups[projName] = {tasks:[], projectData:null};
-    projectGroups[projName].tasks.push(t);
-  });
-  // Enrich with project directory data
-  (state.projects||[]).forEach(p=>{
-    const key = Object.keys(projectGroups).find(k=>
-      k.toLowerCase().includes(p.name.toLowerCase()) ||
-      p.name.toLowerCase().includes(k.toLowerCase())
+// ── DB init ────────────────────────────────────────────────────
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id         TEXT PRIMARY KEY,
+      username   TEXT UNIQUE NOT NULL,
+      password   TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
     );
-    if(key) projectGroups[key].projectData = p;
-  });
+    CREATE TABLE IF NOT EXISTS tasks (
+      id          TEXT PRIMARY KEY,
+      title       TEXT DEFAULT '',
+      task        TEXT DEFAULT '',
+      status      TEXT DEFAULT 'Not started',
+      notes       TEXT DEFAULT '',
+      deadline    TEXT DEFAULT '',
+      contact     TEXT DEFAULT '',
+      done        BOOLEAN DEFAULT FALSE,
+      week_id     TEXT DEFAULT '',
+      created_at  TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS archive (
+      id              TEXT PRIMARY KEY,
+      title           TEXT DEFAULT '',
+      task            TEXT DEFAULT '',
+      status          TEXT DEFAULT '',
+      notes           TEXT DEFAULT '',
+      deadline        TEXT DEFAULT '',
+      contact         TEXT DEFAULT '',
+      week_completed  TEXT DEFAULT '',
+      archived_at     TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS meta (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
+    CREATE TABLE IF NOT EXISTS contacts (
+      id         TEXT PRIMARY KEY,
+      name       TEXT DEFAULT '',
+      company    TEXT DEFAULT '',
+      email      TEXT DEFAULT '',
+      phone      TEXT DEFAULT '',
+      notes      TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS projects (
+      id           TEXT PRIMARY KEY,
+      name         TEXT DEFAULT '',
+      address      TEXT DEFAULT '',
+      prospect     TEXT DEFAULT '',
+      type         TEXT DEFAULT '',
+      sf           TEXT DEFAULT '',
+      price_per_sf TEXT DEFAULT '',
+      status       TEXT DEFAULT '',
+      notes        TEXT DEFAULT '',
+      created_at   TIMESTAMP DEFAULT NOW()
+    );
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS notes      TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS notes      TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS sf         TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS price_per_sf TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS status     TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS contacts   TEXT DEFAULT '[]';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS priority   TEXT DEFAULT '';
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMP DEFAULT NOW();
+  `);
 
-  // Build per-project context for prompt
-  const projectSections = Object.entries(projectGroups).map(([name, data])=>{
-    const p = data.projectData;
-    let section = `PROJECT: ${name}\n`;
-    if(p){
-      if(p.address)      section += `  Address: ${p.address}\n`;
-      if(p.type)         section += `  Type: ${p.type}\n`;
-      if(p.prospect)     section += `  Prospect: ${p.prospect}\n`;
-      if(p.sf)           section += `  Size: ${p.sf} SF\n`;
-      if(p.price_per_sf) section += `  Price: ${p.price_per_sf}/SF\n`;
-      if(p.status)       section += `  Deal status: ${p.status}\n`;
-      if(p.notes)        section += `  Project notes: ${p.notes}\n`;
-    }
-    section += `  Tasks this period:\n`;
-    data.tasks.forEach((t,i)=>{
-      section += `    ${i+1}. Task: ${t.task||"—"} | Status: ${t.status||"—"} | Notes: ${t.notes||"—"} | Deadline: ${t.deadline||"—"} | Week: ${t.weekCompleted||"—"}\n`;
-    });
-    return section;
-  }).join("\n");
-
-  let narrative = "";
-  try {
-    const briefPrompt = `You are writing a professional executive report for Killam Development, a commercial real estate development company in Laredo, Texas.
-
-Period covered: ${weekLabels}
-Pipeline summary: ${allTasks.length} total tasks | ${closed} Closed/Completed | ${loi} at LOI | ${started} in progress
-
-Below is the project-by-project breakdown. For each project, you are given the project details from our directory (address, type, prospect, size, price, notes) followed by the specific tasks and their notes from this reporting period.
-
-${projectSections}
-
-Write a professional executive brief with the following structure:
-1. A short opening paragraph summarizing overall pipeline activity and momentum for the period.
-2. Then for EACH project (in its own paragraph), discuss: what the project is, who the prospect is, the deal type, any relevant project-level notes, and what specific progress was made on each task. Reference task notes to add color and detail.
-3. A closing paragraph highlighting key wins, outstanding items, and recommended next steps.
-
-Use professional commercial real estate language. Be specific — reference project names, prospect names, deal types, and task outcomes. Prose paragraphs only, no bullet points or headers.`;
-
-    const res = await apiFetch("/api/generate-brief","POST",{prompt: briefPrompt});
-    narrative = res.text || "";
-  } catch(e){ narrative = "AI narrative unavailable. Please review task details below."; }
-
-  statusEl.textContent = "⏳ Building PDF…";
-
-  try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"letter" });
-    const W = 279.4; const H = 215.9;
-    const margin = 16;
-    const contentW = W - margin*2;
-
-    // ── Cover header ───────────────────────────────────────────
-    doc.setFillColor(22,39,58); doc.rect(0,0,W,52,"F");
-    doc.setTextColor(184,146,79); doc.setFontSize(8); doc.setFont("helvetica","bold");
-    doc.text("KILLAM DEVELOPMENT", margin, 18);
-    doc.setTextColor(255,255,255); doc.setFontSize(18); doc.setFont("helvetica","bold");
-    doc.text("Executive Pipeline Report", margin, 30);
-    doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(207,214,221);
-    doc.text(weekLabels, margin, 40);
-    doc.text("Generated "+new Date().toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}), margin, 47);
-
-    let y = 62;
-
-    // ── Metrics strip ──────────────────────────────────────────
-    const metrics = [
-      {label:"Total tasks",  value:allTasks.length},
-      {label:"Closed/Done",  value:closed},
-      {label:"At LOI",       value:loi},
-      {label:"In progress",  value:started},
-    ];
-    const mw = contentW/4;
-    metrics.forEach((m,i)=>{
-      const x = margin + i*mw;
-      doc.setFillColor(247,245,240); doc.roundedRect(x, y, mw-3, 18, 2, 2, "F");
-      doc.setTextColor(22,39,58); doc.setFontSize(16); doc.setFont("helvetica","bold");
-      doc.text(String(m.value), x+4, y+11);
-      doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(90,90,90);
-      doc.text(m.label.toUpperCase(), x+4, y+16);
-    });
-    y += 24;
-
-    // ── Dashboard image ────────────────────────────────────────
-    if(dashImg){
-      try {
-        const imgProps = doc.getImageProperties(dashImg);
-        const imgW = contentW;
-        const imgH = (imgProps.height * imgW) / imgProps.width;
-        const maxH = 40;
-        const finalH = Math.min(imgH, maxH);
-        doc.addImage(dashImg,"PNG",margin,y,imgW,finalH);
-        y += finalH + 6;
-      } catch(e){}
-    }
-
-    // ── Section: Executive brief ───────────────────────────────
-    doc.setDrawColor(184,146,79); doc.setLineWidth(0.8);
-    doc.line(margin, y, margin+contentW, y); y += 5;
-    doc.setTextColor(22,39,58); doc.setFontSize(11); doc.setFont("helvetica","bold");
-    doc.text("Executive Brief", margin, y); y += 6;
-    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(30,30,30);
-    const paras = narrative.split(/\n+/).filter(p=>p.trim());
-    paras.forEach(para=>{
-      const lines = doc.splitTextToSize(para.trim(), contentW);
-      if(y + lines.length*5 > H-20){ doc.addPage(); y=20; }
-      doc.text(lines, margin, y); y += lines.length*5 + 4;
-    });
-    y += 4;
-
-    // ── Section: Task detail table ────────────────────────────
-    if(y > H-60){ doc.addPage(); y=20; }
-    doc.setDrawColor(184,146,79); doc.line(margin, y, margin+contentW, y); y+=5;
-    doc.setTextColor(22,39,58); doc.setFontSize(11); doc.setFont("helvetica","bold");
-    doc.text("Task Detail", margin, y); y+=7;
-
-    // Table header - landscape, no week column
-    const cols = [
-      {label:"Project",  w:62},
-      {label:"Task",     w:70},
-      {label:"Status",   w:26},
-      {label:"Notes",    w:contentW-62-70-26-28},
-      {label:"Deadline", w:28}
-    ];
-    const hdrH = 8;
-    let x = margin;
-    doc.setFillColor(22,39,58); doc.rect(margin, y-4, contentW, hdrH, "F");
-    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont("helvetica","bold");
-    cols.forEach(c=>{ doc.text(c.label.toUpperCase(), x+2, y+1); x+=c.w; });
-    y += hdrH;
-
-    // Table rows with proper text wrapping
-    doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
-    allTasks.forEach((t,i)=>{
-      const rowData = [
-        doc.splitTextToSize(t.title||"—",    cols[0].w-3),
-        doc.splitTextToSize(t.task||"—",     cols[1].w-3),
-        doc.splitTextToSize(t.status||"—",   cols[2].w-3),
-        doc.splitTextToSize(t.notes||"—",    cols[3].w-3),
-        doc.splitTextToSize(t.deadline||"—", cols[4].w-3)
-      ];
-      const maxLines = Math.max(...rowData.map(r=>r.length));
-      const rowH = Math.max(8, maxLines * 4.5 + 3);
-
-      if(y + rowH > H-16){
-        doc.addPage();
-        y = 20;
-        // Repeat header on new page
-        x = margin;
-        doc.setFillColor(22,39,58); doc.rect(margin, y-4, contentW, hdrH, "F");
-        doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont("helvetica","bold");
-        cols.forEach(c=>{ doc.text(c.label.toUpperCase(), x+2, y+1); x+=c.w; });
-        y += hdrH;
-        doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
-      }
-
-      if(i%2===0){ doc.setFillColor(247,245,240); } else { doc.setFillColor(255,255,255); }
-      doc.rect(margin, y-3, contentW, rowH, "F");
-      doc.setTextColor(30,30,30);
-      x = margin;
-      rowData.forEach((lines,ci)=>{
-        doc.text(lines, x+2, y+1);
-        x += cols[ci].w;
-      });
-      y += rowH;
-    });
-
-    // ── Footer ─────────────────────────────────────────────────
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(200,200,200); doc.line(margin, H-10, W-margin, H-10);
-      doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont("helvetica","normal");
-      doc.text("Killam Development · Executive Pipeline Report · Confidential", margin, H-6);
-      doc.text("Page "+i+" of "+pageCount, W-margin, H-6, {align:"right"});
-    }
-
-    const filename = "Killam-Report-"+new Date().toISOString().slice(0,10)+".pdf";
-    doc.save(filename);
-    statusEl.textContent = "✓ Report downloaded!";
-    setTimeout(()=>{ statusEl.textContent=""; }, 3000);
-  } catch(e){
-    console.error(e);
-    statusEl.textContent = "⚠ PDF error: "+e.message;
+  const weekRow = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
+  if (weekRow.rows.length === 0) {
+    await pool.query("INSERT INTO meta (key, value) VALUES ('weekId', $1)", [getCurrentWeekId()]);
   }
+}
 
-  btn.disabled   = false;
-  btn.innerHTML  = '<i class="ti ti-file-text"></i> Generate PDF report';
-};
+function getCurrentWeekId() {
+  const d = new Date();
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  utc.setUTCDate(utc.getUTCDate() + 4 - (utc.getUTCDay() || 7));
+  const y = utc.getUTCFullYear();
+  const start = new Date(Date.UTC(y, 0, 1));
+  const w = Math.ceil((((utc - start) / 86400000) + 1) / 7);
+  return `${y}-W${String(w).padStart(2, "0")}`;
+}
+
+// ── Middleware ─────────────────────────────────────────────────
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+// ── Auth middleware ────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  try {
+    const decoded = jwt.verify(auth.slice(7), JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch(e) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
+
+// ── Auth routes (public) ───────────────────────────────────────
+app.post("/api/auth/register", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+  try {
+    const existing = await pool.query("SELECT id FROM users WHERE username=$1", [username]);
+    if (existing.rows.length > 0) return res.status(400).json({ error: "Username already exists" });
+    const hash = await bcrypt.hash(password, 12);
+    const id = Math.random().toString(36).slice(2,10);
+    await pool.query("INSERT INTO users (id,username,password) VALUES ($1,$2,$3)", [id, username, hash]);
+    const token = jwt.sign({ id, username }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({ token, username });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
+    if (result.rows.length === 0) return res.status(401).json({ error: "Invalid username or password" });
+    const user = result.rows[0];
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Invalid username or password" });
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({ token, username: user.username });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/auth/check-users", async (req, res) => {
+  const result = await pool.query("SELECT COUNT(*) FROM users");
+  res.json({ hasUsers: parseInt(result.rows[0].count) > 0 });
+});
+
+// ── Protected API routes ───────────────────────────────────────
+app.get("/api/state", requireAuth, async (req, res) => {
+  try {
+    const weekRes = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
+    const weekId  = weekRes.rows[0]?.value || getCurrentWeekId();
+    const taskRes = await pool.query("SELECT * FROM tasks ORDER BY created_at ASC");
+    const archRes = await pool.query("SELECT * FROM archive ORDER BY archived_at DESC");
+    const contRes = await pool.query("SELECT * FROM contacts ORDER BY name ASC");
+    const projRes = await pool.query("SELECT * FROM projects ORDER BY name ASC");
+    res.json({
+      weekId,
+      tasks: taskRes.rows.map(r => ({
+        id: r.id, title: r.title, task: r.task, status: r.status,
+        notes: r.notes, deadline: r.deadline, contact: r.contact, done: r.done
+      })),
+      archive: archRes.rows.map(r => ({
+        id: r.id, title: r.title, task: r.task, status: r.status,
+        notes: r.notes, deadline: r.deadline, contact: r.contact, weekCompleted: r.week_completed
+      })),
+      contacts: contRes.rows,
+      projects: projRes.rows
+    });
+  } catch(e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/tasks", requireAuth, async (req, res) => {
+  const { id, title, task, status, notes, deadline, contact, done, week_id } = req.body;
+  await pool.query(
+    "INSERT INTO tasks (id,title,task,status,notes,deadline,contact,done,week_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+    [id, title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, week_id||""]
+  );
+  res.json({ ok: true });
+});
+
+app.put("/api/tasks/:id", requireAuth, async (req, res) => {
+  const { title, task, status, notes, deadline, contact, done } = req.body;
+  await pool.query(
+    "UPDATE tasks SET title=$1,task=$2,status=$3,notes=$4,deadline=$5,contact=$6,done=$7 WHERE id=$8",
+    [title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
+  await pool.query("DELETE FROM tasks WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// Archive a single task immediately
+app.post("/api/newweek-single", requireAuth, async (req, res) => {
+  const { taskId, weekId } = req.body;
+  const task = await pool.query("SELECT * FROM tasks WHERE id=$1", [taskId]);
+  if(!task.rows.length) return res.json({ ok: true });
+  const t = task.rows[0];
+  await pool.query(
+    "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING",
+    [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, weekId]
+  );
+  await pool.query("DELETE FROM tasks WHERE id=$1", [taskId]);
+  res.json({ ok: true });
+});
+
+app.post("/api/newweek", requireAuth, async (req, res) => {
+  const weekRes = await pool.query("SELECT value FROM meta WHERE key='weekId'");
+  const currentWeekId = weekRes.rows[0]?.value;
+  const doneTasks = await pool.query("SELECT * FROM tasks WHERE done=TRUE");
+  for (const t of doneTasks.rows) {
+    await pool.query(
+      "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+      [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, currentWeekId]
+    );
+  }
+  await pool.query("DELETE FROM tasks WHERE done=TRUE");
+  const newWeekId = getCurrentWeekId();
+  await pool.query("UPDATE meta SET value=$1 WHERE key='weekId'", [newWeekId]);
+  res.json({ ok: true, newWeekId });
+});
+
+app.put("/api/archive/:id", requireAuth, async (req, res) => {
+  const { title, task, notes, contact } = req.body;
+  await pool.query(
+    "UPDATE archive SET title=$1,task=$2,notes=$3,contact=$4 WHERE id=$5",
+    [title||"", task||"", notes||"", contact||"", req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+app.post("/api/contacts", requireAuth, async (req, res) => {
+  const { id, name, company, email, phone, notes } = req.body;
+  await pool.query(
+    "INSERT INTO contacts (id,name,company,email,phone,notes) VALUES ($1,$2,$3,$4,$5,$6)",
+    [id, name||"", company||"", email||"", phone||"", notes||""]
+  );
+  res.json({ ok: true });
+});
+
+app.put("/api/contacts/:id", requireAuth, async (req, res) => {
+  const { name, company, email, phone, notes } = req.body;
+  await pool.query(
+    "UPDATE contacts SET name=$1,company=$2,email=$3,phone=$4,notes=$5 WHERE id=$6",
+    [name||"", company||"", email||"", phone||"", notes||"", req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
+  await pool.query("DELETE FROM contacts WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+app.post("/api/projects", requireAuth, async (req, res) => {
+  const { id, name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority } = req.body;
+  await pool.query(
+    "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+    [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||""]
+  );
+  res.json({ ok: true });
+});
+
+app.put("/api/projects/:id", requireAuth, async (req, res) => {
+  const { name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority } = req.body;
+  await pool.query(
+    "UPDATE projects SET name=$1,address=$2,prospect=$3,type=$4,sf=$5,price_per_sf=$6,status=$7,notes=$8,contacts=$9,priority=$10 WHERE id=$11",
+    [name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||"", req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+app.patch("/api/projects/:id/priority", requireAuth, async (req, res) => {
+  const { priority } = req.body;
+  await pool.query("UPDATE projects SET priority=$1 WHERE id=$2", [priority||"", req.params.id]);
+  res.json({ ok: true });
+});
+
+app.patch("/api/projects/:id/status", requireAuth, async (req, res) => {
+  const { status } = req.body;
+  await pool.query("UPDATE projects SET status=$1 WHERE id=$2", [status||"", req.params.id]);
+  res.json({ ok: true });
+});
+
+// Mark a project as viewed — resets its "idle" clock for the staleness glow
+app.patch("/api/projects/:id/opened", requireAuth, async (req, res) => {
+  const result = await pool.query(
+    "UPDATE projects SET last_opened_at=NOW() WHERE id=$1 RETURNING last_opened_at",
+    [req.params.id]
+  );
+  res.json({ ok: true, last_opened_at: result.rows[0]?.last_opened_at });
+});
+
+app.delete("/api/projects/:id", requireAuth, async (req, res) => {
+  await pool.query("DELETE FROM projects WHERE id=$1", [req.params.id]);
+  // Clean up the project's PDFs in the background; don't fail the request if R2 hiccups.
+  deleteProjectFiles(req.params.id).catch(e => console.error("R2 cleanup failed:", e.message));
+  res.json({ ok: true });
+});
+
+// ── PDF attachments (stored in R2, referenced from journal entries) ──
+// Upload: multipart form, field name "file". Returns the storage key to save in the note.
+app.post("/api/projects/:id/attachments", requireAuth, requireR2, (req, res) => {
+  if (!ID_RE.test(req.params.id)) return res.status(400).json({ error: "Invalid project id" });
+  uploadPdf(req, res, async (err) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE")
+        return res.status(413).json({ error: `File too large (max ${MAX_PDF_BYTES / 1024 / 1024} MB)` });
+      return res.status(400).json({ error: err.message });
+    }
+    const f = req.file;
+    if (!f) return res.status(400).json({ error: "No file received" });
+    // Check the file's real contents, not just its name/type: PDFs start with "%PDF-"
+    if (f.buffer.subarray(0, 5).toString("latin1") !== "%PDF-")
+      return res.status(400).json({ error: "Only PDF files are allowed" });
+    try {
+      const key = `projects/${req.params.id}/${crypto.randomUUID()}.pdf`;
+      await r2.send(new PutObjectCommand({
+        Bucket: R2_BUCKET, Key: key, Body: f.buffer, ContentType: "application/pdf"
+      }));
+      res.json({ ok: true, key, size: f.size });
+    } catch (e) {
+      console.error("R2 upload failed:", e);
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
+});
+
+// Open: returns a signed link that works for 5 minutes. The bucket itself stays private.
+app.get("/api/attachments/url", requireAuth, requireR2, async (req, res) => {
+  const key = String(req.query.key || "");
+  if (!KEY_RE.test(key)) return res.status(400).json({ error: "Invalid file key" });
+  const name = safeFilename(req.query.name);
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_");
+  try {
+    await r2.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key })); // exists?
+  } catch (e) {
+    return res.status(404).json({ error: "File not found" });
+  }
+  try {
+    const url = await getSignedUrl(r2, new GetObjectCommand({
+      Bucket: R2_BUCKET, Key: key,
+      ResponseContentType: "application/pdf",
+      ResponseContentDisposition: `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+    }), { expiresIn: 300 });
+    res.json({ url });
+  } catch (e) {
+    console.error("Signing failed:", e);
+    res.status(500).json({ error: "Could not create download link" });
+  }
+});
+
+// Delete one file. The key must belong to the project in the URL.
+app.delete("/api/projects/:id/attachments", requireAuth, requireR2, async (req, res) => {
+  const key = String(req.query.key || "");
+  const m = KEY_RE.exec(key);
+  if (!m || m[1] !== req.params.id) return res.status(400).json({ error: "Invalid file key" });
+  try {
+    await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("R2 delete failed:", e);
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+// ── Generate brief (proxies Anthropic API) ────────────────────
+app.post("/api/generate-brief", requireAuth, async (req, res) => {
+  const { prompt } = req.body;
+  if(!prompt) return res.status(400).json({ error: "No prompt provided" });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if(!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured on server" });
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await response.json();
+    if(!response.ok) return res.status(response.status).json({ error: data.error?.message || "Anthropic API error" });
+    const text = (data.content||[]).map(c=>c.text||"").join("").trim();
+    res.json({ text });
+  } catch(e) {
+    console.error("Brief generation error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ── Change password ────────────────────────────────────────────
-document.getElementById("showChangePwBtn").onclick = ()=>{
-  document.getElementById("changePwPanel").style.display = "flex";
-  document.getElementById("changePwError").style.display = "none";
-  document.getElementById("changePwSuccess").style.display = "none";
-  document.getElementById("cpUsername").value = document.getElementById("loginUsername").value || "";
-  document.getElementById("cpCurrent").value = "";
-  document.getElementById("cpNew").value = "";
-  document.getElementById("cpConfirm").value = "";
-  document.getElementById("cpUsername").focus();
-};
-
-document.getElementById("changePwBack").onclick = ()=>{
-  document.getElementById("changePwPanel").style.display = "none";
-};
-
-document.getElementById("cpSaveBtn").onclick = async ()=>{
-  const errEl     = document.getElementById("changePwError");
-  const successEl = document.getElementById("changePwSuccess");
-  errEl.style.display = "none";
-  successEl.style.display = "none";
-
-  const username        = document.getElementById("cpUsername").value.trim();
-  const currentPassword = document.getElementById("cpCurrent").value;
-  const newPassword     = document.getElementById("cpNew").value;
-  const confirmPassword = document.getElementById("cpConfirm").value;
-
-  if(!username || !currentPassword || !newPassword || !confirmPassword){
-    errEl.textContent = "All fields are required."; errEl.style.display = "block"; return;
-  }
-  if(newPassword !== confirmPassword){
-    errEl.textContent = "New passwords do not match."; errEl.style.display = "block"; return;
-  }
-  if(newPassword.length < 6){
-    errEl.textContent = "New password must be at least 6 characters."; errEl.style.display = "block"; return;
-  }
-
-  const btn = document.getElementById("cpSaveBtn");
-  btn.disabled = true; btn.textContent = "Saving…";
-
+app.post("/api/auth/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if(!currentPassword || !newPassword) return res.status(400).json({ error: "All fields required" });
+  if(newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters" });
   try {
-    // First login to get a token, then change password
-    const loginRes  = await fetch(API+"/api/auth/login",{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({username, password: currentPassword})
-    });
-    const loginData = await loginRes.json();
-    if(!loginRes.ok){ errEl.textContent = loginData.error||"Current password is incorrect."; errEl.style.display="block"; return; }
-
-    const changeRes = await fetch(API+"/api/auth/change-password",{
-      method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+loginData.token},
-      body: JSON.stringify({currentPassword, newPassword})
-    });
-    const changeData = await changeRes.json();
-    if(!changeRes.ok){ errEl.textContent = changeData.error||"Something went wrong."; errEl.style.display="block"; return; }
-
-    successEl.textContent = "✓ Password changed successfully! You can now sign in with your new password.";
-    successEl.style.display = "block";
-    document.getElementById("cpCurrent").value = "";
-    document.getElementById("cpNew").value = "";
-    document.getElementById("cpConfirm").value = "";
-    setTimeout(()=>{ document.getElementById("changePwPanel").style.display="none"; }, 3000);
-  } catch(e){
-    errEl.textContent = "Connection error. Please try again."; errEl.style.display = "block";
-  } finally {
-    btn.disabled = false; btn.textContent = "Save new password";
+    const result = await pool.query("SELECT * FROM users WHERE id=$1", [req.user.id]);
+    if(!result.rows.length) return res.status(404).json({ error: "User not found" });
+    const user = result.rows[0];
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if(!match) return res.status(401).json({ error: "Current password is incorrect" });
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query("UPDATE users SET password=$1 WHERE id=$2", [hash, req.user.id]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
   }
-};
-
-// ── Auth init ──────────────────────────────────────────────────
-document.getElementById("loginBtn").onclick = async () => {
-  const mode     = document.getElementById("loginBtn").dataset.mode || "login";
-  const username = document.getElementById("loginUsername").value.trim();
-  const password = document.getElementById("loginPassword").value.trim();
-  const errEl    = document.getElementById("loginError");
-  errEl.style.display = "none";
-  if(!username || !password){ errEl.textContent="Please enter username and password."; errEl.style.display="block"; return; }
-  try {
-    const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
-    const res  = await fetch(API + endpoint, {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({username, password})
-    });
-    const data = await res.json();
-    if(!res.ok){ errEl.textContent = data.error || "Something went wrong."; errEl.style.display="block"; return; }
-    localStorage.setItem("kd_token", data.token);
-    localStorage.setItem("kd_username", data.username);
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    loadState();
-  } catch(e){
-    errEl.textContent = "Connection error. Please try again.";
-    errEl.style.display = "block";
-  }
-};
-
-document.getElementById("loginPassword").addEventListener("keydown", e => {
-  if(e.key === "Enter") document.getElementById("loginBtn").click();
 });
 
-document.getElementById("registerToggle").onclick = () => {
-  const current = document.getElementById("loginBtn").dataset.mode || "login";
-  const isReg   = current === "login";
-  showLoginScreen(isReg);
-  document.getElementById("registerToggle").innerHTML = isReg
-    ? 'Already have an account? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Sign in</span>'
-    : 'First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span>';
-};
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
-document.getElementById("btnLogout").onclick = () => {
-  if(!confirm("Sign out?")) return;
-  localStorage.removeItem("kd_token");
-  localStorage.removeItem("kd_username");
-  showLoginScreen();
-};
-
-(async () => {
-  const token = localStorage.getItem("kd_token");
-  if(token){
-    document.getElementById("loginScreen").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    loadState();
-  } else {
-    try {
-      const res  = await fetch(API + "/api/auth/check-users");
-      const data = await res.json();
-      showLoginScreen(!data.hasUsers);
-      if(!data.hasUsers){
-        document.getElementById("registerToggle").style.display = "none";
-      }
-    } catch(e){
-      showLoginScreen(false);
-    }
-  }
-})();
-</script>
-</body>
-</html>
+initDB().then(() => {
+  app.listen(PORT, () => console.log(`Killam Tracker running on port ${PORT}`));
+}).catch(err => { console.error("DB init failed:", err); process.exit(1); });
