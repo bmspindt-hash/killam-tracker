@@ -4,6 +4,13 @@ const path      = require("path");
 const bcrypt    = require("bcryptjs");
 const jwt       = require("jsonwebtoken");
 const { Pool }  = require("pg");
+const crypto    = require("crypto");
+const multer    = require("multer");
+const {
+  S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand,
+  DeleteObjectCommand, ListObjectsV2Command
+} = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +20,68 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+
+// ── Cloudflare R2 (S3-compatible) file storage ─────────────────
+// Needs four env vars on Railway: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+// R2_SECRET_ACCESS_KEY, R2_BUCKET. Without them the app still runs;
+// attachment endpoints just return a clear "not configured" error.
+const R2_BUCKET = process.env.R2_BUCKET;
+const r2Enabled = !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID &&
+                     process.env.R2_SECRET_ACCESS_KEY && R2_BUCKET);
+const r2 = r2Enabled ? new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+  },
+  // Newer AWS SDK versions add checksum headers by default; only send them when required.
+  requestChecksumCalculation:  "WHEN_REQUIRED",
+  responseChecksumValidation:  "WHEN_REQUIRED"
+}) : null;
+if (!r2Enabled) console.warn("R2 not configured — PDF attachments are disabled.");
+
+const MAX_PDF_BYTES = 15 * 1024 * 1024; // 15 MB per file
+const uploadPdf = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PDF_BYTES, files: 1 }
+}).single("file");
+
+const ID_RE  = /^[A-Za-z0-9_-]{1,64}$/;
+// Every stored object must look exactly like: projects/<projectId>/<uuid>.pdf
+const KEY_RE = /^projects\/([A-Za-z0-9_-]{1,64})\/[0-9a-f-]{36}\.pdf$/;
+
+function requireR2(req, res, next) {
+  if (!r2Enabled) return res.status(503).json({ error: "File storage is not configured on the server yet." });
+  next();
+}
+
+// Make a user-supplied filename safe to put in a Content-Disposition header.
+function safeFilename(name) {
+  let n = String(name || "document.pdf")
+    .replace(/[\u0000-\u001f\u007f"\\\/]/g, "")  // control chars, quotes, slashes
+    .trim()
+    .slice(0, 150);
+  if (!n) n = "document.pdf";
+  if (!/\.pdf$/i.test(n)) n += ".pdf";
+  return n;
+}
+
+// Delete every file stored under a project (used when the project is deleted).
+async function deleteProjectFiles(projectId) {
+  if (!r2Enabled || !ID_RE.test(projectId)) return;
+  let token;
+  do {
+    const list = await r2.send(new ListObjectsV2Command({
+      Bucket: R2_BUCKET, Prefix: `projects/${projectId}/`, ContinuationToken: token
+    }));
+    await Promise.all((list.Contents || []).map(o =>
+      r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: o.Key }))
+    ));
+    token = list.IsTruncated ? list.NextContinuationToken : undefined;
+  } while (token);
+}
 
 // ── DB init ────────────────────────────────────────────────────
 async function initDB() {
@@ -307,7 +376,75 @@ app.patch("/api/projects/:id/opened", requireAuth, async (req, res) => {
 
 app.delete("/api/projects/:id", requireAuth, async (req, res) => {
   await pool.query("DELETE FROM projects WHERE id=$1", [req.params.id]);
+  // Clean up the project's PDFs in the background; don't fail the request if R2 hiccups.
+  deleteProjectFiles(req.params.id).catch(e => console.error("R2 cleanup failed:", e.message));
   res.json({ ok: true });
+});
+
+// ── PDF attachments (stored in R2, referenced from journal entries) ──
+// Upload: multipart form, field name "file". Returns the storage key to save in the note.
+app.post("/api/projects/:id/attachments", requireAuth, requireR2, (req, res) => {
+  if (!ID_RE.test(req.params.id)) return res.status(400).json({ error: "Invalid project id" });
+  uploadPdf(req, res, async (err) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE")
+        return res.status(413).json({ error: `File too large (max ${MAX_PDF_BYTES / 1024 / 1024} MB)` });
+      return res.status(400).json({ error: err.message });
+    }
+    const f = req.file;
+    if (!f) return res.status(400).json({ error: "No file received" });
+    // Check the file's real contents, not just its name/type: PDFs start with "%PDF-"
+    if (f.buffer.subarray(0, 5).toString("latin1") !== "%PDF-")
+      return res.status(400).json({ error: "Only PDF files are allowed" });
+    try {
+      const key = `projects/${req.params.id}/${crypto.randomUUID()}.pdf`;
+      await r2.send(new PutObjectCommand({
+        Bucket: R2_BUCKET, Key: key, Body: f.buffer, ContentType: "application/pdf"
+      }));
+      res.json({ ok: true, key, size: f.size });
+    } catch (e) {
+      console.error("R2 upload failed:", e);
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
+});
+
+// Open: returns a signed link that works for 5 minutes. The bucket itself stays private.
+app.get("/api/attachments/url", requireAuth, requireR2, async (req, res) => {
+  const key = String(req.query.key || "");
+  if (!KEY_RE.test(key)) return res.status(400).json({ error: "Invalid file key" });
+  const name = safeFilename(req.query.name);
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_");
+  try {
+    await r2.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key })); // exists?
+  } catch (e) {
+    return res.status(404).json({ error: "File not found" });
+  }
+  try {
+    const url = await getSignedUrl(r2, new GetObjectCommand({
+      Bucket: R2_BUCKET, Key: key,
+      ResponseContentType: "application/pdf",
+      ResponseContentDisposition: `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+    }), { expiresIn: 300 });
+    res.json({ url });
+  } catch (e) {
+    console.error("Signing failed:", e);
+    res.status(500).json({ error: "Could not create download link" });
+  }
+});
+
+// Delete one file. The key must belong to the project in the URL.
+app.delete("/api/projects/:id/attachments", requireAuth, requireR2, async (req, res) => {
+  const key = String(req.query.key || "");
+  const m = KEY_RE.exec(key);
+  if (!m || m[1] !== req.params.id) return res.status(400).json({ error: "Invalid file key" });
+  try {
+    await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("R2 delete failed:", e);
+    res.status(500).json({ error: "Delete failed" });
+  }
 });
 
 // ── Generate brief (proxies Anthropic API) ────────────────────
