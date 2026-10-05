@@ -40,17 +40,43 @@ const r2 = r2Enabled ? new S3Client({
   requestChecksumCalculation:  "WHEN_REQUIRED",
   responseChecksumValidation:  "WHEN_REQUIRED"
 }) : null;
-if (!r2Enabled) console.warn("R2 not configured — PDF attachments are disabled.");
+if (!r2Enabled) console.warn("R2 not configured — file attachments are disabled.");
 
-const MAX_PDF_BYTES = 15 * 1024 * 1024; // 15 MB per file
-const uploadPdf = multer({
+const MAX_ATTACH_BYTES = 15 * 1024 * 1024; // 15 MB per file
+const uploadAttachment = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_PDF_BYTES, files: 1 }
+  limits: { fileSize: MAX_ATTACH_BYTES, files: 1 }
 }).single("file");
 
+// ── Allowed attachment types ───────────────────────────────────
+// "disposition" is how browsers should treat the file when opened: PDFs display in a tab,
+// Word files can't be displayed by browsers, so they download instead.
+// To allow another format later (e.g. Excel): add an entry here, a check in detectFileType(),
+// and the extension to KEY_RE below.
+const FILE_TYPES = {
+  pdf:  { mime: "application/pdf",     disposition: "inline" },
+  docx: { mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", disposition: "attachment" },
+  doc:  { mime: "application/msword",  disposition: "attachment" }
+};
+
+// Decide what a file really is from its CONTENTS, never from the name/type the browser claims.
+function detectFileType(buf) {
+  // PDF: begins with "%PDF-"
+  if (buf.subarray(0, 5).toString("latin1") === "%PDF-") return "pdf";
+  // .docx: a ZIP archive ("PK\x03\x04"). .xlsx, .pptx and plain .zip files are ZIPs too,
+  // so also require Word's own parts inside.
+  if (buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04 &&
+      buf.includes("[Content_Types].xml") && buf.includes("word/")) return "docx";
+  // .doc (old Word format): an "OLE" container. .xls/.ppt use the same container,
+  // so also require the "WordDocument" stream name (stored as UTF-16 inside the file).
+  if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) &&
+      buf.includes(Buffer.from("WordDocument", "utf16le"))) return "doc";
+  return null;
+}
+
 const ID_RE  = /^[A-Za-z0-9_-]{1,64}$/;
-// Every stored object must look exactly like: projects/<projectId>/<uuid>.pdf
-const KEY_RE = /^projects\/([A-Za-z0-9_-]{1,64})\/[0-9a-f-]{36}\.pdf$/;
+// Every stored object must look exactly like: projects/<projectId>/<uuid>.<pdf|docx|doc>
+const KEY_RE = /^projects\/([A-Za-z0-9_-]{1,64})\/[0-9a-f-]{36}\.(?:pdf|docx|doc)$/;
 
 function requireR2(req, res, next) {
   if (!r2Enabled) return res.status(503).json({ error: "File storage is not configured on the server yet." });
@@ -58,14 +84,17 @@ function requireR2(req, res, next) {
 }
 
 // Make a user-supplied filename safe to put in a Content-Disposition header.
-function safeFilename(name) {
-  let n = String(name || "document.pdf")
+// `ext` comes from the stored file's key (i.e. the verified type), so the download name
+// always ends in the right extension even if the saved name was wrong or missing one.
+function safeFilename(name, ext) {
+  let n = String(name || "document")
     .replace(/[\u0000-\u001f\u007f"\\\/]/g, "")  // control chars, quotes, slashes
     .trim()
-    .slice(0, 150);
-  if (!n) n = "document.pdf";
-  if (!/\.pdf$/i.test(n)) n += ".pdf";
-  return n;
+    .replace(/\.(?:pdf|docx?)$/i, "")            // drop a known extension; the right one is added back below
+    .slice(0, 150)
+    .trim();
+  if (!n) n = "document";
+  return `${n}.${ext}`;
 }
 
 // Delete every file stored under a project (used when the project is deleted).
@@ -376,32 +405,33 @@ app.patch("/api/projects/:id/opened", requireAuth, async (req, res) => {
 
 app.delete("/api/projects/:id", requireAuth, async (req, res) => {
   await pool.query("DELETE FROM projects WHERE id=$1", [req.params.id]);
-  // Clean up the project's PDFs in the background; don't fail the request if R2 hiccups.
+  // Clean up the project's files in the background; don't fail the request if R2 hiccups.
   deleteProjectFiles(req.params.id).catch(e => console.error("R2 cleanup failed:", e.message));
   res.json({ ok: true });
 });
 
-// ── PDF attachments (stored in R2, referenced from journal entries) ──
+// ── File attachments: PDF and Word (stored in R2, referenced from journal entries) ──
 // Upload: multipart form, field name "file". Returns the storage key to save in the note.
 app.post("/api/projects/:id/attachments", requireAuth, requireR2, (req, res) => {
   if (!ID_RE.test(req.params.id)) return res.status(400).json({ error: "Invalid project id" });
-  uploadPdf(req, res, async (err) => {
+  uploadAttachment(req, res, async (err) => {
     if (err) {
       if (err.code === "LIMIT_FILE_SIZE")
-        return res.status(413).json({ error: `File too large (max ${MAX_PDF_BYTES / 1024 / 1024} MB)` });
+        return res.status(413).json({ error: `File too large (max ${MAX_ATTACH_BYTES / 1024 / 1024} MB)` });
       return res.status(400).json({ error: err.message });
     }
     const f = req.file;
     if (!f) return res.status(400).json({ error: "No file received" });
-    // Check the file's real contents, not just its name/type: PDFs start with "%PDF-"
-    if (f.buffer.subarray(0, 5).toString("latin1") !== "%PDF-")
-      return res.status(400).json({ error: "Only PDF files are allowed" });
+    // Check the file's real contents, not just its name/type.
+    const type = detectFileType(f.buffer);
+    if (!type)
+      return res.status(400).json({ error: "Only PDF and Word (.docx, .doc) files are allowed" });
     try {
-      const key = `projects/${req.params.id}/${crypto.randomUUID()}.pdf`;
+      const key = `projects/${req.params.id}/${crypto.randomUUID()}.${type}`;
       await r2.send(new PutObjectCommand({
-        Bucket: R2_BUCKET, Key: key, Body: f.buffer, ContentType: "application/pdf"
+        Bucket: R2_BUCKET, Key: key, Body: f.buffer, ContentType: FILE_TYPES[type].mime
       }));
-      res.json({ ok: true, key, size: f.size });
+      res.json({ ok: true, key, size: f.size, type });
     } catch (e) {
       console.error("R2 upload failed:", e);
       res.status(500).json({ error: "Upload failed" });
@@ -413,7 +443,9 @@ app.post("/api/projects/:id/attachments", requireAuth, requireR2, (req, res) => 
 app.get("/api/attachments/url", requireAuth, requireR2, async (req, res) => {
   const key = String(req.query.key || "");
   if (!KEY_RE.test(key)) return res.status(400).json({ error: "Invalid file key" });
-  const name = safeFilename(req.query.name);
+  const ext  = key.slice(key.lastIndexOf(".") + 1);   // "pdf" | "docx" | "doc" (KEY_RE guarantees it)
+  const ft   = FILE_TYPES[ext];
+  const name = safeFilename(req.query.name, ext);
   const ascii = name.replace(/[^\x20-\x7e]/g, "_");
   try {
     await r2.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key })); // exists?
@@ -423,8 +455,8 @@ app.get("/api/attachments/url", requireAuth, requireR2, async (req, res) => {
   try {
     const url = await getSignedUrl(r2, new GetObjectCommand({
       Bucket: R2_BUCKET, Key: key,
-      ResponseContentType: "application/pdf",
-      ResponseContentDisposition: `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+      ResponseContentType: ft.mime,
+      ResponseContentDisposition: `${ft.disposition}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
     }), { expiresIn: 300 });
     res.json({ url });
   } catch (e) {
