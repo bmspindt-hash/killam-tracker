@@ -132,6 +132,12 @@ select{cursor:pointer;}
     grid-template-columns: 1fr !important;
   }
 
+  /* Project files sit beside the contacts on wide screens; on a one-column layout they just stack */
+  #pfFilesCell {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
   /* Modals */
   #contactPickerModal > div,
   #projectPickerModal > div,
@@ -280,12 +286,24 @@ select{cursor:pointer;}
           <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--navy);font-size:13px;"><i class="ti ti-address-book"></i></button>
         </div>
       </div>
-      <div style="grid-column:1/-1;">
+      <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
         </div>
         <div id="pfProjectContactsList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:0;"></div>
+      </div>
+
+      <!-- Project files: brochures & other documents for the project itself (not a journal note) -->
+      <div id="pfFilesCell" style="grid-column:2;grid-row:2 / span 2;display:flex;flex-direction:column;">
+        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project files</label>
+        <div id="pfFilesZone" style="flex:1;min-height:110px;border:2px dashed var(--border);border-radius:8px;padding:12px;background:#fafafa;box-sizing:border-box;">
+          <div id="pfFilesList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
+            <button type="button" onclick="pickFiles(f=>addFilesToProject('form',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:#fff;color:var(--navy);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
+            <span id="pfFilesHint" style="font-size:11px;color:#999;">Brochures, LOIs, site plans… PDF or Word. You can drop files here too.</span>
+          </div>
+        </div>
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
@@ -417,6 +435,7 @@ select{cursor:pointer;}
           <button id="btnDetailAddTask" class="btn-gold" style="padding:7px 14px;font-size:11px;"><i class="ti ti-plus"></i> Add task</button>
         </div>
       </div>
+      <div id="detailProjectFiles" style="margin-top:12px;padding:10px;background:rgba(255,255,255,.08);border-radius:6px;font-size:12px;color:#cfd6dd;"></div>
       <div id="detailProjectNotes" style="margin-top:12px;padding:10px;background:rgba(255,255,255,.08);border-radius:6px;font-size:12px;color:#cfd6dd;display:none;"></div>
       <!-- Quick add note -->
       <div id="detailQuickNote" style="display:none;margin-top:10px;">
@@ -1311,6 +1330,7 @@ function openProjectDetail(projectId){
 
   detailEditingNoteIdx = null;
   renderDetailNotes(p);
+  renderProjectFiles("detail");
 
 
 
@@ -1872,19 +1892,24 @@ async function openAttachment(att){
 }
 
 // Little "pill" for each attached file under a journal entry. scope = "detail" | "form".
-function attachmentChipsHtml(e, i, scope, readOnly){
-  const list = e.attachments || [];
-  if(!list.length) return "";
+function fileChipHtml(a, scope, openJs, removeJs, readOnly){
   const chip = scope==="detail"
     ? "background:rgba(255,255,255,.12);color:#e8edf2;border:1px solid rgba(255,255,255,.2);"
     : "background:#fff;color:var(--navy);border:1px solid var(--border);";
-  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">' + list.map((a,j)=>`
+  return `
     <span style="display:inline-flex;align-items:center;gap:6px;${chip}border-radius:999px;padding:3px ${readOnly?10:6}px 3px 10px;font-size:11px;max-width:100%;">
       ${fileIconHtml(a.key, "flex-shrink:0;")}
-      <a href="#" onclick="openNoteAttachment('${scope}',${i},${j});return false;" title="${escapeHtml(a.name)}" style="color:inherit;text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;">${escapeHtml(a.name)}</a>
+      <a href="#" onclick="${openJs};return false;" title="${escapeHtml(a.name)}" style="color:inherit;text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;">${escapeHtml(a.name)}</a>
       <span style="opacity:.6;flex-shrink:0;">${fmtBytes(a.size)}</span>
-      ${readOnly ? "" : `<i class="ti ti-x" onclick="removeNoteAttachment('${scope}',${i},${j})" title="Remove file" style="cursor:pointer;opacity:.7;font-size:13px;flex-shrink:0;"></i>`}
-    </span>`).join("") + '</div>';
+      ${readOnly ? "" : `<i class="ti ti-x" onclick="${removeJs}" title="Remove file" style="cursor:pointer;opacity:.7;font-size:13px;flex-shrink:0;"></i>`}
+    </span>`;
+}
+function attachmentChipsHtml(e, i, scope, readOnly){
+  const list = e.attachments || [];
+  if(!list.length) return "";
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">' + list.map((a,j)=>
+    fileChipHtml(a, scope, `openNoteAttachment('${scope}',${i},${j})`, `removeNoteAttachment('${scope}',${i},${j})`, readOnly)
+  ).join("") + '</div>';
 }
 
 // Chips for files picked but not yet uploaded (shown next to the "Attach file" button).
@@ -1911,6 +1936,124 @@ function removePendingFile(scope, k){
   (scope==="detail" ? detailPendingFiles : formPendingFiles).splice(k,1);
   renderPending(scope);
 }
+
+// ── Project files: brochures & other documents attached to the PROJECT itself (not a journal note) ──
+// Stored as a JSON list [{key, name, size}] in projects.files (a JSON string, like `contacts`).
+// They use the same upload / storage / open code as journal attachments.
+let currentFormFiles = [];     // working copy while the Edit Project form is open
+
+function parseProjectFiles(raw){
+  if(Array.isArray(raw)) return raw.slice();
+  try { const a = JSON.parse(raw || "[]"); return Array.isArray(a) ? a : []; } catch(e){ return []; }
+}
+function serializeProjectFiles(list){ return JSON.stringify(list); }
+
+function currentProject(){ return (state.projects||[]).find(x=>x.id===currentProjectId); }
+
+// scope = "form" (Edit Project form: changes wait for "Save project") or "detail" (project view: saves immediately)
+function renderProjectFiles(scope){
+  if(scope==="form"){
+    document.getElementById("pfFilesList").innerHTML =
+      currentFormFiles.map((a,j)=>fileChipHtml(a, "form", `openProjectFile('form',${j})`, `removeProjectFile('form',${j})`, false)).join("");
+    document.getElementById("pfFilesHint").style.display = currentFormFiles.length ? "none" : "inline";
+    return;
+  }
+  const el = document.getElementById("detailProjectFiles");
+  const p = currentProject();
+  if(!p){ el.innerHTML = ""; return; }
+  const list = parseProjectFiles(p.files);
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;">Project files${list.length ? " · "+list.length : ""}</div>
+      <button type="button" onclick="pickFiles(f=>addFilesToProject('detail',f))" title="Attach a PDF or Word document" style="padding:4px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer;"><i class="ti ti-paperclip"></i> ADD FILE</button>
+    </div>` + (list.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${list.map((a,j)=>fileChipHtml(a, "detail", `openProjectFile('detail',${j})`, `removeProjectFile('detail',${j})`, false)).join("")}</div>`
+      : `<div style="font-size:11px;color:#9fb0c0;margin-top:6px;">Brochures, LOIs, site plans… PDF or Word. You can drop files here too.</div>`);
+}
+
+function openProjectFile(scope, j){
+  const list = scope==="form" ? currentFormFiles : parseProjectFiles((currentProject()||{}).files);
+  if(list[j]) openAttachment(list[j]);
+}
+
+// Save the project's file list on its own (project view). Returns true on success.
+async function saveDetailFiles(p, list){
+  const json = serializeProjectFiles(list);
+  try {
+    const r = await apiFetch("/api/projects/"+p.id+"/files", "PATCH", {files:json});
+    if(!r || r.error || !r.ok) throw new Error((r && r.error) || "Save failed");
+    p.files = json;
+    return true;
+  } catch(e){
+    toast("Save failed: "+e.message, "#c0392b");
+    return false;
+  }
+}
+
+async function addFilesToProject(scope, files){
+  files = validateAttachmentFiles(files);
+  if(!files.length) return;
+  toast("Uploading…");
+  if(scope==="form"){
+    try {
+      const atts = await uploadAllAttachments(formProjectId, files);
+      currentFormFiles.push(...atts);
+      formNewKeys.push(...atts.map(a=>a.key));      // not saved yet: cleaned up if the form is cancelled
+      renderProjectFiles("form");
+      toast(atts.length>1 ? atts.length+" files attached" : "File attached", "#2e7d32");
+    } catch(err){ toast(err.message, "#c0392b"); }
+    return;
+  }
+  const p = currentProject();
+  if(!p) return;
+  let atts;
+  try { atts = await uploadAllAttachments(p.id, files); }
+  catch(err){ toast(err.message, "#c0392b"); return; }
+  if(await saveDetailFiles(p, [...parseProjectFiles(p.files), ...atts])){
+    renderProjectFiles("detail");
+    toast(atts.length>1 ? atts.length+" files attached" : "File attached", "#2e7d32");
+  } else {
+    atts.forEach(a=>deleteStoredFile(p.id, a.key));   // list didn't save, so don't leave the files behind
+  }
+}
+
+async function removeProjectFile(scope, j){
+  if(!confirm("Remove this file from the project?")) return;
+  if(scope==="form"){
+    const [a] = currentFormFiles.splice(j,1);
+    discardOrDeferFile(a.key);        // saved files are only deleted from storage when the form is saved
+    renderProjectFiles("form");
+    return;
+  }
+  const p = currentProject();
+  if(!p) return;
+  const list = parseProjectFiles(p.files);
+  const [a] = list.splice(j,1);
+  if(await saveDetailFiles(p, list)){
+    deleteStoredFile(p.id, a.key);    // only delete the file after the project no longer references it
+    renderProjectFiles("detail");
+    toast("File removed","#888");
+  }
+}
+
+// Drag-and-drop onto a files area.
+const dragHasFiles = ev => !!(ev.dataTransfer && [...(ev.dataTransfer.types||[])].includes("Files"));
+function wireDropZone(el, scope){
+  el.addEventListener("dragover", ev=>{ if(!dragHasFiles(ev)) return; ev.preventDefault(); el.style.outline = "2px dashed var(--gold)"; });
+  el.addEventListener("dragleave", ()=>{ el.style.outline = ""; });
+  el.addEventListener("drop", ev=>{
+    if(!dragHasFiles(ev)) return;
+    ev.preventDefault();
+    el.style.outline = "";
+    addFilesToProject(scope, [...ev.dataTransfer.files]);
+  });
+}
+wireDropZone(document.getElementById("pfFilesZone"), "form");
+wireDropZone(document.getElementById("detailProjectFiles"), "detail");
+// If a file is dropped anywhere ELSE on the page, the browser would navigate away to display it and
+// the user would lose whatever they were typing. Swallow those stray drops.
+window.addEventListener("dragover", ev=>{ if(dragHasFiles(ev)) ev.preventDefault(); });
+window.addEventListener("drop",     ev=>{ if(dragHasFiles(ev)) ev.preventDefault(); });
 
 function entriesFor(scope){
   if(scope==="form") return currentFormNotes;
@@ -2092,6 +2235,8 @@ function showProjectForm(project){
   renderNotesList(currentFormNotes, "pfNotesList");
   currentProjectContacts = parseProjectContacts(project?.contacts || "[]");
   renderProjectContactPills("pfProjectContactsList");
+  currentFormFiles = parseProjectFiles(project?.files);
+  renderProjectFiles("form");
   document.getElementById("projectForm").style.display = "block";
   document.getElementById("pfName").focus();
 }
@@ -2171,16 +2316,27 @@ document.getElementById("pfSave").onclick = async () => {
   if(!name){ alert("Project name is required"); return; }
   saveBtn.disabled = true; saveBtn.textContent = "Saving…";
 
-  if(editingProjectId){
-    await apiFetch("/api/projects/"+editingProjectId,"PUT",{name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
-    const p = (state.projects||[]).find(x=>x.id===editingProjectId);
-    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; p.contacts=contacts; p.priority=priority; }
+  const files  = serializeProjectFiles(currentFormFiles);
+  const isEdit = !!editingProjectId;
+  const id     = isEdit ? editingProjectId : (formProjectId || uid());
+  try {
+    const resp = isEdit
+      ? await apiFetch("/api/projects/"+id, "PUT",  {name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files})
+      : await apiFetch("/api/projects",     "POST", {id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files});
+    if(resp && resp.error) throw new Error(resp.error);
+  } catch(e){
+    // Nothing was saved. Keep the form open (and the file bookkeeping intact) so the user can retry or cancel.
+    toast("Save failed: "+e.message, "#c0392b");
+    saveBtn.disabled = false; saveBtn.textContent = "Save project";
+    return;
+  }
+  if(isEdit){
+    const p = (state.projects||[]).find(x=>x.id===id);
+    if(p){ p.name=name; p.address=address; p.prospect=prospect; p.type=type; p.sf=sf; p.price_per_sf=price_per_sf; p.status=status; p.notes=notes; p.contacts=contacts; p.priority=priority; p.files=files; }
     toast("Project updated","#2e7d32");
   } else {
-    const id = formProjectId || uid();
-    await apiFetch("/api/projects","POST",{id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
     if(!state.projects) state.projects=[];
-    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority});
+    state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files});
     toast("Project added","#2e7d32");
   }
   document.getElementById("projectForm").style.display = "none";
