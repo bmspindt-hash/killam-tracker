@@ -97,6 +97,27 @@ function safeFilename(name, ext) {
   return `${n}.${ext}`;
 }
 
+// A project's own files (brochures etc., separate from journal-note attachments) are stored as a
+// JSON list of {key, name, size} in projects.files. Check the list before saving it: it must be an
+// array, and every key must be a real storage key belonging to THIS project.
+// Returns the cleaned JSON string, or null if the list is invalid.
+const MAX_PROJECT_FILES = 100;
+function cleanProjectFiles(projectId, raw) {
+  let arr = raw;
+  if (typeof raw === "string") {
+    try { arr = JSON.parse(raw); } catch (e) { return null; }
+  }
+  if (!Array.isArray(arr) || arr.length > MAX_PROJECT_FILES) return null;
+  const out = [];
+  for (const f of arr) {
+    if (!f || typeof f.key !== "string") return null;
+    const m = KEY_RE.exec(f.key);
+    if (!m || m[1] !== projectId) return null;
+    out.push({ key: f.key, name: String(f.name || "file").slice(0, 200), size: Number(f.size) || 0 });
+  }
+  return JSON.stringify(out);
+}
+
 // Delete every file stored under a project (used when the project is deleted).
 async function deleteProjectFiles(projectId) {
   if (!r2Enabled || !ID_RE.test(projectId)) return;
@@ -177,6 +198,7 @@ async function initDB() {
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS contacts   TEXT DEFAULT '[]';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS priority   TEXT DEFAULT '';
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMP DEFAULT NOW();
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS files      TEXT DEFAULT '[]';
   `);
 
   const weekRow = await pool.query("SELECT value FROM meta WHERE key = 'weekId'");
@@ -365,21 +387,35 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
 });
 
 app.post("/api/projects", requireAuth, async (req, res) => {
-  const { id, name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority } = req.body;
-  await pool.query(
-    "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
-    [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||""]
-  );
-  res.json({ ok: true });
+  const { id, name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority, files } = req.body;
+  // A new project may arrive with files already uploaded under its (pre-generated) id.
+  const filesJson = files === undefined ? "[]" : cleanProjectFiles(id, files);
+  if (filesJson === null) return res.status(400).json({ error: "Invalid files list" });
+  try {
+    await pool.query(
+      "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
+      [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||"", filesJson]
+    );
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 app.put("/api/projects/:id", requireAuth, async (req, res) => {
-  const { name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority } = req.body;
-  await pool.query(
-    "UPDATE projects SET name=$1,address=$2,prospect=$3,type=$4,sf=$5,price_per_sf=$6,status=$7,notes=$8,contacts=$9,priority=$10 WHERE id=$11",
-    [name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||"", req.params.id]
-  );
-  res.json({ ok: true });
+  const { name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority, files } = req.body;
+  // `files` is optional. Many parts of the app save a project without knowing about files
+  // (e.g. adding a journal note), so when it's absent we keep what's already stored (COALESCE).
+  let filesJson = null;
+  if (files !== undefined) {
+    filesJson = cleanProjectFiles(req.params.id, files);
+    if (filesJson === null) return res.status(400).json({ error: "Invalid files list" });
+  }
+  try {
+    await pool.query(
+      "UPDATE projects SET name=$1,address=$2,prospect=$3,type=$4,sf=$5,price_per_sf=$6,status=$7,notes=$8,contacts=$9,priority=$10,files=COALESCE($11,files) WHERE id=$12",
+      [name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||"", filesJson, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 app.patch("/api/projects/:id/priority", requireAuth, async (req, res) => {
@@ -401,6 +437,18 @@ app.patch("/api/projects/:id/opened", requireAuth, async (req, res) => {
     [req.params.id]
   );
   res.json({ ok: true, last_opened_at: result.rows[0]?.last_opened_at });
+});
+
+// Replace a project's file list (used by the project view, which changes files on their own,
+// without resending every other project field).
+app.patch("/api/projects/:id/files", requireAuth, async (req, res) => {
+  const filesJson = cleanProjectFiles(req.params.id, req.body.files);
+  if (filesJson === null) return res.status(400).json({ error: "Invalid files list" });
+  try {
+    const r = await pool.query("UPDATE projects SET files=$1 WHERE id=$2 RETURNING id", [filesJson, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "Project not found" });
+    res.json({ ok: true, files: filesJson });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 app.delete("/api/projects/:id", requireAuth, async (req, res) => {
