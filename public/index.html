@@ -66,6 +66,17 @@ select{cursor:pointer;}
   opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
 
 /* ── Mobile responsive ─────────────────────────────────────── */
+/* Project view journal: a scrolling pane of its own, with a slim scrollbar that suits the dark card */
+#detailNotesScroll {
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.3) transparent;
+}
+#detailNotesScroll::-webkit-scrollbar { width: 8px; }
+#detailNotesScroll::-webkit-scrollbar-track { background: transparent; }
+#detailNotesScroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 4px; }
+#detailNotesScroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.5); }
+
 @media (max-width: 768px) {
 
   /* Header */
@@ -1329,7 +1340,11 @@ function openProjectDetail(projectId){
   }
 
   detailEditingNoteIdx = null;
-  renderDetailNotes(p);
+  // Fresh visit or a different project: show the journal from the top. A plain refresh of the project
+  // already on screen (e.g. after a task change) keeps the journal where the user had scrolled it.
+  const stayingPut = document.getElementById("projectDetailView").style.display === "block" && detailNotesFor === projectId;
+  renderDetailNotes(p, !stayingPut);
+  detailNotesFor = projectId;
   renderProjectFiles("detail");
 
 
@@ -1342,13 +1357,21 @@ function openProjectDetail(projectId){
 
 // ── Detail view journal: editable entries ──────────────────────
 let detailEditingNoteIdx = null;
+let detailNotesFor = null;      // which project the journal pane is currently showing
 
-function renderDetailNotes(p){
+// The entries live in their own scrolling pane (#detailNotesScroll) so a long journal doesn't stretch the
+// whole project card: the action buttons and the task list stay within easy reach.
+// Re-drawing the pane (after an edit, attach, delete...) replaces its contents, which would snap it back to
+// the top, so we remember where it was scrolled to and put it back, unless `resetScroll` is set.
+function renderDetailNotes(p, resetScroll){
   const notesEl = document.getElementById("detailProjectNotes");
   const entries = parseNotes(p.notes);
   if(entries.length){
+    const oldPane    = document.getElementById("detailNotesScroll");
+    const keepScroll = (oldPane && !resetScroll) ? oldPane.scrollTop : 0;
     notesEl.style.display="block";
-    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal</div>' +
+    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal · '+entries.length+'</div>' +
+      '<div id="detailNotesScroll" style="max-height:clamp(160px,32vh,400px);overflow-y:auto;">' +
       entries.map((e,i)=>{
         if(i===detailEditingNoteIdx){
           return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">
@@ -1374,8 +1397,21 @@ function renderDetailNotes(p){
             <i class="ti ti-trash" onclick="deleteDetailNote(${i})" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Delete note"></i>
           </div>
         </div>`;
-      }).join("");
+      }).join("") + '</div>';
+    document.getElementById("detailNotesScroll").scrollTop = keepScroll;
   } else { notesEl.style.display="none"; }
+}
+
+// Scroll the journal pane just enough that one whole entry is visible (used when an entry turns into an edit
+// box, which grows taller: otherwise its Save/Cancel buttons can end up hidden below the pane's edge).
+function revealJournalEntry(idx){
+  const pane = document.getElementById("detailNotesScroll");
+  const el   = pane && pane.children[idx];
+  if(!el) return;
+  const pr = pane.getBoundingClientRect(), er = el.getBoundingClientRect();
+  if(er.height >= pr.height)     pane.scrollTop += er.top - pr.top;               // taller than the pane: show its top
+  else if(er.bottom > pr.bottom) pane.scrollTop += er.bottom - pr.bottom + 4;
+  else if(er.top < pr.top)       pane.scrollTop -= pr.top - er.top + 4;
 }
 
 function editDetailNote(idx){
@@ -1383,6 +1419,7 @@ function editDetailNote(idx){
   const p = (state.projects||[]).find(x=>x.id===currentProjectId);
   if(!p) return;
   renderDetailNotes(p);
+  revealJournalEntry(idx);
   setTimeout(()=>{
     const t = document.getElementById("detailNoteEditText");
     if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
@@ -1647,6 +1684,8 @@ document.getElementById("detailNoteSave").onclick = async()=>{
     detailPendingFiles = []; renderPending("detail");
     document.getElementById("detailQuickNote").style.display = "none";
     openProjectDetail(p.id);       // refresh detail view
+    const pane = document.getElementById("detailNotesScroll");
+    if(pane) pane.scrollTop = 0;   // the new note is the newest entry (top), so show it
     toast("Note saved","#2e7d32");
   } catch(e){
     toast(e.message || "Save failed","#c0392b");
