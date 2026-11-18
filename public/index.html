@@ -650,6 +650,12 @@ select{cursor:pointer;}
     </div>
   </div>
 
+  <!-- Show: All / Leases / Sales / Purchases -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+    <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#888;">Show</span>
+    <div id="dashTypeToggle" role="tablist" style="display:inline-flex;background:#fff;border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap;"></div>
+  </div>
+
   <!-- Metric tiles -->
   <div id="dashMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;"></div>
 
@@ -1167,6 +1173,25 @@ document.getElementById("btnAdd").onclick = async()=>{
   render();
 };
 
+// ── Deal groups ────────────────────────────────────────────────
+// Project "Type" decides which side of the business a project is on. Renewals count as leases.
+// Construction and projects with no type fall into "Other" (they show up under "All" only).
+const DEAL_GROUPS = {
+  lease:    { label:"Leases",    types:["Lease","Renewal"], color:"#1565c0" },
+  sale:     { label:"Sales",     types:["Sale"],            color:"#b8924f" },
+  purchase: { label:"Purchases", types:["Purchase"],        color:"#2e7d32" }
+};
+function dealGroupOf(p){
+  for(const k in DEAL_GROUPS) if(DEAL_GROUPS[k].types.includes(p.type)) return k;
+  return "other";
+}
+// Project-board sections: sales and purchases share one section, leases get their own.
+const BOARD_SECTIONS = [
+  { label:"Leases",             color:"#1565c0", has:p=>dealGroupOf(p)==="lease" },
+  { label:"Sales & Purchases",  color:"#b8924f", has:p=>["sale","purchase"].includes(dealGroupOf(p)) },
+  { label:"Other",              color:"#888",    has:p=>dealGroupOf(p)==="other" }
+];
+
 // ── Project Board ──────────────────────────────────────────────
 let currentProjectId = null;
 
@@ -1262,7 +1287,7 @@ function renderProjectBoard(){
   grid.innerHTML = "";
   empty.style.display = openProjects.length ? "none" : "block";
   document.getElementById("activeProjectCount").textContent = openProjects.length+" project"+(openProjects.length!==1?"s":"");
-  openProjects.forEach(p=>grid.appendChild(buildCard(p)));
+  fillGrouped(grid, openProjects, buildCard, !filter);
 
   // Closed projects panel
   const closedPanel = document.getElementById("closedProjectsPanel");
@@ -1271,10 +1296,27 @@ function renderProjectBoard(){
     closedPanel.style.display = "block";
     closedGrid.innerHTML = "";
     document.getElementById("closedProjectCount").textContent = closedProjects.length+" project"+(closedProjects.length!==1?"s":"");
-    closedProjects.forEach(p=>closedGrid.appendChild(buildCard(p)));
+    fillGrouped(closedGrid, closedProjects, buildCard, !filter);
   } else {
     closedPanel.style.display = "none";
   }
+}
+
+// Put cards into a grid under a heading per section (Leases / Sales & Purchases / Other).
+// Headings are skipped when a specific type is already chosen in the filter.
+function fillGrouped(grid, projects, buildCard, withHeadings){
+  if(!withHeadings){ projects.forEach(p=>grid.appendChild(buildCard(p))); return; }
+  BOARD_SECTIONS.forEach(sec=>{
+    const items = projects.filter(sec.has);
+    if(!items.length) return;
+    const h = document.createElement("div");
+    h.style.cssText = `grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:6px 0 -2px;padding-bottom:6px;border-bottom:2px solid ${sec.color}33;`;
+    h.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${sec.color};"></span>
+      <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${sec.color};">${sec.label}</span>
+      <span style="font-size:11px;color:#888;">${items.length}</span>`;
+    grid.appendChild(h);
+    items.forEach(p=>grid.appendChild(buildCard(p)));
+  });
 }
 
 async function updateProjectPriority(id, priority, selectEl){
@@ -2983,11 +3025,30 @@ function goToProjectFromDash(projectId){
   openProjectDetail(projectId);
 }
 
+// Which deal group the dashboard is showing: "all" (default), "lease", "sale" or "purchase".
+let dashType = "all";
+
 function renderDashboard(){
   const today   = todayStr();
-  const tasks   = state.tasks;
-  const archive = state.archive;
-  const projects = state.projects || [];
+  const allProjects = state.projects || [];
+
+  // Segmented toggle with a count on each option
+  const countFor = k => allProjects.filter(p=>dealGroupOf(p)===k).length;
+  const opts = [["all","All",allProjects.length], ...Object.keys(DEAL_GROUPS).map(k=>[k,DEAL_GROUPS[k].label,countFor(k)])];
+  const tg = document.getElementById("dashTypeToggle");
+  tg.innerHTML = opts.map(([k,label,n])=>{
+    const on = k===dashType;
+    return `<button type="button" role="tab" aria-selected="${on}" data-type="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;padding:6px 16px;border-radius:999px;${on?"background:var(--navy);color:#fff;":"background:transparent;color:var(--navy);"}">${label} <span style="opacity:.65;font-weight:500;">${n}</span></button>`;
+  }).join("");
+  tg.querySelectorAll("button").forEach(b=>b.onclick = ()=>{ dashType = b.dataset.type; renderDashboard(); });
+
+  // Everything below works on the chosen group only. A task belongs to a group through the
+  // project it is filed under; tasks that match no project show only under "All".
+  const inGroup = p => dashType==="all" || dealGroupOf(p)===dashType;
+  const taskInGroup = t => { if(dashType==="all") return true; const p=findProjectForTask(t); return !!p && inGroup(p); };
+  const projects = allProjects.filter(inGroup);
+  const tasks    = state.tasks.filter(taskInGroup);
+  const archive  = state.archive.filter(taskInGroup);
 
   const CLOSED_STATUSES = ["Closed","Completed","Dead"];
 
@@ -3152,12 +3213,12 @@ function renderDashboard(){
   // ── Active projects ────────────────────────────────────────────
   const projDiv = document.getElementById("dashProjects");
   const CLOSED_STATUSES_DASH = ["Closed","Completed","Dead"];
-  const activeProjs = (state.projects||[]).filter(p=>!CLOSED_STATUSES_DASH.includes(p.status));
+  const activeProjs = projects.filter(p=>!CLOSED_STATUSES_DASH.includes(p.status));
   const typeColor = t => t==="Lease"?"#1565c0":t==="Purchase"?"#2e7d32":t==="Sale"?"#b8924f":t==="Renewal"?"#00838f":t==="Construction"?"#6d4c41":"#888";
   const statusColors2 = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#43a047","Dead":"#c62828","Working on other":"#e65100","Land Prep":"#5d4037","Ground Up Build":"#4e342e","Interior Finishout":"#6d4c41","Delivered":"#2e7d32"};
 
   if(!activeProjs.length){
-    projDiv.innerHTML = '<p style="color:#888;font-size:12px;">No active projects yet.</p>';
+    projDiv.innerHTML = '<p style="color:#888;font-size:12px;">'+(dashType==="all"?"No active projects yet.":"No active "+DEAL_GROUPS[dashType].label.toLowerCase()+" right now.")+'</p>';
   } else {
     projDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
     ${activeProjs.map(p=>{
