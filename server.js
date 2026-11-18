@@ -605,6 +605,7 @@ app.put("/api/archive/:id", requireAuth, async (req, res) => {
 // Contacts are one directory shared by the whole team.
 app.post("/api/contacts", requireAuth, async (req, res) => {
   const { id, name, company, email, phone, notes } = req.body;
+  if (!id || !ID_RE.test(String(id))) return res.status(400).json({ error: "Invalid contact id" });
   try {
     await pool.query(
       "INSERT INTO contacts (id,name,company,email,phone,notes) VALUES ($1,$2,$3,$4,$5,$6)",
