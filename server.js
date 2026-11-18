@@ -211,6 +211,12 @@ async function initDB() {
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS owner_id   TEXT;
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS owner_id   TEXT;
     ALTER TABLE archive   ADD COLUMN IF NOT EXISTS owner_id   TEXT;
+    -- Supervisor layer: notes live in their own column so an agent saving their own journal can never overwrite
+    -- them; supervisor-created tasks are flagged and remember who made them.
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS supervisor_notes TEXT DEFAULT '[]';
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS supervisor BOOLEAN DEFAULT FALSE;
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS created_by TEXT;
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS created_by_name TEXT DEFAULT '';
     CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower ON users (lower(email)) WHERE email IS NOT NULL;
     CREATE INDEX IF NOT EXISTS projects_owner ON projects (owner_id);
     CREATE INDEX IF NOT EXISTS tasks_owner    ON tasks (owner_id);
@@ -511,7 +517,8 @@ app.get("/api/state", requireAuth, async (req, res) => {
       readOnly: target.id !== req.user.id && req.user.role !== "owner",
       tasks: taskRes.rows.map(r => ({
         id: r.id, title: r.title, task: r.task, status: r.status,
-        notes: r.notes, deadline: r.deadline, contact: r.contact, done: r.done
+        notes: r.notes, deadline: r.deadline, contact: r.contact, done: r.done,
+        supervisor: r.supervisor === true, createdBy: r.created_by || null, createdByName: r.created_by_name || ""
       })),
       archive: archRes.rows.map(r => ({
         id: r.id, title: r.title, task: r.task, status: r.status,
@@ -538,21 +545,33 @@ app.post("/api/tasks", requireAuth, async (req, res) => {
   }
 });
 
+// A task made by a supervisor ("admin task") belongs to the project's owner but is the supervisor's to edit:
+// the owner may tick it done, nothing more. Only its author (or the Owner) can change or delete it.
+const canEditSupervisorTask = (u, t) => !t.supervisor || u.role === "owner" || t.created_by === u.id;
+
 app.put("/api/tasks/:id", requireAuth, async (req, res) => {
   const { title, task, status, notes, deadline, contact, done } = req.body;
   try {
-    const r = await pool.query(
-      "UPDATE tasks SET title=$1,task=$2,status=$3,notes=$4,deadline=$5,contact=$6,done=$7 WHERE id=$8 AND ($9 OR owner_id=$10) RETURNING id",
-      [title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, req.params.id, ...scopeParams(req.user)]
+    const cur = (await pool.query("SELECT id, owner_id, supervisor, created_by FROM tasks WHERE id=$1", [req.params.id])).rows[0];
+    if (!cur || !(req.user.role === "owner" || cur.owner_id === req.user.id)) return res.status(404).json({ error: "Task not found" });
+    if (!canEditSupervisorTask(req.user, cur)) {
+      await pool.query("UPDATE tasks SET done=$1 WHERE id=$2", [done === true, req.params.id]);   // completing is all they may do
+      return res.json({ ok: true });
+    }
+    await pool.query(
+      "UPDATE tasks SET title=$1,task=$2,status=$3,notes=$4,deadline=$5,contact=$6,done=$7 WHERE id=$8",
+      [title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, req.params.id]
     );
-    if (!r.rows.length) return res.status(404).json({ error: "Task not found" });
     res.json({ ok: true });
   } catch(e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
 
 app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
   try {
-    await pool.query("DELETE FROM tasks WHERE id=$1 AND ($2 OR owner_id=$3)", [req.params.id, ...scopeParams(req.user)]);
+    const cur = (await pool.query("SELECT id, owner_id, supervisor, created_by FROM tasks WHERE id=$1", [req.params.id])).rows[0];
+    if (!cur || !(req.user.role === "owner" || cur.owner_id === req.user.id)) return res.json({ ok: true });
+    if (!canEditSupervisorTask(req.user, cur)) return res.status(403).json({ error: "Only the supervisor who added this task can remove it" });
+    await pool.query("DELETE FROM tasks WHERE id=$1", [req.params.id]);
     res.json({ ok: true });
   } catch(e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
@@ -564,6 +583,8 @@ app.post("/api/newweek-single", requireAuth, async (req, res) => {
     const task = await pool.query("SELECT * FROM tasks WHERE id=$1 AND ($2 OR owner_id=$3)", [taskId, ...scopeParams(req.user)]);
     if(!task.rows.length) return res.json({ ok: true });
     const t = task.rows[0];
+    // An unfinished supervisor task can't be tucked away by its assignee.
+    if (!t.done && !canEditSupervisorTask(req.user, t)) return res.status(403).json({ error: "That task was assigned by a supervisor" });
     await pool.query(
       "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING",
       [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, weekId, t.owner_id]
@@ -739,6 +760,152 @@ app.post("/api/projects/reassign", requireAuth, requireRole("owner", "supervisor
     await client.query("ROLLBACK").catch(() => {});
     console.error(e); res.status(500).json({ error: "Could not reassign" });
   } finally { client.release(); }
+});
+
+// ── Supervisor layer ───────────────────────────────────────────
+// Owner and Supervisors can add notes and admin tasks to any project they can see. They are labelled with
+// the author's name so the project's owner always knows who wrote them. The project's owner can read them
+// (and tick admin tasks done) but cannot edit or delete them.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const supervisorsOnly = requireRole("owner", "supervisor");
+const displayName = (u) => (u.name && u.name.trim()) || u.username;
+
+async function mutateSupervisorNotes(projectId, fn) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r = await client.query("SELECT supervisor_notes FROM projects WHERE id=$1 FOR UPDATE", [projectId]);
+    let list = [];
+    try { list = JSON.parse(r.rows[0]?.supervisor_notes || "[]"); } catch (e) {}
+    if (!Array.isArray(list)) list = [];
+    const out = fn(list);
+    if (out && out.error) { await client.query("ROLLBACK"); return out; }
+    await client.query("UPDATE projects SET supervisor_notes=$1 WHERE id=$2", [JSON.stringify(list), projectId]);
+    await client.query("COMMIT");
+    return { notes: list };
+  } catch (e) { await client.query("ROLLBACK").catch(() => {}); throw e; }
+  finally { client.release(); }
+}
+const cleanText = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
+
+app.post("/api/projects/:id/supervisor-notes", requireAuth, supervisorsOnly, projectAccess("read"), async (req, res) => {
+  const text = cleanText(req.body.text, 5000);
+  if (!text) return res.status(400).json({ error: "Note can't be empty" });
+  try {
+    const out = await mutateSupervisorNotes(req.params.id, list => {
+      list.unshift({ id: crypto.randomBytes(6).toString("hex"), date: new Date().toISOString(), text, authorId: req.user.id, authorName: displayName(req.user) });
+    });
+    res.json({ ok: true, notes: out.notes });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
+app.put("/api/projects/:id/supervisor-notes/:noteId", requireAuth, supervisorsOnly, projectAccess("read"), async (req, res) => {
+  const text = cleanText(req.body.text, 5000);
+  if (!text) return res.status(400).json({ error: "Note can't be empty" });
+  try {
+    const out = await mutateSupervisorNotes(req.params.id, list => {
+      const n = list.find(x => x.id === req.params.noteId);
+      if (!n) return { error: 404, msg: "Note not found" };
+      if (n.authorId !== req.user.id && req.user.role !== "owner") return { error: 403, msg: "Only the author can edit this note" };
+      n.text = text; n.edited = new Date().toISOString();
+    });
+    if (out.error) return res.status(out.error).json({ error: out.msg });
+    res.json({ ok: true, notes: out.notes });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
+app.delete("/api/projects/:id/supervisor-notes/:noteId", requireAuth, supervisorsOnly, projectAccess("read"), async (req, res) => {
+  try {
+    const out = await mutateSupervisorNotes(req.params.id, list => {
+      const i = list.findIndex(x => x.id === req.params.noteId);
+      if (i < 0) return { error: 404, msg: "Note not found" };
+      if (list[i].authorId !== req.user.id && req.user.role !== "owner") return { error: 403, msg: "Only the author can delete this note" };
+      list.splice(i, 1);
+    });
+    if (out.error) return res.status(out.error).json({ error: out.msg });
+    res.json({ ok: true, notes: out.notes });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
+// Admin tasks: land on the project owner's list, filed under the project like any other task.
+app.post("/api/projects/:id/supervisor-tasks", requireAuth, supervisorsOnly, projectAccess("read"), async (req, res) => {
+  const id = String(req.body.id || "");
+  const task = cleanText(req.body.task, 2000);
+  const deadline = String(req.body.deadline || "");
+  if (!ID_RE.test(id)) return res.status(400).json({ error: "Invalid task id" });
+  if (!task) return res.status(400).json({ error: "Describe the task" });
+  if (deadline && !DATE_RE.test(deadline)) return res.status(400).json({ error: "Invalid date" });
+  try {
+    const p = (await pool.query("SELECT name, address, owner_id FROM projects WHERE id=$1", [req.params.id])).rows[0];
+    const title = `${p.name || ""} — ${p.address || ""}`.trim();
+    const weekId = await getWeekId(p.owner_id);
+    await pool.query(
+      "INSERT INTO tasks (id,title,task,status,notes,deadline,contact,done,week_id,owner_id,supervisor,created_by,created_by_name) VALUES ($1,$2,$3,'Not started','',$4,'',FALSE,$5,$6,TRUE,$7,$8)",
+      [id, title, task, deadline, weekId, p.owner_id, req.user.id, displayName(req.user)]);
+    res.json({ ok: true, task: { id, title, task, status: "Not started", notes: "", deadline, contact: "", done: false, supervisor: true, createdBy: req.user.id, createdByName: displayName(req.user) } });
+  } catch (e) {
+    if (e.code === "23505") return res.status(409).json({ error: "That task already exists" });
+    console.error(e); res.status(500).json({ error: "Server error" });
+  }
+});
+
+async function loadOwnSupervisorTask(req, res) {
+  const t = (await pool.query("SELECT * FROM tasks WHERE id=$1 AND supervisor=TRUE", [req.params.id])).rows[0];
+  if (!t) { res.status(404).json({ error: "Task not found" }); return null; }
+  if (req.user.role !== "owner" && t.created_by !== req.user.id) { res.status(403).json({ error: "Only the author can change this task" }); return null; }
+  return t;
+}
+app.put("/api/supervisor-tasks/:id", requireAuth, supervisorsOnly, async (req, res) => {
+  const task = cleanText(req.body.task, 2000);
+  const deadline = String(req.body.deadline || "");
+  if (!task) return res.status(400).json({ error: "Describe the task" });
+  if (deadline && !DATE_RE.test(deadline)) return res.status(400).json({ error: "Invalid date" });
+  try {
+    if (!(await loadOwnSupervisorTask(req, res))) return;
+    await pool.query("UPDATE tasks SET task=$1, deadline=$2 WHERE id=$3", [task, deadline, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+app.delete("/api/supervisor-tasks/:id", requireAuth, supervisorsOnly, async (req, res) => {
+  try {
+    if (!(await loadOwnSupervisorTask(req, res))) return;
+    await pool.query("DELETE FROM tasks WHERE id=$1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
+// Team dashboard: one summary per person (everyone but the viewer). `today` is the viewer's local date.
+app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => {
+  const today = DATE_RE.test(String(req.query.today || "")) ? String(req.query.today) : new Date().toISOString().slice(0, 10);
+  try {
+    const people = await pool.query(
+      "SELECT id, username, name, role FROM users WHERE active=TRUE AND password <> $1 AND id <> $2 ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'supervisor' THEN 1 ELSE 2 END, lower(name), lower(username)",
+      [NO_PASSWORD, req.user.id]);
+    const projs = await pool.query(`
+      SELECT owner_id,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE COALESCE(status,'') NOT IN ('Closed','Completed','Dead'))::int AS active,
+        COUNT(*) FILTER (WHERE COALESCE(status,'') NOT IN ('Closed','Completed','Dead') AND last_opened_at < NOW() - INTERVAL '14 days')::int AS idle_red,
+        COUNT(*) FILTER (WHERE COALESCE(status,'') NOT IN ('Closed','Completed','Dead') AND last_opened_at < NOW() - INTERVAL '7 days' AND last_opened_at >= NOW() - INTERVAL '14 days')::int AS idle_yellow,
+        COUNT(*) FILTER (WHERE type IN ('Lease','Renewal'))::int AS leases,
+        COUNT(*) FILTER (WHERE type IN ('Sale','Purchase'))::int AS sales_purchases
+      FROM projects GROUP BY owner_id`);
+    const tks = await pool.query(`
+      SELECT owner_id,
+        COUNT(*) FILTER (WHERE NOT done)::int AS open_tasks,
+        COUNT(*) FILTER (WHERE NOT done AND deadline <> '' AND deadline < $1)::int AS overdue,
+        COUNT(*) FILTER (WHERE NOT done AND supervisor)::int AS supervisor_open
+      FROM tasks GROUP BY owner_id`, [today]);
+    const P = Object.fromEntries(projs.rows.map(r => [r.owner_id, r]));
+    const T = Object.fromEntries(tks.rows.map(r => [r.owner_id, r]));
+    res.json({ people: people.rows.map(u => ({
+      id: u.id, name: u.name || u.username, role: u.role,
+      totalProjects: P[u.id]?.total || 0, activeProjects: P[u.id]?.active || 0,
+      idleRed: P[u.id]?.idle_red || 0, idleYellow: P[u.id]?.idle_yellow || 0,
+      leases: P[u.id]?.leases || 0, salesPurchases: P[u.id]?.sales_purchases || 0,
+      openTasks: T[u.id]?.open_tasks || 0, overdue: T[u.id]?.overdue || 0, supervisorOpen: T[u.id]?.supervisor_open || 0
+    })) });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
 
 // ── File attachments: PDF and Word (stored in R2, referenced from journal entries) ──
