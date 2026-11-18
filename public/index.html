@@ -179,6 +179,15 @@ select{cursor:pointer;}
     padding: 14px;
   }
 }
+
+/* ── Review mode: someone looking at another person's projects (read-only) ── */
+body.reviewing #btnThisWeek, body.reviewing #btnArchive, body.reviewing #btnExport, body.reviewing #btnContacts,
+body.reviewing #btnAddProjectBoard, body.reviewing #btnDetailAddNote, body.reviewing #btnDetailEditProject,
+body.reviewing #btnDetailAddTask, body.reviewing #btnGenerateReport { display:none !important; }
+body.reviewing #projectBoardGrid select, body.reviewing #closedProjectsGrid select { pointer-events:none; }
+body.reviewing #detailNotesScroll i.ti-paperclip, body.reviewing #detailNotesScroll i.ti-pencil, body.reviewing #detailNotesScroll i.ti-trash { display:none; }
+body.reviewing #detailTaskBody input, body.reviewing #detailTaskBody textarea, body.reviewing #detailTaskBody select, body.reviewing #detailTaskBody button { pointer-events:none; }
+body.reviewing #detailTaskBody button { visibility:hidden; }
 </style>
 </head>
 <body>
@@ -296,6 +305,10 @@ select{cursor:pointer;}
     </div>
   </div>
 
+  <div id="reviewBanner" style="display:none;background:#6a1b9a;color:#fff;padding:10px 20px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;">
+    <span><i class="ti ti-eye"></i> Reviewing <strong id="reviewName"></strong>&rsquo;s projects &middot; read-only</span>
+    <button id="btnExitReview" class="btn-ghost" style="padding:6px 14px;font-size:11px;"><i class="ti ti-arrow-left"></i> Back to team</button>
+  </div>
   <div id="loadingMsg" class="view empty-msg">Loading tasks…</div>
 
   <!-- SHARED PROJECT FORM (used by board + directory) -->
@@ -463,6 +476,7 @@ select{cursor:pointer;}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button id="btnDetailAddNote" style="padding:7px 14px;font-size:11px;background:#4a90c4;color:#fff;border:1px solid #3a7aaa;border-radius:999px;font-family:inherit;font-weight:600;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-notes"></i> Add note</button>
+          <button id="btnDetailReassign" class="btn-ghost" style="display:none;padding:7px 14px;font-size:11px;"><i class="ti ti-arrows-exchange"></i> Reassign</button>
           <button id="btnDetailEditProject" class="btn-ghost" style="padding:7px 14px;font-size:11px;"><i class="ti ti-pencil"></i> Edit project</button>
           <button id="btnDetailAddTask" class="btn-gold" style="padding:7px 14px;font-size:11px;"><i class="ti ti-plus"></i> Add task</button>
         </div>
@@ -910,7 +924,18 @@ function toast(msg, color="#16273a"){
 // ── API calls ──────────────────────────────────────────────────
 function getToken(){ return localStorage.getItem("kd_token") || ""; }
 
+// Review mode: while looking at someone else's projects the whole app is read-only. This is the one place every
+// request passes through, so it's also the safety net: anything that would change data is refused here, except
+// the supervisor tools (notes, admin tasks, reassign), which the server checks again on its own.
+let reviewing = null;   // null, or {id, name} of the person being reviewed
+const REVIEW_WRITES_OK = [
+  /^\/api\/projects\/[A-Za-z0-9_-]+\/supervisor-(notes|tasks)(\/[A-Za-z0-9_-]+)?$/,
+  /^\/api\/supervisor-tasks\/[A-Za-z0-9_-]+$/,
+  /^\/api\/projects\/reassign$/
+];
+
 async function apiFetch(path, method="GET", body){
+  if(reviewing && method!=="GET" && !REVIEW_WRITES_OK.some(re=>re.test(path))) throw new Error("Read-only while reviewing");
   const opts = { method, headers:{"Content-Type":"application/json","Authorization":"Bearer "+getToken()} };
   if(body) opts.body = JSON.stringify(body);
   const res = await fetch(API+path, opts);
@@ -924,6 +949,8 @@ async function apiFetch(path, method="GET", body){
 }
 
 function showLoginScreen(isRegister=false){
+  reviewing = null; document.body.classList.remove("reviewing");
+  document.getElementById("reviewBanner").style.display = "none";
   document.getElementById("app").style.display = "none";
   document.getElementById("loginScreen").style.display = "flex";
   document.getElementById("loginTitle").textContent = isRegister ? "Create your account" : "Sign in to Task Tracker";
@@ -1005,8 +1032,8 @@ function render(){
     cb.onchange = async()=>{
       t.done = cb.checked;
       await saveTask(t);
-      if(cb.checked){
-        // Auto-archive: move to archive immediately
+      if(cb.checked && !t.supervisor){
+        // Auto-archive: move to archive immediately (admin tasks stay visible to their supervisor until New Week)
         await apiFetch("/api/newweek-single","POST",{taskId: t.id, weekId: state.weekId});
         state.archive.unshift({...t, weekCompleted: state.weekId, done: true});
         state.tasks = state.tasks.filter(x=>x.id!==t.id);
@@ -1097,6 +1124,16 @@ function render(){
     };
     tdDel.appendChild(del); tr.appendChild(tdDel);
 
+    // Admin tasks from a supervisor: the assignee can tick them done, nothing else.
+    if(t.supervisor){
+      const canEdit = myRole()==="owner" || t.createdBy===(state.me&&state.me.id);
+      if(!canEdit) tr.querySelectorAll("textarea,select,input[type=date],button").forEach(el=>{ el.disabled = true; });
+      const badge = document.createElement("div");
+      badge.style.cssText = "font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6a1b9a;margin-bottom:3px;";
+      badge.innerHTML = '<i class="ti ti-user-star"></i> Supervisor'+(t.createdByName?" · "+escapeHtml(t.createdByName):"");
+      tdP.insertBefore(badge, projWrap);
+    }
+
     tbody.appendChild(tr);
   });
 }
@@ -1172,6 +1209,13 @@ document.getElementById("btnAdd").onclick = async()=>{
   state.tasks.push(t);
   render();
 };
+
+// Which tasks belong to a project (they are filed under "<name> — <address>"; same loose matching as everywhere else).
+function taskBelongsTo(t, p){
+  const tName = (t.title||"").split(" — ")[0].trim();
+  return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase()) || (t.title||"").includes(p.name);
+}
+function supNotesOf(p){ try{ const a=JSON.parse(p.supervisor_notes||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
 
 // ── Deal groups ────────────────────────────────────────────────
 // Project "Type" decides which side of the business a project is on. Renewals count as leases.
@@ -1269,6 +1313,7 @@ function renderProjectBoard(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;">
         <div style="display:flex;align-items:center;gap:6px;">
           ${statusBadge(p.status)}
+          ${supChipHtml(p)}
           ${glowColor?`<span style="font-size:10px;font-weight:700;color:${glowColor};background:${glowColor}18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-clock-pause" style="margin-right:3px;"></i>${idleDays}d idle</span>`:""}
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -1300,6 +1345,15 @@ function renderProjectBoard(){
   } else {
     closedPanel.style.display = "none";
   }
+}
+
+// Small purple chip on a board card when a supervisor has left notes or open admin tasks on the project.
+function supChipHtml(p){
+  const n = supNotesOf(p).length;
+  const t = state.tasks.filter(x=>x.supervisor && !x.done && taskBelongsTo(x,p)).length;
+  if(!n && !t) return "";
+  const bits = [n?n+" note"+(n>1?"s":""):"", t?t+" task"+(t>1?"s":""):""].filter(Boolean).join(" · ");
+  return `<span title="From a supervisor" style="font-size:10px;font-weight:700;color:#6a1b9a;background:#6a1b9a18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-user-star" style="margin-right:3px;"></i>${bits}</span>`;
 }
 
 // Put cards into a grid under a heading per section (Leases / Sales & Purchases / Other).
@@ -1362,6 +1416,7 @@ document.getElementById("btnAddProjectBoard").onclick = ()=>{
 // Updates local state immediately (optimistic) so the board reflects it
 // next time it's shown, without waiting on the network round trip.
 async function markProjectOpened(p){
+  if(reviewing) return;   // looking at someone else's project must not reset its idle clock
   p.last_opened_at = new Date().toISOString();
   try {
     await apiFetch("/api/projects/"+p.id+"/opened", "PATCH");
@@ -1435,6 +1490,8 @@ function openProjectDetail(projectId){
   document.getElementById("projectDetailView").style.display = "block";
   renderDetailTasks(p);
   renderDetailArchive(p);
+  document.getElementById("btnDetailReassign").style.display = canSupervise() ? "" : "none";
+  renderSupervisorPanel(p);
 }
 
 // ── Detail view journal: editable entries ──────────────────────
@@ -1471,7 +1528,7 @@ function renderDetailNotes(p, resetScroll){
           <div style="flex:1;">
             <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${formatNoteDate(e.date)}</div>
             ${e.text ? `<div style="font-size:12px;color:#e0e0e0;line-height:1.5;white-space:pre-wrap;">${e.text}</div>` : ""}
-            ${attachmentChipsHtml(e,i,"detail",false)}
+            ${attachmentChipsHtml(e,i,"detail",!!reviewing)}
           </div>
           <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
             <i class="ti ti-paperclip" onclick="pickFiles(f=>addFilesToNote('detail',${i},f))" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Attach a PDF or Word file"></i>
@@ -1643,10 +1700,8 @@ function renderDetailTasks(p){
   tbody.innerHTML = "";
 
   // Match tasks to this project
-  const projTasks = state.tasks.filter(t=>{
-    const tName = (t.title||"").split(" — ")[0].trim();
-    return tName===p.name || tName.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(tName.toLowerCase()) || (t.title||"").includes(p.name);
-  });
+  // Supervisor admin tasks have their own panel above the table.
+  const projTasks = state.tasks.filter(t=>!t.supervisor && taskBelongsTo(t,p));
 
   empty.style.display = projTasks.length ? "none" : "block";
   const today = todayStr();
@@ -2086,10 +2141,10 @@ function renderProjectFiles(scope){
   el.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;">Project files${list.length ? " · "+list.length : ""}</div>
-      <button type="button" onclick="pickFiles(f=>addFilesToProject('detail',f))" title="Attach a PDF or Word document" style="padding:4px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer;"><i class="ti ti-paperclip"></i> ADD FILE</button>
+      <button type="button" onclick="pickFiles(f=>addFilesToProject('detail',f))" title="Attach a PDF or Word document" style="${reviewing?"display:none;":""}padding:4px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer;"><i class="ti ti-paperclip"></i> ADD FILE</button>
     </div>` + (list.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${list.map((a,j)=>fileChipHtml(a, "detail", `openProjectFile('detail',${j})`, `removeProjectFile('detail',${j})`, false)).join("")}</div>`
-      : `<div style="font-size:11px;color:#9fb0c0;margin-top:6px;">Brochures, LOIs, site plans… PDF or Word. You can drop files here too.</div>`);
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${list.map((a,j)=>fileChipHtml(a, "detail", `openProjectFile('detail',${j})`, `removeProjectFile('detail',${j})`, !!reviewing)).join("")}</div>`
+      : `<div style="font-size:11px;color:#9fb0c0;margin-top:6px;">${reviewing?"No files attached.":"Brochures, LOIs, site plans… PDF or Word. You can drop files here too."}</div>`);
 }
 
 function openProjectFile(scope, j){
@@ -2543,6 +2598,7 @@ async function refreshState(){
 
 let teamUsers = [];
 function showTeam(){
+  if(reviewing){ endReview(true); return; }
   hideAllViews();
   document.getElementById("teamView").style.display = "block";
   renderTeam();
@@ -2571,7 +2627,7 @@ async function renderTeam(){
   const card = 'background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;';
   const h = 'font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;';
   const inp = 'width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;';
-  let html = "";
+  let html = '<div id="teamOverviewHolder"></div>';
 
   if(isOwner){
     html += '<div style="'+card+'"><p style="'+h+'">Invite someone</p>'
@@ -2626,6 +2682,7 @@ async function renderTeam(){
   html += '</div>';
   root.innerHTML = html;
   wireTeam();
+  renderTeamOverview();
 }
 
 function wireTeam(){
@@ -2704,8 +2761,258 @@ function wireTeam(){
     };
   }
 }
-document.getElementById("btnTeam").onclick = showTeam;
+document.getElementById("btnTeam").onclick = ()=>showTeam();
 document.getElementById("btnTeamBack").onclick = showProjectBoard;
+
+// ── Team dashboard & review mode (Owner and Supervisors) ───────
+function canSupervise(){ return myRole()==="owner" || myRole()==="supervisor"; }
+
+async function renderTeamOverview(){
+  const holder = document.getElementById("teamOverviewHolder");
+  if(!holder) return;
+  holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;"><p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;">Team dashboard</p><p class="empty-msg" style="margin:0;">Loading…</p></div>';
+  let r;
+  try { r = await apiFetch("/api/team/overview?today="+todayStr()); } catch(e){ return; }
+  const head = '<p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;">Team dashboard</p>';
+  if(r.error){ holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head+'<p style="color:#a32d2d;font-size:13px;margin:0;">'+escapeHtml(r.error)+'</p></div>'; return; }
+  if(!r.people.length){
+    holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head+'<p style="font-size:13px;color:#888;margin:0;">Nobody else has accepted an invite yet. Once they do, each person appears here.</p></div>';
+    return;
+  }
+  const stat = (n,label,color)=>`<div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:${color};line-height:1.1;">${n}</div><div style="font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-top:2px;">${label}</div></div>`;
+  holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">'
+    + r.people.map(u=>{
+        const idle = (u.idleRed||u.idleYellow)
+          ? `<div style="display:flex;gap:6px;margin-top:10px;">${u.idleRed?`<span style="font-size:10px;font-weight:700;color:#c62828;background:#c6282818;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleRed} idle 14d+</span>`:""}${u.idleYellow?`<span style="font-size:10px;font-weight:700;color:#b26a00;background:#f9a82522;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleYellow} idle 7d+</span>`:""}</div>`
+          : "";
+        const split = [u.leases?u.leases+" lease"+(u.leases>1?"s":""):"", u.salesPurchases?u.salesPurchases+" sale/purchase"+(u.salesPurchases>1?"s":""):""].filter(Boolean).join(" · ");
+        return `<button type="button" class="teamCard" data-id="${escapeHtml(u.id)}" style="text-align:left;background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;font-family:inherit;transition:box-shadow .15s;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+            <span style="font-size:14px;font-weight:700;color:var(--navy);">${escapeHtml(u.name)}</span>
+            <span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:999px;">${escapeHtml(ROLE_LABEL[u.role]||u.role)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            ${stat(u.activeProjects,"Active","var(--navy)")}
+            ${stat(u.overdue,"Overdue",u.overdue?"#a32d2d":"#2e7d32")}
+            ${stat(u.supervisorOpen,"Admin tasks",u.supervisorOpen?"#6a1b9a":"#888")}
+          </div>
+          ${idle}
+          <div style="font-size:11px;color:#888;margin-top:10px;">${split||(u.totalProjects?u.totalProjects+" project"+(u.totalProjects>1?"s":""):"No projects yet")}</div>
+        </button>`;
+      }).join("")
+    + '</div></div>';
+  holder.querySelectorAll(".teamCard").forEach(b=>{
+    b.onmouseenter = ()=>b.style.boxShadow = "0 4px 16px rgba(0,0,0,.12)";
+    b.onmouseleave = ()=>b.style.boxShadow = "none";
+    b.onclick = ()=>startReview(b.dataset.id);
+  });
+}
+
+async function startReview(userId){
+  try {
+    const data = await apiFetch("/api/state?as="+encodeURIComponent(userId));
+    if(data.error){ toast(data.error,"#c0392b"); return; }
+    state = data;
+    if(!state.contacts) state.contacts = [];
+    if(!state.projects) state.projects = [];
+    reviewing = { id:userId, name:(data.viewing && (data.viewing.name||data.viewing.username)) || "this person" };
+    document.body.classList.add("reviewing");
+    document.getElementById("reviewName").textContent = reviewing.name;
+    document.getElementById("reviewBanner").style.display = "flex";
+    showProjectBoard();
+  } catch(e){ toast(e.message||"Could not open that board","#c0392b"); }
+}
+
+async function endReview(thenTeam){
+  reviewing = null;
+  document.body.classList.remove("reviewing");
+  document.getElementById("reviewBanner").style.display = "none";
+  try { await refreshState(); applyRole(); } catch(e){ console.error(e); }
+  if(thenTeam) showTeam(); else showProjectBoard();
+}
+document.getElementById("btnExitReview").onclick = ()=>endReview(true);
+
+// Move the open project to someone else (Owner and Supervisors).
+async function openReassign(){
+  const p = currentProject(); if(!p) return;
+  let r; try { r = await apiFetch("/api/users"); } catch(e){ return; }
+  if(r.error){ toast(r.error,"#c0392b"); return; }
+  const currentOwner = (state.viewing && state.viewing.id) || (state.me && state.me.id);
+  const targets = r.users.filter(u=>u.active && !u.pending && u.id!==currentOwner);
+  if(!targets.length){ toast("There is nobody else to hand this to yet","#888"); return; }
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9500;display:flex;align-items:center;justify-content:center;";
+  ov.innerHTML = `<div style="background:#fff;border-radius:10px;padding:24px;width:360px;max-width:90vw;">
+    <h3 style="margin:0 0 6px;color:var(--navy);font-size:16px;">Reassign project</h3>
+    <p style="margin:0 0 14px;font-size:12px;color:#666;">${escapeHtml(p.name)}: its journal, files, supervisor notes, and tasks move with it.</p>
+    <select id="reassignTo" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:16px;">
+      ${targets.map(u=>`<option value="${escapeHtml(u.id)}">${escapeHtml(u.name||u.username)} (${escapeHtml(ROLE_LABEL[u.role])})</option>`).join("")}
+    </select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="reassignCancel" class="btn-ghost" style="color:var(--navy);border-color:var(--border);">Cancel</button>
+      <button id="reassignGo" class="btn-gold">Reassign</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#reassignCancel").onclick = ()=>ov.remove();
+  ov.querySelector("#reassignGo").onclick = async()=>{
+    const to = ov.querySelector("#reassignTo").value;
+    const go = ov.querySelector("#reassignGo"); go.disabled = true;
+    try {
+      const res = await apiFetch("/api/projects/reassign","POST",{projectIds:[p.id],userId:to});
+      if(res.error){ toast(res.error,"#c0392b"); go.disabled=false; return; }
+      ov.remove();
+      toast("Project reassigned","#2e7d32");
+      if(reviewing) await startReview(reviewing.id);
+      else { await refreshState(); showProjectBoard(); }
+    } catch(e){ toast(e.message||"Reassign failed","#c0392b"); go.disabled = false; }
+  };
+}
+document.getElementById("btnDetailReassign").onclick = openReassign;
+
+// ── Supervisor panel on the project page ───────────────────────
+// Everyone who can open the project sees it (clearly labelled "Supervisor"); only Owner/Supervisors get the
+// add boxes, and only an item's author (or the Owner) gets edit/delete. The server enforces all of this.
+let supEditing = null;   // {kind:"note"|"task", id}
+
+function supPanelEl(){
+  let el = document.getElementById("detailSupervisorPanel");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "detailSupervisorPanel";
+    const tableWrap = document.getElementById("detailTaskBody").closest("div[style*='overflow-x']");
+    tableWrap.parentNode.insertBefore(el, tableWrap);
+  }
+  return el;
+}
+const supCanManage = authorId => myRole()==="owner" || authorId===(state.me&&state.me.id);
+function supDate(d){ try{ return new Date(d).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }catch(e){ return ""; } }
+
+function renderSupervisorPanel(p){
+  const el = supPanelEl();
+  const notes = supNotesOf(p);
+  const tasks = state.tasks.filter(t=>t.supervisor && taskBelongsTo(t,p));
+  const can = canSupervise();
+  if(!notes.length && !tasks.length && !can){ el.style.display = "none"; el.innerHTML = ""; return; }
+  el.style.display = "block";
+  const iconBtn = (icon,title,js)=>`<i class="ti ti-${icon}" title="${title}" onclick="${js}" style="cursor:pointer;color:#8e6aa0;font-size:14px;"></i>`;
+  const inp = "width:auto;padding:6px 10px;border:1px solid #d9c7e3;border-radius:6px;font-family:inherit;font-size:12px;background:#fff;";
+  const lbl = t=>`<div style="font-size:10px;font-weight:700;color:#6a1b9a;letter-spacing:.07em;text-transform:uppercase;margin:${t};">`;
+
+  const noteRows = notes.map(n=>{
+    if(supEditing && supEditing.kind==="note" && supEditing.id===n.id){
+      return `<div style="padding:8px 0;border-bottom:1px solid #eadcf1;">
+        <textarea id="supNoteEdit" style="${inp}width:100%;min-height:60px;box-sizing:border-box;resize:vertical;">${escapeHtml(n.text)}</textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;"><button type="button" class="btn-gold" style="padding:4px 14px;font-size:10px;" onclick="supSaveNote('${escapeHtml(n.id)}')">Save</button><button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:#6a1b9a;border-color:#d9c7e3;" onclick="supCancel()">Cancel</button></div></div>`;
+    }
+    return `<div class="supNote" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eadcf1;align-items:flex-start;">
+      <div style="flex:1;">
+        <div style="font-size:10px;font-weight:700;color:#6a1b9a;margin-bottom:2px;">Supervisor · ${escapeHtml(n.authorName||"")} · ${supDate(n.date)}${n.edited?" · edited":""}</div>
+        <div style="font-size:12px;color:#333;line-height:1.5;white-space:pre-wrap;">${escapeHtml(n.text)}</div>
+      </div>
+      ${can && supCanManage(n.authorId) ? `<div style="display:flex;gap:8px;padding-top:2px;">${iconBtn("pencil","Edit note",`supEdit('note','${escapeHtml(n.id)}')`)}${iconBtn("trash","Delete note",`supDeleteNote('${escapeHtml(n.id)}')`)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  const taskRows = tasks.map(t=>{
+    if(supEditing && supEditing.kind==="task" && supEditing.id===t.id){
+      return `<div style="padding:8px 0;border-bottom:1px solid #eadcf1;display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="supTaskEditText" value="${escapeHtml(t.task)}" style="${inp}flex:1;min-width:180px;">
+        <input id="supTaskEditDue" type="date" value="${escapeHtml(t.deadline||"")}" style="${inp}">
+        <button type="button" class="btn-gold" style="padding:4px 14px;font-size:10px;" onclick="supSaveTask('${escapeHtml(t.id)}')">Save</button>
+        <button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:#6a1b9a;border-color:#d9c7e3;" onclick="supCancel()">Cancel</button></div>`;
+    }
+    const overdue = !t.done && t.deadline && t.deadline < todayStr();
+    return `<div class="supTask" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eadcf1;align-items:flex-start;">
+      <input type="checkbox" ${t.done?"checked":""} ${reviewing?"disabled":""} onchange="supToggleTask('${escapeHtml(t.id)}',this.checked)" style="width:16px;height:16px;margin-top:2px;cursor:${reviewing?"default":"pointer"};">
+      <div style="flex:1;">
+        <div style="font-size:12px;color:#333;${t.done?"text-decoration:line-through;color:#888;":""}">${escapeHtml(t.task)}</div>
+        <div style="font-size:10px;color:#6a1b9a;font-weight:700;margin-top:2px;">Supervisor · ${escapeHtml(t.createdByName||"")}${t.deadline?` · <span style="${overdue?"color:#a32d2d;":""}">due ${escapeHtml(t.deadline)}</span>`:""}</div>
+      </div>
+      ${can && supCanManage(t.createdBy) ? `<div style="display:flex;gap:8px;padding-top:2px;">${iconBtn("pencil","Edit task",`supEdit('task','${escapeHtml(t.id)}')`)}${iconBtn("trash","Delete task",`supDeleteTask('${escapeHtml(t.id)}')`)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div style="background:#faf5fc;border:1px solid #eadcf1;border-left:4px solid #6a1b9a;border-radius:8px;padding:14px 16px;margin:0 0 14px;">
+    <div style="font-size:11px;font-weight:700;color:#6a1b9a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;"><i class="ti ti-user-star"></i> Supervisor notes &amp; admin tasks</div>
+    ${lbl("10px 0 2px")}Notes${notes.length?" · "+notes.length:""}</div>
+    ${noteRows || '<div style="font-size:12px;color:#999;padding:4px 0;">No notes yet.</div>'}
+    ${can ? `<div style="display:flex;gap:8px;margin-top:8px;"><textarea id="supNoteNew" placeholder="Add a supervisor note…" style="${inp}flex:1;min-height:44px;resize:vertical;"></textarea><button type="button" id="supNoteAdd" class="btn-gold" style="align-self:flex-start;padding:6px 14px;font-size:11px;" onclick="supAddNote()">Add note</button></div>` : ""}
+    ${lbl("16px 0 2px")}Admin tasks${tasks.length?" · "+tasks.length:""}</div>
+    ${taskRows || '<div style="font-size:12px;color:#999;padding:4px 0;">No admin tasks yet.</div>'}
+    ${can ? `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><input id="supTaskNew" placeholder="Add an admin task…" style="${inp}flex:1;min-width:200px;"><input id="supTaskDue" type="date" style="${inp}"><button type="button" id="supTaskAdd" class="btn-gold" style="padding:6px 14px;font-size:11px;" onclick="supAddTask()">Add task</button></div>` : ""}
+  </div>`;
+}
+
+function supRefresh(){ const p=currentProject(); if(p){ renderSupervisorPanel(p); renderProjectBoard(); } }
+function supEdit(kind,id){ supEditing={kind,id}; supRefresh(); }
+function supCancel(){ supEditing=null; supRefresh(); }
+
+async function supAddNote(){
+  const p=currentProject(); const ta=document.getElementById("supNoteNew"); if(!p||!ta) return;
+  const text=ta.value.trim(); if(!text) return;
+  const btn=document.getElementById("supNoteAdd"); btn.disabled=true;
+  try {
+    const r=await apiFetch("/api/projects/"+p.id+"/supervisor-notes","POST",{text});
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    p.supervisor_notes=JSON.stringify(r.notes); supRefresh(); toast("Note added","#2e7d32");
+  } catch(e){ toast(e.message||"Could not add note","#c0392b"); } finally { btn.disabled=false; }
+}
+async function supSaveNote(id){
+  const p=currentProject(); const ta=document.getElementById("supNoteEdit"); if(!p||!ta) return;
+  const text=ta.value.trim(); if(!text) return;
+  try {
+    const r=await apiFetch("/api/projects/"+p.id+"/supervisor-notes/"+id,"PUT",{text});
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    p.supervisor_notes=JSON.stringify(r.notes); supEditing=null; supRefresh(); toast("Note updated","#2e7d32");
+  } catch(e){ toast(e.message||"Save failed","#c0392b"); }
+}
+async function supDeleteNote(id){
+  const p=currentProject(); if(!p||!confirm("Delete this supervisor note?")) return;
+  try {
+    const r=await apiFetch("/api/projects/"+p.id+"/supervisor-notes/"+id,"DELETE");
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    p.supervisor_notes=JSON.stringify(r.notes); supRefresh(); toast("Note deleted","#888");
+  } catch(e){ toast(e.message||"Delete failed","#c0392b"); }
+}
+async function supAddTask(){
+  const p=currentProject(); const inp=document.getElementById("supTaskNew"); if(!p||!inp) return;
+  const task=inp.value.trim(); if(!task) return;
+  const deadline=document.getElementById("supTaskDue").value||"";
+  const btn=document.getElementById("supTaskAdd"); btn.disabled=true;
+  try {
+    const r=await apiFetch("/api/projects/"+p.id+"/supervisor-tasks","POST",{id:uid(),task,deadline});
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    state.tasks.push(r.task); supRefresh(); toast("Admin task added","#2e7d32");
+  } catch(e){ toast(e.message||"Could not add task","#c0392b"); } finally { btn.disabled=false; }
+}
+async function supSaveTask(id){
+  const t=state.tasks.find(x=>x.id===id); const ti=document.getElementById("supTaskEditText"); if(!t||!ti) return;
+  const task=ti.value.trim(); if(!task) return;
+  const deadline=document.getElementById("supTaskEditDue").value||"";
+  try {
+    const r=await apiFetch("/api/supervisor-tasks/"+id,"PUT",{task,deadline});
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    t.task=task; t.deadline=deadline; supEditing=null; supRefresh(); toast("Task updated","#2e7d32");
+  } catch(e){ toast(e.message||"Save failed","#c0392b"); }
+}
+async function supDeleteTask(id){
+  if(!confirm("Delete this admin task?")) return;
+  try {
+    const r=await apiFetch("/api/supervisor-tasks/"+id,"DELETE");
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    state.tasks=state.tasks.filter(x=>x.id!==id); supRefresh(); toast("Task deleted","#888");
+  } catch(e){ toast(e.message||"Delete failed","#c0392b"); }
+}
+async function supToggleTask(id,checked){
+  const t=state.tasks.find(x=>x.id===id); if(!t) return;
+  const before=t.done; t.done=checked;
+  try {
+    const r=await apiFetch("/api/tasks/"+id,"PUT",{...t,done:checked});
+    if(r.error) throw new Error(r.error);
+  } catch(e){ t.done=before; toast(e.message||"Could not update","#c0392b"); }
+  supRefresh();
+}
 
 // ── Contacts ──────────────────────────────────────────────────
 let editingContactId = null;
