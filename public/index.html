@@ -626,6 +626,15 @@ select{cursor:pointer;}
     </div>
   </div>
 
+  <!-- Search -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+    <div style="position:relative;flex:1;min-width:220px;max-width:480px;">
+      <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#888;font-size:15px;"></i>
+      <input id="contactSearch" type="search" placeholder="Search by name, company, or project…" autocomplete="off" style="width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
+    </div>
+    <span id="contactCount" style="font-size:12px;color:#888;"></span>
+  </div>
+
   <!-- Contact cards grid -->
   <div id="contactGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;"></div>
   <p id="contactsEmpty" class="empty-msg" style="display:none;">No contacts yet. Click Add contact to get started.</p>
@@ -2683,6 +2692,7 @@ function showThisWeek(){
 function showContacts(){
   hideAllViews();
   document.getElementById("contactsView").style.display = "block";
+  document.getElementById("contactSearch").value = "";
   renderContacts();
 }
 
@@ -2690,22 +2700,51 @@ function hideContacts(){
   showProjectBoard();
 }
 
+// Which of MY projects is this contact attached to? A project stores copies of its contacts, so match by
+// id first, then email, then name. The project's "prospect" text counts too.
+function projectsForContact(c){
+  const email = (c.email||"").trim().toLowerCase();
+  const name  = (c.name||"").trim().toLowerCase();
+  return (state.projects||[]).filter(p=>{
+    if((p.prospect||"").trim().toLowerCase() === name && name) return true;
+    return parseProjectContacts(p.contacts).some(pc=>
+      (pc.id && pc.id===c.id) ||
+      (email && (pc.email||"").trim().toLowerCase()===email) ||
+      (name && !pc.id && (pc.name||"").trim().toLowerCase()===name));
+  });
+}
+
 function renderContacts(){
   const grid  = document.getElementById("contactGrid");
   const empty = document.getElementById("contactsEmpty");
-  const contacts = state.contacts || [];
-  grid.innerHTML  = "";
-  empty.style.display = contacts.length ? "none" : "block";
+  const all = state.contacts || [];
+  const q = (document.getElementById("contactSearch").value||"").trim().toLowerCase();
+  const terms = q.split(/\s+/).filter(Boolean);   // every word must match somewhere: "acme laredo"
 
-  contacts.forEach(c => {
+  const rows = all.map(c=>({c, projects: projectsForContact(c)})).filter(({c,projects})=>{
+    if(!terms.length) return true;
+    const hay = [c.name, c.company, c.email, c.phone,
+                 ...projects.map(p=>(p.name||"")+" "+(p.address||""))].join(" ").toLowerCase();
+    return terms.every(t=>hay.includes(t));
+  });
+
+  grid.innerHTML  = "";
+  empty.style.display = rows.length ? "none" : "block";
+  empty.textContent = all.length ? "No contacts match \u201c"+document.getElementById("contactSearch").value.trim()+"\u201d." : "No contacts yet. Click Add contact to get started.";
+  document.getElementById("contactCount").textContent = terms.length ? rows.length+" of "+all.length : (all.length ? all.length+" contact"+(all.length===1?"":"s") : "");
+
+  rows.forEach(({c, projects}) => {
     const card = document.createElement("div");
     card.style.cssText = "background:#fff;border-radius:8px;padding:16px;border:1px solid var(--border);";
     const notesId = "notes-"+c.id;
+    const projChips = projects.length
+      ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${projects.map(p=>`<span title="${escapeHtml(p.address||"")}" style="font-size:11px;background:var(--cream);color:var(--navy);border-radius:999px;padding:2px 8px;"><i class="ti ti-building" style="margin-right:3px;"></i>${escapeHtml(p.name||"(unnamed)")}</span>`).join("")}</div>`
+      : "";
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
-          <div style="font-size:14px;font-weight:700;color:var(--navy);">${c.name||"(no name)"}</div>
-          <div style="font-size:12px;color:var(--gold);font-weight:600;">${c.company||""}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--navy);">${escapeHtml(c.name||"(no name)")}</div>
+          <div style="font-size:12px;color:var(--gold);font-weight:600;">${escapeHtml(c.company||"")}</div>
         </div>
         <div style="display:flex;gap:6px;">
           ${c.notes ? `<button onclick="toggleNotes('${c.id}')" title="Notes" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--gold);font-family:inherit;"><i class="ti ti-notes"></i></button>` : ""}
@@ -2713,13 +2752,15 @@ function renderContacts(){
           <button onclick="deleteContact('${c.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
         </div>
       </div>
-      ${c.email ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${c.email}</div>` : ""}
-      ${c.phone ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${c.phone}</div>` : ""}
-      ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${c.notes}</div>` : ""}
+      ${c.email ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${escapeHtml(c.email)}</div>` : ""}
+      ${c.phone ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${escapeHtml(c.phone)}</div>` : ""}
+      ${projChips}
+      ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${escapeHtml(c.notes)}</div>` : ""}
     `;
     grid.appendChild(card);
   });
 }
+document.getElementById("contactSearch").addEventListener("input", renderContacts);
 
 function toggleNotes(id){
   const el = document.getElementById("notes-"+id);
