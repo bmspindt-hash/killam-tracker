@@ -194,6 +194,7 @@ select{cursor:pointer;}
     <a onclick="showThisWeek();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-calendar-week" style="font-size:18px;color:var(--gold);"></i> This Week</a>
     <a onclick="showDashboard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-chart-bar" style="font-size:18px;color:var(--gold);"></i> Dashboard</a>
     <a onclick="showContacts();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-address-book" style="font-size:18px;color:var(--gold);"></i> Contacts</a>
+    <a id="mobileTeamLink" onclick="showTeam();toggleMobileMenu();" style="display:none;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-users" style="font-size:18px;color:var(--gold);"></i> Team</a>
     <a onclick="showArchive();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-archive" style="font-size:18px;color:var(--gold);"></i> Archive</a>
     <a onclick="exportData();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-download" style="font-size:18px;color:var(--gold);"></i> Export</a>
   </nav>
@@ -213,8 +214,8 @@ select{cursor:pointer;}
     </div>
     <div id="loginError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
     <div style="margin-bottom:14px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Username</label>
-      <input id="loginUsername" type="text" placeholder="Enter your username" autocomplete="username"
+      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email or username</label>
+      <input id="loginUsername" type="text" placeholder="you@killamco.com" autocomplete="username"
         style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
     </div>
     <div style="margin-bottom:24px;">
@@ -223,7 +224,7 @@ select{cursor:pointer;}
         style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
     </div>
     <button id="loginBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Sign in</button>
-    <p id="registerToggle" style="text-align:center;margin-top:14px;font-size:12px;color:#888;cursor:pointer;">First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span></p>
+    <p id="registerToggle" style="display:none;text-align:center;margin-top:14px;font-size:12px;color:#888;cursor:pointer;">First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span></p>
     <p style="text-align:center;margin-top:8px;font-size:12px;"><span id="showChangePwBtn" style="color:#888;cursor:pointer;text-decoration:underline;">Change password</span></p>
   <!-- Change password panel -->
   <div id="changePwPanel" style="display:none;position:absolute;inset:0;background:#fff;border-radius:12px;padding:32px 28px;flex-direction:column;justify-content:center;overflow-y:auto;">
@@ -252,6 +253,24 @@ select{cursor:pointer;}
   </div>
 </div>
 
+<!-- INVITE / SET-PASSWORD SCREEN (opened from an emailed or copied link) -->
+<div id="inviteScreen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <p style="text-align:center;color:var(--gold);background:var(--navy);border-radius:999px;padding:8px 18px;display:table;margin:0 auto 18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Killam Development</p>
+    <h2 id="inviteTitle" style="color:var(--navy);font-size:18px;font-weight:600;margin:0 0 6px;text-align:center;">Set your password</h2>
+    <p id="inviteSub" style="text-align:center;color:#888;font-size:12px;margin:0 0 20px;"></p>
+    <div id="inviteError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
+    <div id="inviteForm">
+      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">New password</label>
+      <input id="invPw" type="password" placeholder="At least 8 characters" autocomplete="new-password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:14px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Confirm password</label>
+      <input id="invPw2" type="password" placeholder="Type it again" autocomplete="new-password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:20px;box-sizing:border-box;">
+      <button id="invBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Save password &amp; sign in</button>
+    </div>
+    <p style="text-align:center;margin-top:14px;font-size:12px;"><span id="invToLogin" style="color:#888;cursor:pointer;text-decoration:underline;">Go to sign in</span></p>
+  </div>
+</div>
+
 <div id="app">
   <div id="header">
     <div style="display:flex;align-items:center;gap:16px;">
@@ -269,8 +288,10 @@ select{cursor:pointer;}
       <button id="btnThisWeek" class="btn-ghost"><i class="ti ti-calendar-week"></i> This week</button>
       <button id="btnDashboard" class="btn-ghost"><i class="ti ti-chart-bar"></i> Dashboard</button>
       <button id="btnContacts" class="btn-ghost"><i class="ti ti-address-book"></i> Contacts</button>
+      <button id="btnTeam" class="btn-ghost" style="display:none;"><i class="ti ti-users"></i> Team</button>
       <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> Archive</button>
       <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
+      <span id="userChip" style="display:none;color:#fff;font-size:11px;opacity:.85;align-self:center;white-space:nowrap;"></span>
       <button id="btnLogout" class="btn-ghost" style="border-color:rgba(255,100,100,.5);"><i class="ti ti-logout"></i> Sign out</button>
     </div>
   </div>
@@ -553,6 +574,15 @@ select{cursor:pointer;}
   <!-- Project cards -->
   <div id="projectGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"></div>
   <p id="projectsEmpty" class="empty-msg" style="display:none;">No projects yet. Click Add project to get started.</p>
+</div>
+
+<!-- TEAM VIEW (Owner manages; Supervisors can see the list) -->
+<div id="teamView" class="view" style="display:none;">
+  <div style="background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+    <h3 style="color:#fff;font-weight:500;font-size:16px;"><i class="ti ti-users"></i> Team</h3>
+    <button id="btnTeamBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to projects</button>
+  </div>
+  <div id="teamBody"></div>
 </div>
 
 <!-- CONTACTS VIEW -->
@@ -899,6 +929,7 @@ async function loadState(){
     state = data;
     if(!state.contacts) state.contacts = [];
     if(!state.projects) state.projects = [];
+    applyRole();
     document.getElementById("loadingMsg").style.display = "none";
     showProjectBoard();
   } catch(e) {
@@ -2436,12 +2467,201 @@ document.getElementById("projPickerClose").onclick  = () => {
   document.getElementById("projectPickerModal").style.display = "none";
 };
 
+// ── Roles & Team ──────────────────────────────────────────────
+// The server is what actually enforces permissions; this only decides what to SHOW.
+const ROLE_LABEL = {owner:"Owner", supervisor:"Supervisor", agent:"Agent"};
+function myRole(){ return (state.me && state.me.role) || "agent"; }
+
+function applyRole(){
+  const me = state.me || {};
+  const canSeeTeam = me.role==="owner" || me.role==="supervisor";
+  document.getElementById("btnTeam").style.display      = canSeeTeam ? "" : "none";
+  document.getElementById("mobileTeamLink").style.display = canSeeTeam ? "flex" : "none";
+  const chip = document.getElementById("userChip");
+  chip.textContent = (me.name || me.username || "") + (me.role ? " · " + ROLE_LABEL[me.role] : "");
+  chip.style.display = me.role ? "" : "none";
+}
+
+async function refreshState(){
+  const data = await apiFetch("/api/state");
+  if(data.error) throw new Error(data.error);
+  state = data;
+  if(!state.contacts) state.contacts = [];
+  if(!state.projects) state.projects = [];
+}
+
+let teamUsers = [];
+function showTeam(){
+  hideAllViews();
+  document.getElementById("teamView").style.display = "block";
+  renderTeam();
+}
+
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); return true; } catch(e){ return false; }
+}
+
+function inviteLinkBox(link){
+  return '<div style="background:#f4f7fa;border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px;">'
+    + '<p style="font-size:12px;color:#555;margin:0 0 8px;">Send this link to the person. It works once and expires in 7 days.</p>'
+    + '<div style="display:flex;gap:8px;"><input class="teamLinkInput" readonly value="'+escapeHtml(link)+'" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;">'
+    + '<button class="btn-blue teamCopyBtn" type="button"><i class="ti ti-copy"></i> Copy</button></div></div>';
+}
+
+async function renderTeam(){
+  const root = document.getElementById("teamBody");
+  root.innerHTML = '<p class="empty-msg">Loading…</p>';
+  let r;
+  try { r = await apiFetch("/api/users"); } catch(e){ return; }
+  if(r.error){ root.innerHTML = '<p class="empty-msg">'+escapeHtml(r.error)+'</p>'; return; }
+  teamUsers = r.users;
+  const isOwner = myRole()==="owner";
+  const myId = state.me && state.me.id;
+  const card = 'background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;';
+  const h = 'font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;';
+  const inp = 'width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;';
+  let html = "";
+
+  if(isOwner){
+    html += '<div style="'+card+'"><p style="'+h+'">Invite someone</p>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      + '<input id="invName" placeholder="Full name" style="'+inp+'flex:1;min-width:160px;">'
+      + '<input id="invEmail" type="email" placeholder="Email" style="'+inp+'flex:1;min-width:200px;">'
+      + '<select id="invRole" style="'+inp+'"><option value="agent">Agent</option><option value="supervisor">Supervisor</option></select>'
+      + '<button id="invSend" class="btn-gold" type="button">Create invite</button></div>'
+      + '<p id="invMsg" style="display:none;font-size:12px;color:#a32d2d;margin:10px 0 0;"></p>'
+      + '<div id="invLinkHolder"></div></div>';
+  }
+
+  html += '<div style="'+card+'overflow-x:auto;"><p style="'+h+'">People</p>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">'
+    + '<th style="padding:6px 8px;">Name</th><th style="padding:6px 8px;">Email</th><th style="padding:6px 8px;">Role</th><th style="padding:6px 8px;">Status</th><th style="padding:6px 8px;text-align:right;">Projects</th>'
+    + (isOwner ? '<th style="padding:6px 8px;"></th>' : '') + '</tr></thead><tbody>';
+  teamUsers.forEach(u=>{
+    const status = !u.active ? '<span style="color:#a32d2d;">Deactivated</span>' : u.pending ? '<span style="color:#b26a00;">Invite pending</span>' : '<span style="color:#2e7d32;">Active</span>';
+    let roleCell = escapeHtml(ROLE_LABEL[u.role]||u.role);
+    if(isOwner && u.role!=="owner"){
+      roleCell = '<select class="teamRole" data-id="'+escapeHtml(u.id)+'" style="'+inp+'padding:4px 8px;"><option value="agent"'+(u.role==="agent"?" selected":"")+'>Agent</option><option value="supervisor"'+(u.role==="supervisor"?" selected":"")+'>Supervisor</option></select>';
+    }
+    let actions = "";
+    if(isOwner && u.role!=="owner"){
+      actions = (u.active ? '<button class="btn-ghost teamLink" data-id="'+escapeHtml(u.id)+'" style="color:var(--navy);border-color:var(--border);">'+(u.pending?"New invite link":"Reset link")+'</button> ' : '')
+        + '<button class="btn-ghost teamActive" data-id="'+escapeHtml(u.id)+'" data-active="'+(u.active?"0":"1")+'" style="color:'+(u.active?"#a32d2d":"var(--navy)")+';border-color:var(--border);">'+(u.active?"Deactivate":"Reactivate")+'</button>';
+    }
+    html += '<tr style="border-top:1px solid var(--border);"><td style="padding:10px 8px;font-weight:600;">'+escapeHtml(u.name||u.username)+'</td>'
+      + '<td style="padding:10px 8px;color:#555;">'+escapeHtml(u.email||u.username)+'</td>'
+      + '<td style="padding:10px 8px;">'+roleCell+'</td><td style="padding:10px 8px;">'+status+'</td>'
+      + '<td style="padding:10px 8px;text-align:right;">'+u.projectCount+'</td>'
+      + (isOwner ? '<td style="padding:10px 8px;text-align:right;white-space:nowrap;">'+actions+'</td>' : '') + '</tr>';
+  });
+  html += '</tbody></table><div id="teamLinkHolder"></div></div>';
+
+  // Hand off my own projects to someone else
+  const targets = teamUsers.filter(u=>u.active && !u.pending && u.id!==myId);
+  html += '<div style="'+card+'"><p style="'+h+'">Hand off projects</p>';
+  if(!state.projects.length){
+    html += '<p style="font-size:13px;color:#888;margin:0;">You have no projects to hand off.</p>';
+  } else if(!targets.length){
+    html += '<p style="font-size:13px;color:#888;margin:0;">Nobody has accepted an invite yet. Once they sign in you can hand projects to them here.</p>';
+  } else {
+    html += '<p style="font-size:12px;color:#555;margin:0 0 10px;">Pick projects and who should take them over. Their journal notes, files, and tasks move with them.</p>'
+      + '<div id="handoffList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:12px;">'
+      + state.projects.map(p=>'<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer;"><input type="checkbox" class="handoffChk" style="width:auto;margin:0;" value="'+escapeHtml(p.id)+'"> <span>'+escapeHtml(p.name||"(unnamed)")+(p.address?' <span style="color:#888;">— '+escapeHtml(p.address)+'</span>':'')+'</span></label>').join("")
+      + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+      + '<select id="handoffTo" style="'+inp+'">'+targets.map(u=>'<option value="'+escapeHtml(u.id)+'">'+escapeHtml(u.name||u.username)+' ('+escapeHtml(ROLE_LABEL[u.role])+')</option>').join("")+'</select>'
+      + '<button id="handoffGo" class="btn-gold" type="button">Hand off selected</button>'
+      + '<button id="handoffAll" class="btn-ghost" type="button" style="color:var(--navy);border-color:var(--border);">Select all</button></div>';
+  }
+  html += '</div>';
+  root.innerHTML = html;
+  wireTeam();
+}
+
+function wireTeam(){
+  const root = document.getElementById("teamBody");
+  const showLink = (holderId, link)=>{
+    const holder = document.getElementById(holderId);
+    holder.innerHTML = inviteLinkBox(link);
+    const input = holder.querySelector(".teamLinkInput");
+    holder.querySelector(".teamCopyBtn").onclick = async()=>{
+      input.select();
+      toast((await copyText(link)) ? "Link copied" : "Press Ctrl+C to copy", "#2e7d32");
+    };
+    input.select();
+  };
+  const send = document.getElementById("invSend");
+  if(send) send.onclick = async()=>{
+    const msg = document.getElementById("invMsg"); msg.style.display="none";
+    const name = document.getElementById("invName").value.trim();
+    const email = document.getElementById("invEmail").value.trim();
+    const role = document.getElementById("invRole").value;
+    send.disabled = true;
+    try {
+      const r = await apiFetch("/api/users/invite","POST",{name,email,role});
+      if(r.error){ msg.textContent = r.error; msg.style.display="block"; return; }
+      await renderTeam();
+      showLink("invLinkHolder", r.inviteLink);
+      toast("Invite created for "+name,"#2e7d32");
+    } catch(e){ msg.textContent = e.message; msg.style.display="block"; }
+    finally { send.disabled = false; }
+  };
+  root.querySelectorAll(".teamRole").forEach(sel=>{
+    sel.onchange = async()=>{
+      const r = await apiFetch("/api/users/"+sel.dataset.id,"PATCH",{role:sel.value});
+      if(r.error){ toast(r.error,"#c0392b"); } else toast("Role updated","#2e7d32");
+      renderTeam();
+    };
+  });
+  root.querySelectorAll(".teamActive").forEach(b=>{
+    b.onclick = async()=>{
+      const on = b.dataset.active==="1";
+      if(!on && !confirm("Deactivate this person? They are signed out immediately. Their projects stay where they are until you hand them off.")) return;
+      const r = await apiFetch("/api/users/"+b.dataset.id,"PATCH",{active:on});
+      if(r.error) toast(r.error,"#c0392b"); else toast(on?"Reactivated":"Deactivated","#2e7d32");
+      renderTeam();
+    };
+  });
+  root.querySelectorAll(".teamLink").forEach(b=>{
+    b.onclick = async()=>{
+      const r = await apiFetch("/api/users/"+b.dataset.id+"/link","POST");
+      if(r.error){ toast(r.error,"#c0392b"); return; }
+      showLink("teamLinkHolder", r.inviteLink);
+    };
+  });
+  const go = document.getElementById("handoffGo");
+  if(go){
+    document.getElementById("handoffAll").onclick = ()=>{
+      const boxes = [...root.querySelectorAll(".handoffChk")];
+      const all = boxes.every(b=>b.checked);
+      boxes.forEach(b=>b.checked = !all);
+    };
+    go.onclick = async()=>{
+      const ids = [...root.querySelectorAll(".handoffChk:checked")].map(b=>b.value);
+      if(!ids.length){ toast("Choose at least one project","#c0392b"); return; }
+      const sel = document.getElementById("handoffTo");
+      const who = sel.options[sel.selectedIndex].textContent;
+      if(!confirm("Hand "+ids.length+" project"+(ids.length>1?"s":"")+" to "+who+"? They will disappear from your board.")) return;
+      go.disabled = true;
+      try {
+        const r = await apiFetch("/api/projects/reassign","POST",{projectIds:ids,userId:sel.value});
+        if(r.error){ toast(r.error,"#c0392b"); return; }
+        await refreshState();
+        toast(r.moved+" project"+(r.moved===1?"":"s")+" handed off","#2e7d32");
+        renderTeam();
+      } catch(e){ toast(e.message||"Hand-off failed","#c0392b"); }
+      finally { go.disabled = false; }
+    };
+  }
+}
+document.getElementById("btnTeam").onclick = showTeam;
+document.getElementById("btnTeamBack").onclick = showProjectBoard;
+
 // ── Contacts ──────────────────────────────────────────────────
 let editingContactId = null;
 let pickerCallback   = null;
 
 // ── View management ───────────────────────────────────────────
-const ALL_VIEWS = ["projectBoardView","projectDetailView","thisWeekView","activeView","archiveView","dashboardView","contactsView","projectsView"];
+const ALL_VIEWS = ["projectBoardView","projectDetailView","thisWeekView","activeView","archiveView","dashboardView","contactsView","projectsView","teamView"];
 
 function hideAllViews(){
   ALL_VIEWS.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
@@ -3479,7 +3699,48 @@ document.getElementById("btnLogout").onclick = () => {
   showLoginScreen();
 };
 
+// ── Invitation link (?invite=...) ─────────────────────────────
+async function handleInviteLink(inviteToken){
+  const scr = document.getElementById("inviteScreen");
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "none";
+  scr.style.display = "flex";
+  const err = document.getElementById("inviteError");
+  const showErr = m=>{ err.textContent = m; err.style.display = "block"; };
+  try {
+    const res = await fetch(API+"/api/auth/invite/"+encodeURIComponent(inviteToken));
+    const info = await res.json();
+    if(!res.ok){ document.getElementById("inviteForm").style.display="none"; showErr(info.error||"This link is not valid."); return; }
+    document.getElementById("inviteTitle").textContent = info.isNew ? "Welcome" + (info.name ? ", "+info.name.split(" ")[0] : "") : "Choose a new password";
+    document.getElementById("inviteSub").textContent = info.email || "";
+  } catch(e){ document.getElementById("inviteForm").style.display="none"; showErr("Connection error. Please try again."); return; }
+  const done = ()=>{ history.replaceState(null,"",location.pathname); };
+  document.getElementById("invToLogin").onclick = ()=>{ done(); location.reload(); };
+  document.getElementById("invBtn").onclick = async()=>{
+    err.style.display = "none";
+    const pw = document.getElementById("invPw").value, pw2 = document.getElementById("invPw2").value;
+    if(pw.length < 8){ showErr("Password must be at least 8 characters."); return; }
+    if(pw !== pw2){ showErr("Passwords do not match."); return; }
+    const btn = document.getElementById("invBtn"); btn.disabled = true;
+    try {
+      const res = await fetch(API+"/api/auth/accept-invite",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:inviteToken,password:pw})});
+      const data = await res.json();
+      if(!res.ok){ showErr(data.error||"Something went wrong."); return; }
+      localStorage.setItem("kd_token", data.token);
+      localStorage.setItem("kd_username", data.username);
+      done();
+      scr.style.display = "none";
+      document.getElementById("app").style.display = "block";
+      loadState();
+    } catch(e){ showErr("Connection error. Please try again."); }
+    finally { btn.disabled = false; }
+  };
+  document.getElementById("invPw2").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("invBtn").click(); });
+}
+
 (async () => {
+  const inviteToken = new URLSearchParams(location.search).get("invite");
+  if(inviteToken){ handleInviteLink(inviteToken); return; }
   const token = localStorage.getItem("kd_token");
   if(token){
     document.getElementById("loginScreen").style.display = "none";
