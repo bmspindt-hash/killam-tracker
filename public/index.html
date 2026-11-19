@@ -1295,13 +1295,16 @@ function renderProjectBoard(){
     const isStaleRed    = idleDays >= 14;
     const isStaleYellow = !isStaleRed && idleDays >= 7;
     const glowColor     = isStaleRed ? "#c62828" : isStaleYellow ? "#f9a825" : null;
-    const glowShadow    = glowColor ? `0 0 0 2px ${glowColor}, 0 0 14px 2px ${glowColor}66` : "none";
+    const flagged       = !!p.sup_flag_at;   // unseen supervisor flag: purple outline (stacks with the idle glow)
+    const flagRing      = flagged ? "0 0 0 2px #6a1b9a" : "";
+    const idleRing      = glowColor ? `0 0 0 ${flagged?4:2}px ${glowColor}, 0 0 14px 2px ${glowColor}66` : "";
+    const glowShadow    = [flagRing, idleRing].filter(Boolean).join(", ") || "none";
 
     const card = document.createElement("div");
     const prioBg = p.priority==="High"?"#fff5f5":p.priority==="Medium"?"#fff8f0":p.priority==="Low"?"#fffef0":"#fff";
     const prioBorder = p.priority==="High"?"#ffcdd2":p.priority==="Medium"?"#ffe0b2":p.priority==="Low"?"#fff9c4":p.priority?"var(--border)":"var(--border)";
-    card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;box-shadow:${glowShadow};`;
-    card.onmouseenter = ()=>card.style.boxShadow = glowColor ? `0 0 0 2px ${glowColor}, 0 0 18px 4px ${glowColor}88, 0 4px 16px rgba(0,0,0,.12)` : "0 4px 16px rgba(0,0,0,.1)";
+    card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${flagged?"#6a1b9a":prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;box-shadow:${glowShadow};`;
+    card.onmouseenter = ()=>card.style.boxShadow = [flagRing, glowColor ? `0 0 0 ${flagged?4:2}px ${glowColor}, 0 0 18px 4px ${glowColor}88, 0 4px 16px rgba(0,0,0,.12)` : "0 4px 16px rgba(0,0,0,.1)"].filter(Boolean).join(", ");
     card.onmouseleave = ()=>card.style.boxShadow = glowShadow;
     // Unseen supervisor flag: a purple ribbon across the top until the project's owner opens it.
     const flagRibbon = p.sup_flag_at
@@ -2615,6 +2618,7 @@ async function refreshState(){
 }
 
 let teamUsers = [];
+let teamEditingId = null;   // which person's name/email is being edited on the Team screen
 function showTeam(){
   if(reviewing){ endReview(true); return; }
   hideAllViews();
@@ -2673,8 +2677,20 @@ async function renderTeam(){
       actions = (u.active ? '<button class="btn-ghost teamLink" data-id="'+escapeHtml(u.id)+'" style="color:var(--navy);border-color:var(--border);">'+(u.pending?"New invite link":"Reset link")+'</button> ' : '')
         + '<button class="btn-ghost teamActive" data-id="'+escapeHtml(u.id)+'" data-active="'+(u.active?"0":"1")+'" style="color:'+(u.active?"#a32d2d":"var(--navy)")+';border-color:var(--border);">'+(u.active?"Deactivate":"Reactivate")+'</button>';
     }
-    html += '<tr style="border-top:1px solid var(--border);"><td style="padding:10px 8px;font-weight:600;">'+escapeHtml(u.name||u.username)+'</td>'
-      + '<td style="padding:10px 8px;color:#555;">'+escapeHtml(u.email||u.username)+'</td>'
+    const ghost = 'color:var(--navy);border-color:var(--border);';
+    let nameCell = '<span style="font-weight:600;">'+escapeHtml(u.name||u.username)+'</span>';
+    let emailCell = escapeHtml(u.email||u.username);
+    if(isOwner && teamEditingId===u.id){
+      nameCell  = '<input class="teamEditName" value="'+escapeHtml(u.name||"")+'" placeholder="Full name" style="'+inp+'padding:4px 8px;width:100%;box-sizing:border-box;">';
+      emailCell = '<input class="teamEditEmail" type="email" value="'+escapeHtml(u.email||u.username)+'" style="'+inp+'padding:4px 8px;width:100%;box-sizing:border-box;">'
+                + '<div class="teamEditMsg" style="display:none;color:#a32d2d;font-size:11px;margin-top:4px;"></div>';
+      actions = '<button class="btn-gold teamEditSave" data-id="'+escapeHtml(u.id)+'" style="padding:4px 14px;">Save</button> '
+              + '<button class="btn-ghost teamEditCancel" style="'+ghost+'">Cancel</button>';
+    } else if(isOwner){
+      actions = '<button class="btn-ghost teamEdit" data-id="'+escapeHtml(u.id)+'" style="'+ghost+'"><i class="ti ti-pencil"></i> Edit</button> ' + actions;
+    }
+    html += '<tr style="border-top:1px solid var(--border);"><td style="padding:10px 8px;">'+nameCell+'</td>'
+      + '<td style="padding:10px 8px;color:#555;">'+emailCell+'</td>'
       + '<td style="padding:10px 8px;">'+roleCell+'</td><td style="padding:10px 8px;">'+status+'</td>'
       + '<td style="padding:10px 8px;text-align:right;">'+u.projectCount+'</td>'
       + (isOwner ? '<td style="padding:10px 8px;text-align:right;white-space:nowrap;">'+actions+'</td>' : '') + '</tr>';
@@ -2731,6 +2747,33 @@ function wireTeam(){
     } catch(e){ msg.textContent = e.message; msg.style.display="block"; }
     finally { send.disabled = false; }
   };
+  root.querySelectorAll(".teamEdit").forEach(b=>{
+    b.onclick = ()=>{ teamEditingId = b.dataset.id; renderTeam(); };
+  });
+  root.querySelectorAll(".teamEditCancel").forEach(b=>{
+    b.onclick = ()=>{ teamEditingId = null; renderTeam(); };
+  });
+  root.querySelectorAll(".teamEditSave").forEach(b=>{
+    const row = b.closest("tr");
+    const save = async()=>{
+      const msg = row.querySelector(".teamEditMsg"); msg.style.display = "none";
+      const name = row.querySelector(".teamEditName").value.trim();
+      const email = row.querySelector(".teamEditEmail").value.trim();
+      b.disabled = true;
+      try {
+        const r = await apiFetch("/api/users/"+b.dataset.id,"PATCH",{name,email});
+        if(r.error){ msg.textContent = r.error; msg.style.display = "block"; return; }
+        const mine = state.me && b.dataset.id===state.me.id;
+        teamEditingId = null;
+        if(mine){ await refreshState(); applyRole(); }   // header chip shows the corrected name
+        toast("Saved","#2e7d32");
+        renderTeam();
+      } catch(e){ msg.textContent = e.message||"Save failed"; msg.style.display = "block"; }
+      finally { b.disabled = false; }
+    };
+    b.onclick = save;
+    row.querySelectorAll("input").forEach(i=>i.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); if(e.key==="Escape"){ teamEditingId=null; renderTeam(); } }));
+  });
   root.querySelectorAll(".teamRole").forEach(sel=>{
     sel.onchange = async()=>{
       const r = await apiFetch("/api/users/"+sel.dataset.id,"PATCH",{role:sel.value});
