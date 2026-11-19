@@ -1239,7 +1239,20 @@ const BOARD_SECTIONS = [
 // ── Project Board ──────────────────────────────────────────────
 let currentProjectId = null;
 
+// A count on the Projects button: how many of my projects have an unseen supervisor flag.
+function updateFlagBadge(){
+  const btn = document.getElementById("btnProjects");
+  let b = document.getElementById("projFlagBadge");
+  const n = reviewing ? 0 : (state.projects||[]).filter(p=>p.sup_flag_at).length;
+  if(!n){ if(b) b.remove(); return; }
+  if(!b){ b = document.createElement("span"); b.id = "projFlagBadge"; btn.appendChild(b); }
+  b.style.cssText = "display:inline-block;min-width:16px;margin-left:6px;padding:1px 6px;border-radius:999px;background:#6a1b9a;color:#fff;font-size:10px;font-weight:700;text-align:center;";
+  b.title = n+" project"+(n>1?"s":"")+" with something new from a supervisor";
+  b.textContent = n;
+}
+
 function renderProjectBoard(){
+  updateFlagBadge();
   const search = document.getElementById("projectBoardSearch").value.toLowerCase();
   const filter = document.getElementById("projectBoardFilter").value;
 
@@ -1290,7 +1303,11 @@ function renderProjectBoard(){
     card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;box-shadow:${glowShadow};`;
     card.onmouseenter = ()=>card.style.boxShadow = glowColor ? `0 0 0 2px ${glowColor}, 0 0 18px 4px ${glowColor}88, 0 4px 16px rgba(0,0,0,.12)` : "0 4px 16px rgba(0,0,0,.1)";
     card.onmouseleave = ()=>card.style.boxShadow = glowShadow;
-    card.innerHTML = `
+    // Unseen supervisor flag: a purple ribbon across the top until the project's owner opens it.
+    const flagRibbon = p.sup_flag_at
+      ? `<div class="supFlag" style="margin:-18px -18px 12px;background:#6a1b9a;color:#fff;border-radius:9px 9px 0 0;padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:6px;"><i class="ti ti-flag-3"></i><span>${p.sup_flag_text?"New · "+escapeHtml(p.sup_flag_text):"New from supervisor"}</span></div>`
+      : "";
+    card.innerHTML = flagRibbon + `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
         <div style="flex:1;">
           <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:3px;">${p.name}</div>
@@ -1418,6 +1435,7 @@ document.getElementById("btnAddProjectBoard").onclick = ()=>{
 async function markProjectOpened(p){
   if(reviewing) return;   // looking at someone else's project must not reset its idle clock
   p.last_opened_at = new Date().toISOString();
+  p.sup_flag_at = null; p.sup_flag_text = null;   // opening it counts as seeing the supervisor's flag
   try {
     await apiFetch("/api/projects/"+p.id+"/opened", "PATCH");
   } catch(e){
@@ -2783,8 +2801,9 @@ async function renderTeamOverview(){
   holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head
     + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">'
     + r.people.map(u=>{
-        const idle = (u.idleRed||u.idleYellow)
-          ? `<div style="display:flex;gap:6px;margin-top:10px;">${u.idleRed?`<span style="font-size:10px;font-weight:700;color:#c62828;background:#c6282818;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleRed} idle 14d+</span>`:""}${u.idleYellow?`<span style="font-size:10px;font-weight:700;color:#b26a00;background:#f9a82522;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleYellow} idle 7d+</span>`:""}</div>`
+        const unseen = u.flagged ? `<span title="Projects where ${escapeHtml(u.name)} hasn't opened your note, task, or assignment yet" style="font-size:10px;font-weight:700;color:#6a1b9a;background:#6a1b9a18;padding:3px 9px;border-radius:999px;"><i class="ti ti-flag-3"></i> ${u.flagged} unseen</span>` : "";
+        const idle = (u.idleRed||u.idleYellow||u.flagged)
+          ? `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">${unseen}${u.idleRed?`<span style="font-size:10px;font-weight:700;color:#c62828;background:#c6282818;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleRed} idle 14d+</span>`:""}${u.idleYellow?`<span style="font-size:10px;font-weight:700;color:#b26a00;background:#f9a82522;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleYellow} idle 7d+</span>`:""}</div>`
           : "";
         const split = [u.leases?u.leases+" lease"+(u.leases>1?"s":""):"", u.salesPurchases?u.salesPurchases+" sale/purchase"+(u.salesPurchases>1?"s":""):""].filter(Boolean).join(" · ");
         return `<button type="button" class="teamCard" data-id="${escapeHtml(u.id)}" style="text-align:left;background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;font-family:inherit;transition:box-shadow .15s;">
