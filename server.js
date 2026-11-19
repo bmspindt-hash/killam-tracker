@@ -214,6 +214,9 @@ async function initDB() {
     -- Supervisor layer: notes live in their own column so an agent saving their own journal can never overwrite
     -- them; supervisor-created tasks are flagged and remember who made them.
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS supervisor_notes TEXT DEFAULT '[]';
+    -- "Unseen" flag: set when a supervisor assigns a project or leaves a note/task on it; cleared when its owner opens it.
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS sup_flag_at   TIMESTAMP;
+    ALTER TABLE projects  ADD COLUMN IF NOT EXISTS sup_flag_text TEXT;
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS supervisor BOOLEAN DEFAULT FALSE;
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS created_by TEXT;
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS created_by_name TEXT DEFAULT '';
@@ -706,7 +709,7 @@ app.patch("/api/projects/:id/status", requireAuth, projectAccess("write"), async
 // make a neglected project look fresh.
 app.patch("/api/projects/:id/opened", requireAuth, projectAccess("read"), async (req, res) => {
   const result = await pool.query(
-    "UPDATE projects SET last_opened_at=NOW() WHERE id=$1 AND owner_id=$2 RETURNING last_opened_at",
+    "UPDATE projects SET last_opened_at=NOW(), sup_flag_at=NULL, sup_flag_text=NULL WHERE id=$1 AND owner_id=$2 RETURNING last_opened_at",
     [req.params.id, req.user.id]
   );
   res.json({ ok: true, last_opened_at: result.rows[0]?.last_opened_at });
@@ -748,7 +751,9 @@ app.post("/api/projects/reassign", requireAuth, requireRole("owner", "supervisor
       const p = await client.query("SELECT id, name, address, owner_id FROM projects WHERE id=$1 FOR UPDATE", [pid]);
       if (!p.rows.length || p.rows[0].owner_id === toId) continue;
       const row = p.rows[0];
-      await client.query("UPDATE projects SET owner_id=$1 WHERE id=$2", [toId, pid]);
+      // Handing a project to someone else flags it for them; taking one yourself clears any flag.
+      if (toId === req.user.id) await client.query("UPDATE projects SET owner_id=$1, sup_flag_at=NULL, sup_flag_text=NULL WHERE id=$2", [toId, pid]);
+      else await client.query("UPDATE projects SET owner_id=$1, sup_flag_at=NOW(), sup_flag_text=$3 WHERE id=$2", [toId, pid, "Assigned by " + shortName(req.user)]);
       const t = await client.query(
         "UPDATE tasks SET owner_id=$1 WHERE owner_id=$2 AND btrim(title) = btrim($3)",
         [toId, row.owner_id, `${row.name || ""} — ${row.address || ""}`]);
@@ -769,6 +774,7 @@ app.post("/api/projects/reassign", requireAuth, requireRole("owner", "supervisor
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const supervisorsOnly = requireRole("owner", "supervisor");
 const displayName = (u) => (u.name && u.name.trim()) || u.username;
+const shortName = (u) => ((u.name && u.name.trim()) ? u.name.trim().split(/\s+/)[0] : String(u.username).split("@")[0]);
 
 async function mutateSupervisorNotes(projectId, fn) {
   const client = await pool.connect();
@@ -786,6 +792,17 @@ async function mutateSupervisorNotes(projectId, fn) {
   } catch (e) { await client.query("ROLLBACK").catch(() => {}); throw e; }
   finally { client.release(); }
 }
+// Raise the "unseen" flag on a project for its owner. Labels pile up ("Assigned by Tano · New note") until the
+// owner opens the project. A supervisor working on their own project flags nothing.
+async function flagProject(db, project, actor, label) {
+  if (!project || project.owner_id === actor.id) return;
+  await db.query(
+    `UPDATE projects SET sup_flag_at = NOW(),
+       sup_flag_text = CASE WHEN COALESCE(sup_flag_text,'') = '' THEN $2
+                            WHEN position($2 in sup_flag_text) > 0 THEN sup_flag_text
+                            ELSE sup_flag_text || ' · ' || $2 END
+     WHERE id = $1`, [project.id, label]);
+}
 const cleanText = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
 
 app.post("/api/projects/:id/supervisor-notes", requireAuth, supervisorsOnly, projectAccess("read"), async (req, res) => {
@@ -795,6 +812,7 @@ app.post("/api/projects/:id/supervisor-notes", requireAuth, supervisorsOnly, pro
     const out = await mutateSupervisorNotes(req.params.id, list => {
       list.unshift({ id: crypto.randomBytes(6).toString("hex"), date: new Date().toISOString(), text, authorId: req.user.id, authorName: displayName(req.user) });
     });
+    await flagProject(pool, req.project, req.user, "New note");
     res.json({ ok: true, notes: out.notes });
   } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
@@ -842,6 +860,7 @@ app.post("/api/projects/:id/supervisor-tasks", requireAuth, supervisorsOnly, pro
     await pool.query(
       "INSERT INTO tasks (id,title,task,status,notes,deadline,contact,done,week_id,owner_id,supervisor,created_by,created_by_name) VALUES ($1,$2,$3,'Not started','',$4,'',FALSE,$5,$6,TRUE,$7,$8)",
       [id, title, task, deadline, weekId, p.owner_id, req.user.id, displayName(req.user)]);
+    await flagProject(pool, { id: req.params.id, owner_id: p.owner_id }, req.user, "New task");
     res.json({ ok: true, task: { id, title, task, status: "Not started", notes: "", deadline, contact: "", done: false, supervisor: true, createdBy: req.user.id, createdByName: displayName(req.user) } });
   } catch (e) {
     if (e.code === "23505") return res.status(409).json({ error: "That task already exists" });
@@ -887,6 +906,7 @@ app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => 
         COUNT(*) FILTER (WHERE COALESCE(status,'') NOT IN ('Closed','Completed','Dead'))::int AS active,
         COUNT(*) FILTER (WHERE COALESCE(status,'') NOT IN ('Closed','Completed','Dead') AND last_opened_at < NOW() - INTERVAL '14 days')::int AS idle_red,
         COUNT(*) FILTER (WHERE COALESCE(status,'') NOT IN ('Closed','Completed','Dead') AND last_opened_at < NOW() - INTERVAL '7 days' AND last_opened_at >= NOW() - INTERVAL '14 days')::int AS idle_yellow,
+        COUNT(*) FILTER (WHERE sup_flag_at IS NOT NULL)::int AS flagged,
         COUNT(*) FILTER (WHERE type IN ('Lease','Renewal'))::int AS leases,
         COUNT(*) FILTER (WHERE type IN ('Sale','Purchase'))::int AS sales_purchases
       FROM projects GROUP BY owner_id`);
@@ -902,7 +922,7 @@ app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => 
       id: u.id, name: u.name || u.username, role: u.role,
       totalProjects: P[u.id]?.total || 0, activeProjects: P[u.id]?.active || 0,
       idleRed: P[u.id]?.idle_red || 0, idleYellow: P[u.id]?.idle_yellow || 0,
-      leases: P[u.id]?.leases || 0, salesPurchases: P[u.id]?.sales_purchases || 0,
+      flagged: P[u.id]?.flagged || 0, leases: P[u.id]?.leases || 0, salesPurchases: P[u.id]?.sales_purchases || 0,
       openTasks: T[u.id]?.open_tasks || 0, overdue: T[u.id]?.overdue || 0, supervisorOpen: T[u.id]?.supervisor_open || 0
     })) });
   } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
