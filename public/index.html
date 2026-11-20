@@ -24,6 +24,7 @@ button{font-family:"Montserrat",Arial,sans-serif;font-size:11px;font-weight:600;
 button:hover{opacity:.85;}
 .btn-blue{background:#4a90c4;color:#fff;border:1px solid #3a7aaa;padding:8px 16px;}
 .btn-gold{background:var(--gold);color:#1c1305;border:1px solid var(--gold2);padding:8px 16px;}
+.btn-team{background:#6a1b9a;color:#fff;border:1px solid #4a148c;padding:8px 16px;}
 .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);padding:8px 16px;}
 .btn-white{background:#fff;color:var(--navy);border:1px solid #fff;padding:8px 16px;}
 #header{background:var(--navy);color:#fff;padding:18px 20px;
@@ -200,12 +201,12 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
   </div>
   <nav style="padding:12px 0;">
     <a onclick="showProjectBoard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-building" style="font-size:18px;color:var(--gold);"></i> Projects</a>
-    <a onclick="showThisWeek();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-calendar-week" style="font-size:18px;color:var(--gold);"></i> This Week</a>
+    <a id="mobileTeamLink" onclick="showTeam();toggleMobileMenu();" style="display:none;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);background:#6a1b9a;"><i class="ti ti-users" style="font-size:18px;color:var(--gold);"></i> Team</a>
     <a onclick="showDashboard();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-chart-bar" style="font-size:18px;color:var(--gold);"></i> Dashboard</a>
+    <a onclick="showThisWeek();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-calendar-week" style="font-size:18px;color:var(--gold);"></i> This Week</a>
     <a onclick="showContacts();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-address-book" style="font-size:18px;color:var(--gold);"></i> Contacts</a>
-    <a id="mobileTeamLink" onclick="showTeam();toggleMobileMenu();" style="display:none;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-users" style="font-size:18px;color:var(--gold);"></i> Team</a>
     <a onclick="showArchive();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-archive" style="font-size:18px;color:var(--gold);"></i> Archive</a>
-    <a onclick="exportData();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-download" style="font-size:18px;color:var(--gold);"></i> Export</a>
+    <a id="mobileExportLink" onclick="document.getElementById('btnExport').click();toggleMobileMenu();" style="display:none;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-download" style="font-size:18px;color:var(--gold);"></i> Export</a>
   </nav>
   <div style="padding:20px;margin-top:auto;border-top:1px solid rgba(255,255,255,.1);">
     <button onclick="document.getElementById('btnLogout').click();toggleMobileMenu();" style="width:100%;padding:12px;background:rgba(255,100,100,.2);border:1px solid rgba(255,100,100,.4);border-radius:999px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;"><i class="ti ti-logout"></i> Sign out</button>
@@ -294,12 +295,12 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
     <button id="hamburger" onclick="toggleMobileMenu()" style="display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px 8px;">&#9776;</button>
     <div id="hbtns">
       <button id="btnProjects" class="btn-blue"><i class="ti ti-building"></i> Projects</button>
-      <button id="btnThisWeek" class="btn-ghost"><i class="ti ti-calendar-week"></i> This week</button>
+      <button id="btnTeam" class="btn-team" style="display:none;"><i class="ti ti-users"></i> Team</button>
       <button id="btnDashboard" class="btn-ghost"><i class="ti ti-chart-bar"></i> Dashboard</button>
+      <button id="btnThisWeek" class="btn-ghost"><i class="ti ti-calendar-week"></i> This week</button>
       <button id="btnContacts" class="btn-ghost"><i class="ti ti-address-book"></i> Contacts</button>
-      <button id="btnTeam" class="btn-ghost" style="display:none;"><i class="ti ti-users"></i> Team</button>
       <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> Archive</button>
-      <button id="btnExport" class="btn-ghost"><i class="ti ti-download"></i> Export</button>
+      <button id="btnExport" class="btn-ghost" style="display:none;"><i class="ti ti-download"></i> Export</button>
       <span id="userChip" style="display:none;color:#fff;font-size:11px;opacity:.85;align-self:center;white-space:nowrap;"></span>
       <button id="btnLogout" class="btn-ghost" style="border-color:rgba(255,100,100,.5);"><i class="ti ti-logout"></i> Sign out</button>
     </div>
@@ -592,7 +593,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
 <!-- TEAM VIEW (Owner manages; Supervisors can see the list) -->
 <div id="teamView" class="view" style="display:none;">
-  <div style="background:var(--navy);color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+  <div style="background:#6a1b9a;color:#fff;padding:14px 20px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
     <h3 style="color:#fff;font-weight:500;font-size:16px;"><i class="ti ti-users"></i> Team</h3>
     <button id="btnTeamBack" class="btn-ghost"><i class="ti ti-arrow-left"></i> Back to projects</button>
   </div>
@@ -2604,6 +2605,9 @@ function applyRole(){
   const canSeeTeam = me.role==="owner" || me.role==="supervisor";
   document.getElementById("btnTeam").style.display      = canSeeTeam ? "" : "none";
   document.getElementById("mobileTeamLink").style.display = canSeeTeam ? "flex" : "none";
+  const canExport = me.role==="owner";   // export is owner-only
+  document.getElementById("btnExport").style.display = canExport ? "" : "none";
+  document.getElementById("mobileExportLink").style.display = canExport ? "flex" : "none";
   const chip = document.getElementById("userChip");
   chip.textContent = (me.name || me.username || "") + (me.role ? " · " + ROLE_LABEL[me.role] : "");
   chip.style.display = me.role ? "" : "none";
@@ -2647,7 +2651,7 @@ async function renderTeam(){
   const isOwner = myRole()==="owner";
   const myId = state.me && state.me.id;
   const card = 'background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;';
-  const h = 'font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;';
+  const h = 'font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6a1b9a;margin:0 0 14px;';
   const inp = 'width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;';
   let html = '<div id="teamOverviewHolder"></div>';
 
@@ -2657,7 +2661,7 @@ async function renderTeam(){
       + '<input id="invName" placeholder="Full name" style="'+inp+'flex:1;min-width:160px;">'
       + '<input id="invEmail" type="email" placeholder="Email" style="'+inp+'flex:1;min-width:200px;">'
       + '<select id="invRole" style="'+inp+'"><option value="agent">Agent</option><option value="supervisor">Supervisor</option></select>'
-      + '<button id="invSend" class="btn-gold" type="button">Create invite</button></div>'
+      + '<button id="invSend" class="btn-team" type="button">Create invite</button></div>'
       + '<p id="invMsg" style="display:none;font-size:12px;color:#a32d2d;margin:10px 0 0;"></p>'
       + '<div id="invLinkHolder"></div></div>';
   }
@@ -2684,7 +2688,7 @@ async function renderTeam(){
       nameCell  = '<input class="teamEditName" value="'+escapeHtml(u.name||"")+'" placeholder="Full name" style="'+inp+'padding:4px 8px;width:100%;box-sizing:border-box;">';
       emailCell = '<input class="teamEditEmail" type="email" value="'+escapeHtml(u.email||u.username)+'" style="'+inp+'padding:4px 8px;width:100%;box-sizing:border-box;">'
                 + '<div class="teamEditMsg" style="display:none;color:#a32d2d;font-size:11px;margin-top:4px;"></div>';
-      actions = '<button class="btn-gold teamEditSave" data-id="'+escapeHtml(u.id)+'" style="padding:4px 14px;">Save</button> '
+      actions = '<button class="btn-team teamEditSave" data-id="'+escapeHtml(u.id)+'" style="padding:4px 14px;">Save</button> '
               + '<button class="btn-ghost teamEditCancel" style="'+ghost+'">Cancel</button>';
     } else if(isOwner){
       actions = '<button class="btn-ghost teamEdit" data-id="'+escapeHtml(u.id)+'" style="'+ghost+'"><i class="ti ti-pencil"></i> Edit</button> ' + actions;
