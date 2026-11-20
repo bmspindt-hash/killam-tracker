@@ -202,6 +202,7 @@ async function initDB() {
     ALTER TABLE projects  ADD COLUMN IF NOT EXISTS files      TEXT DEFAULT '[]';
 
     -- Multi-user: who a user is, what they may do, and who owns each record
+    ALTER TABLE users     ADD COLUMN IF NOT EXISTS theme      TEXT DEFAULT 'standard';
     ALTER TABLE users     ADD COLUMN IF NOT EXISTS email      TEXT;
     ALTER TABLE users     ADD COLUMN IF NOT EXISTS name       TEXT DEFAULT '';
     ALTER TABLE users     ADD COLUMN IF NOT EXISTS role       TEXT DEFAULT 'agent';
@@ -284,7 +285,7 @@ async function requireAuth(req, res, next) {
   try { decoded = jwt.verify(auth.slice(7), JWT_SECRET); }
   catch(e) { return res.status(401).json({ error: "Invalid or expired token" }); }
   try {
-    const r = await pool.query("SELECT id, username, email, name, role, active FROM users WHERE id=$1", [decoded.id]);
+    const r = await pool.query("SELECT id, username, email, name, role, active, theme FROM users WHERE id=$1", [decoded.id]);
     const u = r.rows[0];
     if (!u || u.active === false) return res.status(401).json({ error: "Account not found or deactivated" });
     req.user = u;
@@ -328,7 +329,10 @@ const scopeParams = (u) => [u.role === "owner", u.id];
 const ROLES = ["owner", "supervisor", "agent"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const sha256 = (s) => crypto.createHash("sha256").update(s).digest("hex");
-const publicUser = (u) => ({ id: u.id, username: u.username, email: u.email, name: u.name || "", role: u.role, active: u.active !== false });
+// Colour schemes. "starwars" is an Owner-only perk, so it is also filtered out when we read it back.
+const THEMES = ["standard", "bright", "dark", "starwars"];
+const themeFor = (u) => (THEMES.includes(u.theme) && (u.theme !== "starwars" || u.role === "owner")) ? u.theme : "standard";
+const publicUser = (u) => ({ id: u.id, username: u.username, email: u.email, name: u.name || "", role: u.role, active: u.active !== false, theme: themeFor(u) });
 const NO_PASSWORD = "!";   // not a valid bcrypt hash, so nobody can ever sign in with it (pending invites)
 
 // ── Auth routes (public) ───────────────────────────────────────
@@ -410,6 +414,17 @@ app.post("/api/auth/accept-invite", async (req, res) => {
 // ── Who am I ───────────────────────────────────────────────────
 app.get("/api/me", requireAuth, (req, res) => res.json(publicUser(req.user)));
 
+// Each person picks their own colour scheme; it is stored on their account so it follows them to any device.
+app.put("/api/me/theme", requireAuth, async (req, res) => {
+  const theme = String((req.body || {}).theme || "");
+  if (!THEMES.includes(theme)) return res.status(400).json({ error: "Unknown colour scheme" });
+  if (theme === "starwars" && req.user.role !== "owner") return res.status(403).json({ error: "That scheme is only available to the Owner" });
+  try {
+    await pool.query("UPDATE users SET theme=$1 WHERE id=$2", [theme, req.user.id]);
+    res.json({ ok: true, theme });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Could not save" }); }
+});
+
 // ── Team management ────────────────────────────────────────────
 // Owner and Supervisors can see the team list (needed to pick an agent to review);
 // only the Owner can invite, change roles, or deactivate.
@@ -470,23 +485,57 @@ app.post("/api/users/:id/link", requireAuth, requireRole("owner"), async (req, r
 });
 
 app.patch("/api/users/:id", requireAuth, requireRole("owner"), async (req, res) => {
+  const client = await pool.connect();
   try {
-    const r = await pool.query("SELECT * FROM users WHERE id=$1", [req.params.id]);
+    const r = await client.query("SELECT * FROM users WHERE id=$1", [req.params.id]);
     if (!r.rows.length) return res.status(404).json({ error: "User not found" });
     const target = r.rows[0];
-    const { name, role, active } = req.body;
+    const { name, role, active, email } = req.body;
     const isOwnerAccount = target.role === "owner";
     if (role !== undefined) {
       if (!["supervisor", "agent"].includes(role)) return res.status(400).json({ error: "Role must be Supervisor or Agent" });
       if (isOwnerAccount) return res.status(400).json({ error: "The owner's role can't be changed" });
     }
     if (active === false && isOwnerAccount) return res.status(400).json({ error: "The owner can't be deactivated" });
-    await pool.query(
+    let newName = null, newEmail = null;
+    if (name !== undefined) {
+      newName = String(name).trim().slice(0, 100);
+      if (!newName && !isOwnerAccount) return res.status(400).json({ error: "Name can't be empty" });
+    }
+    if (email !== undefined) {
+      newEmail = String(email).trim().toLowerCase();
+      if (!EMAIL_RE.test(newEmail)) return res.status(400).json({ error: "Enter a valid email address" });
+      const dup = await client.query("SELECT 1 FROM users WHERE id<>$2 AND (lower(email)=$1 OR lower(username)=$1)", [newEmail, req.params.id]);
+      if (dup.rows.length) return res.status(409).json({ error: "Someone else already uses that email" });
+    }
+    await client.query("BEGIN");
+    await client.query(
       "UPDATE users SET name=COALESCE($1,name), role=COALESCE($2,role), active=COALESCE($3,active) WHERE id=$4",
-      [name === undefined ? null : String(name).trim().slice(0, 100), role === undefined ? null : role,
-       active === undefined ? null : !!active, req.params.id]);
+      [newName, role === undefined ? null : role, active === undefined ? null : !!active, req.params.id]);
+    if (newEmail !== null) {
+      // The sign-in name follows the email when it was the email (invited people); a custom username is left alone.
+      const followsEmail = String(target.username).toLowerCase() === String(target.email || "").toLowerCase();
+      await client.query("UPDATE users SET email=$1, username=CASE WHEN $3 THEN $1 ELSE username END WHERE id=$2", [newEmail, req.params.id, followsEmail]);
+    }
+    // Keep the author label on supervisor notes and admin tasks in step with a corrected name.
+    if (newName) {
+      const label = newName || target.username;
+      await client.query("UPDATE tasks SET created_by_name=$1 WHERE created_by=$2", [label, req.params.id]);
+      const ps = await client.query("SELECT id, supervisor_notes FROM projects WHERE supervisor_notes LIKE $1", ['%"authorId":' + JSON.stringify(req.params.id) + '%']);
+      for (const p of ps.rows) {
+        let list = []; try { list = JSON.parse(p.supervisor_notes); } catch (e) { continue; }
+        let changed = false;
+        list.forEach(n => { if (n.authorId === req.params.id) { n.authorName = label; changed = true; } });
+        if (changed) await client.query("UPDATE projects SET supervisor_notes=$1 WHERE id=$2", [JSON.stringify(list), p.id]);
+      }
+    }
+    await client.query("COMMIT");
     res.json({ ok: true });
-  } catch(e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+  } catch(e) {
+    await client.query("ROLLBACK").catch(() => {});
+    if (e.code === "23505") return res.status(409).json({ error: "Someone else already uses that email" });
+    console.error(e); res.status(500).json({ error: "Server error" });
+  } finally { client.release(); }
 });
 
 // ── Protected API routes ───────────────────────────────────────
