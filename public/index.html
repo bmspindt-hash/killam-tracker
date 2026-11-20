@@ -1598,6 +1598,17 @@ let detailNotesFor = null;      // which project the journal pane is currently s
 // whole project card: the action buttons and the task list stay within easy reach.
 // Re-drawing the pane (after an edit, attach, delete...) replaces its contents, which would snap it back to
 // the top, so we remember where it was scrolled to and put it back, unless `resetScroll` is set.
+// Collapsed/expanded journal is a per-viewer preference (this browser only). Editing or adding a note opens it.
+let journalCollapsed = false;
+try{ journalCollapsed = localStorage.getItem("kd_journalCollapsed")==="1"; }catch(e){}
+function setJournalCollapsed(v){
+  journalCollapsed = v;
+  try{ localStorage.setItem("kd_journalCollapsed", v?"1":"0"); }catch(e){}
+}
+function toggleJournal(){
+  setJournalCollapsed(!journalCollapsed);
+  const p=(state.projects||[]).find(x=>x.id===currentProjectId); if(p) renderDetailNotes(p);
+}
 function renderDetailNotes(p, resetScroll){
   const notesEl = document.getElementById("detailProjectNotes");
   const entries = parseNotes(p.notes);
@@ -1605,8 +1616,11 @@ function renderDetailNotes(p, resetScroll){
     const oldPane    = document.getElementById("detailNotesScroll");
     const keepScroll = (oldPane && !resetScroll) ? oldPane.scrollTop : 0;
     notesEl.style.display="block";
-    notesEl.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">Project journal · '+entries.length+'</div>' +
-      '<div id="detailNotesScroll" style="max-height:clamp(160px,32vh,400px);overflow-y:auto;">' +
+    const collapsed = journalCollapsed && detailEditingNoteIdx===null;   // never hide an entry being edited
+    notesEl.innerHTML = '<div id="journalHeader" role="button" tabindex="0" aria-expanded="'+!collapsed+'" onclick="toggleJournal()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleJournal();}" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:'+(collapsed?0:8)+'px;">'
+      + '<div style="flex:1;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;">Project journal · '+entries.length+'</div>'
+      + '<span style="font-size:11px;color:var(--gold);font-weight:600;white-space:nowrap;">'+(collapsed?'&#9660; Expand':'&#9650; Collapse')+'</span></div>' +
+      '<div id="detailNotesScroll" style="max-height:clamp(160px,32vh,400px);overflow-y:auto;display:'+(collapsed?'none':'block')+';">' +
       entries.map((e,i)=>{
         if(i===detailEditingNoteIdx){
           return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);">
@@ -1916,6 +1930,7 @@ document.getElementById("detailNoteSave").onclick = async()=>{
     document.getElementById("detailNoteText").value = "";
     detailPendingFiles = []; renderPending("detail");
     document.getElementById("detailQuickNote").style.display = "none";
+    setJournalCollapsed(false);    // show the note that was just added
     openProjectDetail(p.id);       // refresh detail view
     const pane = document.getElementById("detailNotesScroll");
     if(pane) pane.scrollTop = 0;   // the new note is the newest entry (top), so show it
@@ -3085,6 +3100,14 @@ function supPanelEl(){
   }
   return el;
 }
+// Collapsed/expanded is a per-viewer preference (kept in this browser only).
+let supCollapsed = false;
+try{ supCollapsed = localStorage.getItem("kd_supCollapsed")==="1"; }catch(e){}
+function supToggleCollapse(){
+  supCollapsed = !supCollapsed;
+  try{ localStorage.setItem("kd_supCollapsed", supCollapsed?"1":"0"); }catch(e){}
+  const p=currentProject(); if(p) renderSupervisorPanel(p);
+}
 const supCanManage = authorId => myRole()==="owner" || authorId===(state.me&&state.me.id);
 function supDate(d){ try{ return new Date(d).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }catch(e){ return ""; } }
 
@@ -3133,14 +3156,22 @@ function renderSupervisorPanel(p){
     </div>`;
   }).join("");
 
-  el.innerHTML = `<div style="background:var(--purple-tint);border:1px solid #eadcf1;border-left:4px solid #6a1b9a;border-radius:8px;padding:14px 16px;margin:0 0 14px;">
-    <div style="font-size:11px;font-weight:700;color:var(--purple-text);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;"><i class="ti ti-user-star"></i> Supervisor notes &amp; admin tasks</div>
+  const collapsed = supCollapsed && !supEditing;   // never hide a form that is mid-edit
+  const openTasks = tasks.filter(t=>!t.done).length;
+  const summary = [notes.length+(notes.length===1?" note":" notes"), openTasks+" open "+(openTasks===1?"task":"tasks")].join(" · ");
+  el.innerHTML = `<div id="supBox" style="background:var(--purple-tint);border:1px solid #eadcf1;border-left:4px solid #6a1b9a;border-radius:8px;padding:14px 16px;margin:0 0 14px;">
+    <div id="supHeader" role="button" tabindex="0" aria-expanded="${!collapsed}" onclick="supToggleCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();supToggleCollapse();}" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:${collapsed?0:4}px;">
+      <div style="font-size:11px;font-weight:700;color:var(--purple-text);letter-spacing:.08em;text-transform:uppercase;flex:1;"><i class="ti ti-user-star"></i> Supervisor notes &amp; admin tasks${collapsed?` <span style="font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:6px;">${summary}</span>`:""}</div>
+      <span style="font-size:11px;color:var(--purple-text);font-weight:600;white-space:nowrap;">${collapsed?"&#9660; Expand":"&#9650; Collapse"}</span>
+    </div>
+    <div id="supBody" style="display:${collapsed?"none":"block"};">
     ${lbl("10px 0 2px")}Notes${notes.length?" · "+notes.length:""}</div>
     ${noteRows || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">No notes yet.</div>'}
     ${can ? `<div style="display:flex;gap:8px;margin-top:8px;"><textarea id="supNoteNew" placeholder="Add a supervisor note…" style="${inp}flex:1;min-height:44px;resize:vertical;"></textarea><button type="button" id="supNoteAdd" class="btn-gold" style="align-self:flex-start;padding:6px 14px;font-size:11px;" onclick="supAddNote()">Add note</button></div>` : ""}
     ${lbl("16px 0 2px")}Admin tasks${tasks.length?" · "+tasks.length:""}</div>
     ${taskRows || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">No admin tasks yet.</div>'}
     ${can ? `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><input id="supTaskNew" placeholder="Add an admin task…" style="${inp}flex:1;min-width:200px;"><input id="supTaskDue" type="date" style="${inp}"><button type="button" id="supTaskAdd" class="btn-gold" style="padding:6px 14px;font-size:11px;" onclick="supAddTask()">Add task</button></div>` : ""}
+    </div>
   </div>`;
 }
 
