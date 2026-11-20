@@ -6,28 +6,86 @@
 <title>Killam Development – Task Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>try{var _t=localStorage.getItem("kd_theme");if(_t)document.documentElement.setAttribute("data-theme",_t);}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#f4f4f4;font-family:"Montserrat",Arial,sans-serif;}
+body{background:var(--bg);color:var(--text);font-family:"Montserrat",Arial,sans-serif;}
+/* ── Colour schemes ──  Standard is :root; the others only override variables. */
 :root{
-  --navy:#16273a;--gold:#b8924f;--gold2:#8f7038;
+  --navy:#16273a;--gold:#b8924f;--gold2:#8f7038;--on-gold:#1c1305;
   --cream:#f7f5f0;--gray:#f0f0f0;--border:#d0d0d0;
-  --text:#1a1a1a;--muted:#888;
+  --text:#1a1a1a;--text2:#555;--muted:#888;--ink:#16273a;
+  --bg:#f4f4f4;--card:#fff;--card2:#fafafa;--field:#fff;--focus:#fff8f0;
+  --header-bg:var(--navy);--blue:#4a90c4;--blue-border:#3a7aaa;--team:#6a1b9a;--team-border:#4a148c;
+  --row-today:#fbe7d4;--row-overdue:#f8d6d6;--purple-tint:#faf5fc;--purple-text:#6a1b9a;
+  --prio-high-bg:#fff5f5;--prio-high-bd:#ffcdd2;--prio-med-bg:#fff8f0;--prio-med-bd:#ffe0b2;--prio-low-bg:#fffef0;--prio-low-bd:#fff9c4;
+  --font-ui:"Montserrat",Arial,sans-serif;--header-extra:none;color-scheme:light;
 }
+:root[data-theme="bright"]{
+  --navy:#a21caf;--gold:#ec4899;--gold2:#be185d;--on-gold:#fff;--cream:#fff7fb;--gray:#fdeaf3;--border:#f4c1da;
+  --text:#3b0a2a;--text2:#7a3b5e;--muted:#a66a8a;--ink:#9d174d;
+  --bg:#fff1f7;--card:#fff;--card2:#fff7fb;--field:#fff;--focus:#fff0f8;
+  --header-bg:linear-gradient(90deg,#a21caf,#db2777);--blue:#d946ef;--blue-border:#a21caf;--team:#4c1d95;--team-border:#3b0f78;
+  --row-today:#ffedd5;--row-overdue:#fecdd3;--purple-tint:#f5f0ff;--purple-text:#4c1d95;
+  --prio-high-bg:#fff1f2;--prio-high-bd:#fecdd3;--prio-med-bg:#fff7ed;--prio-med-bd:#fed7aa;--prio-low-bg:#fffbeb;--prio-low-bd:#fde68a;
+}
+:root[data-theme="dark"]{
+  --navy:#1c2c4a;--gold:#b8924f;--gold2:#8f7038;--on-gold:#1c1305;--cream:#172238;--gray:#172238;--border:#2a3a56;
+  --text:#e6ebf2;--text2:#b5c0cf;--muted:#8a97aa;--ink:#e6ebf2;
+  --bg:#0b1220;--card:#131c2e;--card2:#172238;--field:#0f1727;--focus:#1b2740;
+  --header-bg:#060b16;--blue:#3b78a8;--blue-border:#2f6590;--team:#7b3fb0;--team-border:#5a2d85;
+  --row-today:#3b2f19;--row-overdue:#3f2026;--purple-tint:#231a33;--purple-text:#c9a0f2;
+  --prio-high-bg:#2a1a20;--prio-high-bd:#5a2a33;--prio-med-bg:#2b2218;--prio-med-bd:#5a4320;--prio-low-bg:#29271a;--prio-low-bd:#4f4a1f;
+  color-scheme:dark;
+}
+:root[data-theme="starwars"]{
+  --navy:#141b2b;--gold:#ffe81f;--gold2:#c9b800;--on-gold:#000;--cream:#0f1520;--gray:#111826;--border:#26324a;
+  --text:#e9edf3;--text2:#b8c0cc;--muted:#7f8896;--ink:#ffe81f;
+  --bg:#04050a;--card:#0b0f17;--card2:#0f1520;--field:#0a0e16;--focus:#151d2c;
+  --header-bg:#000;--blue:#1e88e5;--blue-border:#1565c0;--team:#8e24aa;--team-border:#6a1b9a;
+  --row-today:#2b2a10;--row-overdue:#3a1418;--purple-tint:#1e1530;--purple-text:#d29bf5;
+  --prio-high-bg:#2a1216;--prio-high-bd:#6a1f28;--prio-med-bg:#2a2010;--prio-med-bd:#5a4513;--prio-low-bg:#232410;--prio-low-bd:#4a4a14;
+  --font-ui:"Orbitron","Montserrat",Arial,sans-serif;color-scheme:dark;
+}
+/* Dark-ish schemes: form fields, scrollbars, and the finishing touches */
+:root[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=range]),
+:root[data-theme="dark"] select:not(.teamRole), :root[data-theme="dark"] textarea,
+:root[data-theme="starwars"] input:not([type=checkbox]):not([type=radio]):not([type=range]),
+:root[data-theme="starwars"] select, :root[data-theme="starwars"] textarea{background-color:var(--field);color:var(--text);}
+:root[data-theme="dark"] option,:root[data-theme="starwars"] option{background:var(--card);color:var(--text);}
+:root[data-theme="dark"] #header{border-bottom:1px solid #26344d;}
+:root[data-theme="starwars"] body{background-image:
+  radial-gradient(1px 1px at 20px 30px,#fff,transparent),radial-gradient(1px 1px at 90px 140px,#cfd8ff,transparent),
+  radial-gradient(1.5px 1.5px at 160px 70px,#fff,transparent),radial-gradient(1px 1px at 230px 190px,#ffe9a8,transparent),
+  radial-gradient(1px 1px at 60px 220px,#fff,transparent),radial-gradient(1.5px 1.5px at 280px 20px,#cfd8ff,transparent);
+  background-size:300px 260px;background-attachment:fixed;}
+:root[data-theme="starwars"] #header{border-bottom:2px solid #ffe81f;box-shadow:0 2px 18px rgba(255,232,31,.35);}
+:root[data-theme="starwars"] #hcenter h2{color:#ffe81f;letter-spacing:.14em;text-transform:uppercase;font-size:15px;text-shadow:0 0 10px rgba(255,232,31,.5);font-family:var(--font-ui);}
+:root[data-theme="starwars"] button, :root[data-theme="starwars"] thead th, :root[data-theme="starwars"] .week-header td{font-family:var(--font-ui);letter-spacing:.05em;}
+:root[data-theme="starwars"] button{font-size:10px;}
+:root[data-theme="starwars"] .btn-blue{box-shadow:0 0 10px rgba(30,136,229,.6);}
+:root[data-theme="starwars"] .btn-gold{box-shadow:0 0 10px rgba(255,232,31,.35);}
+:root[data-theme="starwars"] .btn-ghost{border-color:rgba(255,232,31,.45);}
+:root[data-theme="starwars"] h3{font-family:var(--font-ui);letter-spacing:.06em;}
+:root[data-theme="starwars"] ::-webkit-scrollbar{width:10px;height:10px;} 
+:root[data-theme="starwars"] ::-webkit-scrollbar-thumb{background:#ffe81f55;border-radius:6px;}
+:root[data-theme="starwars"] ::-webkit-scrollbar-track{background:#04050a;}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb{background:#2a3a56;border-radius:6px;}
+:root[data-theme="dark"] ::-webkit-scrollbar-track{background:#0b1220;}
 button{font-family:"Montserrat",Arial,sans-serif;font-size:11px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;border-radius:999px;cursor:pointer;transition:opacity .15s;}
 button:hover{opacity:.85;}
-.btn-blue{background:#4a90c4;color:#fff;border:1px solid #3a7aaa;padding:8px 16px;}
-.btn-gold{background:var(--gold);color:#1c1305;border:1px solid var(--gold2);padding:8px 16px;}
-.btn-team{background:#6a1b9a;color:#fff;border:1px solid #4a148c;padding:8px 16px;}
+.btn-blue{background:var(--blue);color:#fff;border:1px solid var(--blue-border);padding:8px 16px;}
+.btn-gold{background:var(--gold);color:var(--on-gold);border:1px solid var(--gold2);padding:8px 16px;}
+.btn-team{background:var(--team);color:#fff;border:1px solid var(--team-border);padding:8px 16px;}
 .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);padding:8px 16px;}
-.btn-white{background:#fff;color:var(--navy);border:1px solid #fff;padding:8px 16px;}
-#header{background:var(--navy);color:#fff;padding:18px 20px;
+.btn-white{background:var(--card);color:var(--ink);border:1px solid #fff;padding:8px 16px;}
+#header{background:var(--header-bg);color:#fff;padding:18px 20px;
   display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
 #logo-pill{background:#fff;border-radius:999px;padding:8px 18px;display:flex;align-items:center;}
 #logo-pill img{height:44px;width:auto;display:block;}
@@ -42,18 +100,18 @@ thead th{background:var(--navy);color:#fff;font-size:10px;font-weight:700;
   letter-spacing:.07em;text-transform:uppercase;padding:10px 8px;text-align:left;}
 thead th:first-child{border-radius:999px 0 0 999px;padding-left:14px;}
 thead th:last-child{border-radius:0 999px 999px 0;padding-right:14px;}
-.task-row td{background:#fff;padding:8px 6px;color:var(--text);vertical-align:top;}
+.task-row td{background:var(--card);padding:8px 6px;color:var(--text);vertical-align:top;}
 .task-row:nth-child(even) td{background:var(--gray);}
 .task-row td:first-child{border-radius:999px 0 0 999px;padding-left:14px;}
 .task-row td:last-child{border-radius:0 999px 999px 0;padding-right:14px;}
-.task-row.due-today td{background:#fbe7d4!important;}
-.task-row.overdue td{background:#f8d6d6!important;}
+.task-row.due-today td{background:var(--row-today)!important;}
+.task-row.overdue td{background:var(--row-overdue)!important;}
 textarea,select,input[type=date]{font-family:"Montserrat",Arial,sans-serif;font-size:12px;
   color:var(--text);background:transparent;border:1px solid transparent;border-radius:4px;
   width:100%;padding:4px 6px;transition:border-color .15s;}
 textarea{resize:none;overflow:hidden;field-sizing:content;min-height:30px;
   line-height:1.5;white-space:pre-wrap;word-break:break-word;}
-textarea:focus,select:focus,input[type=date]:focus{outline:none;border-color:var(--gold);background:#fff8f0;}
+textarea:focus,select:focus,input[type=date]:focus{outline:none;border-color:var(--gold);background:var(--focus);}
 select{cursor:pointer;}
 .week-header td{background:var(--navy);color:#fff;border-radius:999px;padding:10px 18px;
   font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
@@ -207,56 +265,70 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
     <a onclick="showContacts();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-address-book" style="font-size:18px;color:var(--gold);"></i> Contacts</a>
     <a onclick="showArchive();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-archive" style="font-size:18px;color:var(--gold);"></i> Archive</a>
     <a id="mobileExportLink" onclick="document.getElementById('btnExport').click();toggleMobileMenu();" style="display:none;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-download" style="font-size:18px;color:var(--gold);"></i> Export</a>
+    <a onclick="openSettings();toggleMobileMenu();" style="display:flex;align-items:center;gap:12px;padding:14px 20px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);"><i class="ti ti-settings" style="font-size:18px;color:var(--gold);"></i> Settings</a>
   </nav>
   <div style="padding:20px;margin-top:auto;border-top:1px solid rgba(255,255,255,.1);">
     <button onclick="document.getElementById('btnLogout').click();toggleMobileMenu();" style="width:100%;padding:12px;background:rgba(255,100,100,.2);border:1px solid rgba(255,100,100,.4);border-radius:999px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;"><i class="ti ti-logout"></i> Sign out</button>
   </div>
 </div>
 
+<!-- SETTINGS (colour scheme) -->
+<div id="settingsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeSettings()">
+  <div style="background:var(--card);color:var(--text);border-radius:12px;padding:24px;width:460px;max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);border:1px solid var(--border);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <h3 style="font-size:16px;font-weight:600;color:var(--ink);"><i class="ti ti-settings"></i> Settings</h3>
+      <button id="btnSettingsClose" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:20px;padding:0 4px;cursor:pointer;">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 16px;">Colour scheme — saved to your account, so it opens this way every time.</p>
+    <div id="themeOptions" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <p id="themeMsg" style="display:none;font-size:12px;color:#c0392b;margin:12px 0 0;"></p>
+  </div>
+</div>
+
 <!-- LOGIN SCREEN -->
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;overflow:hidden;">
+  <div style="background:var(--card);border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;overflow:hidden;">
     <div style="text-align:center;margin-bottom:28px;">
       <div style="background:var(--navy);border-radius:999px;padding:10px 24px;display:inline-flex;align-items:center;margin-bottom:16px;">
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJwAAABSCAYAAAChWr2JAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAABAKSURBVHhe7Z15eBRF+sc/lcxMrsFACBAghMMAcgRBJSvIoSJ44Lms+kMQBdHFY3/u4rLggRwqiEJQVAQUEMENCoqiKO6DhCMIsoCg3EeAHJM7kHMymcnU/jGQpHsScjKG6f48T/8x37e6Z6bnO1Vd1VVvCymlREfHQ/ioBR2dy4luOB2PohtOx6PohtPxKLrhdDyKbjgdj6IbTsejCC2Nw6WmpZGbn6+WK6VdmzYEBQWpZZ16oinDfb3xJ9KdAWq5EiR3RrUnol24OqBTT7zecBaLhR279gCQmp2Hf3gndRE3HA4HLRy5ICUdIsLpe8N16iLVsv67jdhKStRynRg2ZDDBwcFq+YrE6w23/rsfGDnuJQTQvFUoL82ZjhBCXUxBmiWVOVNeQwjBwyNuZ+mHb6qLXJL5C5bwymsLq32fapHw4J9vY/nit9WRKxZNdRqy07OwFdvUshsZaRlqqcbEbY1n2uzF9TcbENUrkoXvzFTLVzSaMpyUktQUi1p2IzM1vU6GSU5O4fFnpuIsdapDtSYktCmfL48hIKAm15xXDpoyHIAlKUUtuZFZhxrOZrMxctwLZGeeV4dqja/Bl5WLXiciop06dMWjKcMJIbAkVm+4ujSpE6e8zr79x9RyrZFSMuvVZxk86CZ1yCvQlOGoQQ0npSQzPV0tX5Lln67mk1XfUvtGWImUkpEP3sGzE8aqQ16D5gyXmpzCpTrm1iIrBbkFarlK9uz9lRdenl+na76KSKBP7668HzNdHfIqNGc4W1Ex2ZlZarmMjLQMuIQhK5KVlcWo8VMosdV/vK1Fi6asXh6Dv7+/OuRVaM5wVNOsZqbVrDktLS1lzFOTSUmp/fWeGoPRl5VLZhEe3lYd8jo0a7iqmtWa9lCnvjaPbfH71HKtkVLy5vT/Z+BN/dQhr0Rzhquup5qRVv0Y3FffbGDBwli1XCdGPXwXE54co5a9Fs0Zjmqa1OqGRI4ePc7T/3hDLdeJ6/pcw3vzpqllr0aThsvJysJWXKyWcTqdZKdnquUy8vPz+b9x/6SwwKoO1ZoWLUNYvTwGPz8/dcir0aThcEJqcqpaJffceUqquNcqpWT8cy9z4kSiOlRrDCYDn300mzZtWqtDXo82DQekJCWrpUs2p/PeXcR332+r9vquOqSUvD3zefr3i1aHNIFmDZeq6qlKKcmoYkhk0+atzJzzcYOY7fFH7+HJcaPVIc2gWcOlVNJxyEx1r+FS0jIZ++z0BpkB0vf6Hsx/c6pa1hSaNVxassVtLC4jPcOtFgsKDOCqJoEKra7knMvDaq1/h+NKRrOGc93iylZoWanuTWrTq8zELp2Df2D9e5OnziTx2F+n4HTWv7a8UtGs4YQQivE4h93BuZwcRZmL9IrqyYK3JrvViLVFSMGmn3YxY9Z8dUgzaNZwqAaAszIykaVVG+qRhx7gr+NH1Nt0CJi3YBVffbNBHdEEGjdccpmBLjUkcpE5M6dwY3TP+psOmPD3Nzh0+Iha9no0bbjUJNf6BilljWaJGI1GPls6l1ZhoepQrSkqtPLw4//k3Llz6pBXo2nD5WRlUWx13eKqSQ0HEBYWxqolszAYfdWhWnPmjIUxT03WVCdC04aTpeWruGo6LQmgf79oZk/7W4M0rXHbdjN15jy17LVo2nAVpyrVpEmtyNNPPcbDI4ap5dojBe8u/DdrvvpWHfFKNG04LvRUiwqLKMyr+TqGi3wwfwY9e1ytluvEMxNn8dvvB9Wy16EbLimlynuo1REQEEDssrlc1bSJOlRrrEXFPDxuEjlVjAV6C5o3XFqyhQxL9bN8q6Jjxw4se386wqdu+1ck8Uwajz75L0pLS9Uhr0HzhrNZizly8LBarhV3DLuVFyeOrXcnQgjYsm0PL8/wnuQ1ajRvOIAjB+p/7fTipOe4fWh/tVxrhBC8t+hzVq/5Wh3yCjRvOCEE9uL6rysVQrD8w9l07Fj/JIYCeG7Sm+w/8Ls6dMWjecM1JMHBwcQum0NAYP0XMxcX2Rg57l9kZytntFzpaMNwQiLruNWWnj268/7cKW7HqcuWmJjKqPGTvKoT4fUZMHNzc0k4fUYt15jmISF1Spt1+PBRbCWVL8ipLV06R3pNgmuvN5xO40IbTapOo0E3nI5H0Q2n41F0w+l4lMvSaUhJsfCXMc8jKiQhlcCSd6cR1bNHmbb445WsiHWfltOqZSj/Xjav0gzeUkoGDhupmrQo+Om7TyotX5FvN/zI7JilCu3WQX15fdokhVYTFixcyuovf1RoY0ffy5Nj67/I+aXpb7Flu+thJhXp2rkDyxe9pZYvicPhYNDtj6jlMsaNvo/xY0eVvV700Qo+XV35eguJZO2n79K2bRt1qMZcFsMlJJwmqt8DCKk03Kb1i+l3oyvFwfb4ndz90N8odSjHmAwmA9+v+aDKVAhOp5Om4dE4K+wngfSE7ZjNZkVZNZ+s+pznJiof8nHf8MF8tvwdhVYTJr/yBh8sWavQpkwcwytT/qHQaktCwmn6DHjQ7bxc5IevFjJwQM1zydntdpq1rfxcAvTudQ3xm8pTjw0Z/ii//LfyW31SSH7fuY5OnTqqQzXmD2lSLZZUxkx4pdKTOnfm36s0mxaYHbO40vNykVnzPlJL9WL/b0c5e9aVoCcvL4+9+y/vwh6PG85utzPqiUlkZLjP+3ps1HDGjyuv3rXGqVMJfPHVJoVmMBoUr7fv+JX4HbsUWn1Zt34jAHFbd2C3V232hsDDhhO88NIb7N5zUJFiXkroe0MP5s95tYKqPd6cv0RRuw0acB0fxrzoNu2poWu5r7/fCsCmLbvKfhcpJQaT0uwNgecMJyWffbGBpZ984zbZMSwslNhlczGZTApdS6hrNykkTz/xECMeuJsWLUMUZbfG7+PnnbsVWm2QUtIuojw33Z69h0lOTmFzhY5K9+6RhDZvVva6ofCc4YBim/3CJb4So9EXg6Hh/01XErNjFilqt4h2rRl+51BMJhOPP3K3oqwAZsV8rNBqyz13DFK8fmbiTM6cdi0oklJy350DFfGGwnOGE4InHr2f0SPvcmsikpLSGDV+Eg6HQ6FrhVOnElizbrNCS8/I4epew+jY8zaWrHCfjBm3ZTe7fnEfOqkJArj3rlsUj6PYvGW3ouW5/56h5cEGxHOGA0Dy7luvcm2vLop6TgjBjp/3M3lq7Z5L2hAcOpbA1BlvKbYZs2LUxWrElvh9bsda9PGn6mJuzJr3oVvPtKS4hMyMbDIzssk77/7YdCEEr7+9SC3XmOgb+tC6deUZBDp1Cqdnj+5quUHwsOHA39+f2GVzCWnu/oTjRR+vZWWscmzrcnPyZBLzP4hVbAsWf6EuViN27T7odqxVn3+vLqbg5MkE1n4dp9BMfkYCA/3dNjVxW/fwy+461nJCMHxYf7fWBuDey9Sc8kcYDqB9+wiWfzADH1/l2wsheH7y2+zdt1+hezOzY5Q9Uykl2zZ+QsaZnW5b1y4dFPviA2/MrXuP9d7ht6ol1/Xb8NvUcoNxWe40JCencOdfJiiHPoCVi2fR+9qoMu2d9z9i2ar1FUq5CG/bii9XvVfprSopJdcPGkFpxes9Idi5KZbAwEtnqly3fgPTZlXfDPn7+7F7y6Vr2nnvLGJFFbeAKtKjWySxyyvPB5eRkcGdIyYorl2jukeyamnlTfqKz74g5v1VCk0IwZoVMXTuXPmCbIfDwXUDHlBoAtgbvw6AgcMeobCoPCtn85BgNm9YiRCCofc+TnpG+RR3CfywdlG9HtF0WQyno1MVf0iTqqNddMPpeBTdcDoeRTecjkfRDafjURp1L3XNxjiKS+wAmHx9iGzbiut7lw+rfP/TVrILy9d+Ngn05/7bBpGZmcXGnfsI9DMx4vabAVj3ny0UFJdw6w1RtG3Tmo1x28nMLx8OCArw489DBwPww+atZBXYuC26F63DwsrKACQmJbPr4DGsToEJSa9O4fTo1rUs/uXGzRSVuIY5fIQgvHkwg/u75vedOZvI9gNHAYjq2IbeUT3LPlcTfwP3D3ONi8Xt2EVydl7ZMf1MRh664xZXLH4nyTn5RIQGM7j/n/ghbjtZ+VaGD7iBkJAQtu/czZnM82X7AkS2bk6/vtcrtD+KRl3DFeKH1RCECGpKnm8geyx5bNq+syyenV+E1WgGPzP4BeE0umabtGgRCiYzWaVGUiwWMjOzyHQYkX5m2rR2GSi7wLWv9Aty7Wson6mSnVeI1WimsKioTAOwpKby0+Ekzkl/fE2BFPgG8POZbPb/fqisTK5DUGQIQvibsRmDOHrezv4LiQbz8guwGs1YjWaOJqWTlpZOhsOI1WjmnK18ynzOhfd3Xvhe0lS+CDor13WMk/lOziYmcs5qx2owU2xz/fEKbSWIoKZYDUFYja5zV1TFExL/CBq14QAC/IyMHhLNXb06YvD1IbXYPQ+bv9OK2Wkl2Le8sm7m66oZDxw5wb5DR5BAsLC5TY3yL3Xt29S3+sTOv/x2BLtT0tEsGD30RqLDg5HAoSRlQkMfH8FNXdoS4lMCCCzpWYq4wceHIt8gDpw4jcHXt9LbSwB+Fz5bsHA3TKlTsu3QWYyqKV133DyA0UOi8TcZCfIzMXpINEMG1j+rU0PR6A13kbZtWmPy8cFeycM7cgkgWwSSXlg+Yn991DUIIMcuyL7QcvbpFlm+0wXyRCDZIpDUCvtWhe3CLag2oa55YpEdXbea7E7laZROyX8OJ5PuMGH0gV7duijiTY3gcDpJLoQQf/c/0EXyL3y2jEr+ZM38fCiSPuQ6qvgJ3XdpFFTxaRsPpaVOtsTvZO2PWyiyOwgQ7qm1Ojcz0TvMzLXtW5ZprcNaEUQpVmmgSBhoYpBEtHPPEXJ1sIHeYWb6dFBeqwEcP51EXPxOkpJdz1ZtGWxGSsn+s+n8sncfG7b/FyklwUZl7SiEoHszIz1CDNzXtyvhqlVOtoLzmH0clEon4VcFKFa3VaS9Gdf3aqecgAnQKSSQQB8HTvf/X6Om0RuuxOHkWJ4kp9RIoA8MilLWFgDHckrYZylgf5JynUSbq0w4pcQpJS38Kv9RT5x3sM9SwK+J7msskm1GTuRJDp9IAODm/n8i1OikUBo5kG7lnNNIE18nQ29SLvoRAgb2i2bAjdE0b95cEbtIy0BfjELQo6t7rXuR0/lO1/dKc5+ehHRyS1Qkvg2Q6tWTNOpe6tHjJ7DbXddiTcxmOrSPUMTPJiaRl1/+Y/j5+dElsvwmts1m4/jJUwBEduqomAyQmJRMbl7FnqCJLp1dP35iUhK5eeXHbR3WitAKxjl95ixJllRCQ0Lofo3yD3D85ClK7HZ6drtGoQMUFBRw+mwiIc2aEtKsGWnp6XRo356Dh48QGBDA1ReW31lSU8nOKX9CjcFgoFtX1/tcjHWIiKBJE3PZOejaOVIxRf/IseP4CEHXLp3LtMZAozacjvfR6JtUHe9CN5yOR9ENp+NRdMPpeBTdcDoe5X9I6W5Np7/14wAAAABJRU5ErkJggg==" alt="Killam" style="height:40px;width:auto;">
       </div>
-      <h2 id="loginTitle" style="color:var(--navy);font-size:18px;font-weight:600;margin:0;">Sign in to Task Tracker</h2>
+      <h2 id="loginTitle" style="color:var(--ink);font-size:18px;font-weight:600;margin:0;">Sign in to Task Tracker</h2>
     </div>
     <div id="loginError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
     <div style="margin-bottom:14px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email or username</label>
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email or username</label>
       <input id="loginUsername" type="text" placeholder="you@killamco.com" autocomplete="username"
-        style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
+        style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
     </div>
     <div style="margin-bottom:24px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Password</label>
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Password</label>
       <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password"
-        style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;">
+        style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
     </div>
     <button id="loginBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Sign in</button>
-    <p id="registerToggle" style="display:none;text-align:center;margin-top:14px;font-size:12px;color:#888;cursor:pointer;">First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span></p>
-    <p style="text-align:center;margin-top:8px;font-size:12px;"><span id="showChangePwBtn" style="color:#888;cursor:pointer;text-decoration:underline;">Change password</span></p>
+    <p id="registerToggle" style="display:none;text-align:center;margin-top:14px;font-size:12px;color:var(--muted);cursor:pointer;">First time? <span style="color:var(--ink);font-weight:600;text-decoration:underline;">Create your account</span></p>
+    <p style="text-align:center;margin-top:8px;font-size:12px;"><span id="showChangePwBtn" style="color:var(--muted);cursor:pointer;text-decoration:underline;">Change password</span></p>
   <!-- Change password panel -->
-  <div id="changePwPanel" style="display:none;position:absolute;inset:0;background:#fff;border-radius:12px;padding:32px 28px;flex-direction:column;justify-content:center;overflow-y:auto;">
-    <button id="changePwBack" style="background:none;border:none;color:#888;font-size:12px;cursor:pointer;text-align:left;margin-bottom:20px;font-family:inherit;">← Back to sign in</button>
-    <h3 style="color:var(--navy);font-size:16px;font-weight:700;margin:0 0 20px;">Change password</h3>
+  <div id="changePwPanel" style="display:none;position:absolute;inset:0;background:var(--card);border-radius:12px;padding:32px 28px;flex-direction:column;justify-content:center;overflow-y:auto;">
+    <button id="changePwBack" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-align:left;margin-bottom:20px;font-family:inherit;">← Back to sign in</button>
+    <h3 style="color:var(--ink);font-size:16px;font-weight:700;margin:0 0 20px;">Change password</h3>
     <div id="changePwError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
     <div id="changePwSuccess" style="display:none;background:#e8f5e9;color:#2e7d32;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Username</label>
-      <input id="cpUsername" type="text" placeholder="Your username" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Username</label>
+      <input id="cpUsername" type="text" placeholder="Your username" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Current password</label>
-      <input id="cpCurrent" type="password" placeholder="Current password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Current password</label>
+      <input id="cpCurrent" type="password" placeholder="Current password" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">New password</label>
-      <input id="cpNew" type="password" placeholder="New password (min 6 characters)" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">New password</label>
+      <input id="cpNew" type="password" placeholder="New password (min 6 characters)" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:20px;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Confirm new password</label>
-      <input id="cpConfirm" type="password" placeholder="Confirm new password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Confirm new password</label>
+      <input id="cpConfirm" type="password" placeholder="Confirm new password" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
     </div>
     <button id="cpSaveBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Save new password</button>
   </div>
@@ -265,19 +337,19 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
 <!-- INVITE / SET-PASSWORD SCREEN (opened from an emailed or copied link) -->
 <div id="inviteScreen" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+  <div style="background:var(--card);border-radius:12px;padding:40px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);">
     <p style="text-align:center;color:var(--gold);background:var(--navy);border-radius:999px;padding:8px 18px;display:table;margin:0 auto 18px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Killam Development</p>
-    <h2 id="inviteTitle" style="color:var(--navy);font-size:18px;font-weight:600;margin:0 0 6px;text-align:center;">Set your password</h2>
-    <p id="inviteSub" style="text-align:center;color:#888;font-size:12px;margin:0 0 20px;"></p>
+    <h2 id="inviteTitle" style="color:var(--ink);font-size:18px;font-weight:600;margin:0 0 6px;text-align:center;">Set your password</h2>
+    <p id="inviteSub" style="text-align:center;color:var(--muted);font-size:12px;margin:0 0 20px;"></p>
     <div id="inviteError" style="display:none;background:#f8d6d6;color:#a32d2d;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:16px;"></div>
     <div id="inviteForm">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">New password</label>
-      <input id="invPw" type="password" placeholder="At least 8 characters" autocomplete="new-password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:14px;box-sizing:border-box;">
-      <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Confirm password</label>
-      <input id="invPw2" type="password" placeholder="Type it again" autocomplete="new-password" style="width:100%;padding:10px 14px;border:1px solid #d0d0d0;border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:20px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">New password</label>
+      <input id="invPw" type="password" placeholder="At least 8 characters" autocomplete="new-password" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:14px;box-sizing:border-box;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Confirm password</label>
+      <input id="invPw2" type="password" placeholder="Type it again" autocomplete="new-password" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:20px;box-sizing:border-box;">
       <button id="invBtn" class="btn-gold" style="width:100%;padding:12px;font-size:13px;border-radius:6px;">Save password &amp; sign in</button>
     </div>
-    <p style="text-align:center;margin-top:14px;font-size:12px;"><span id="invToLogin" style="color:#888;cursor:pointer;text-decoration:underline;">Go to sign in</span></p>
+    <p style="text-align:center;margin-top:14px;font-size:12px;"><span id="invToLogin" style="color:var(--muted);cursor:pointer;text-decoration:underline;">Go to sign in</span></p>
   </div>
 </div>
 
@@ -301,6 +373,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
       <button id="btnContacts" class="btn-ghost"><i class="ti ti-address-book"></i> Contacts</button>
       <button id="btnArchive" class="btn-ghost"><i class="ti ti-archive"></i> Archive</button>
       <button id="btnExport" class="btn-ghost" style="display:none;"><i class="ti ti-download"></i> Export</button>
+      <button id="btnSettings" class="btn-ghost" title="Settings" aria-label="Settings" style="padding:8px 12px;"><i class="ti ti-settings"></i></button>
       <span id="userChip" style="display:none;color:#fff;font-size:11px;opacity:.85;align-self:center;white-space:nowrap;"></span>
       <button id="btnLogout" class="btn-ghost" style="border-color:rgba(255,100,100,.5);"><i class="ti ti-logout"></i> Sign out</button>
     </div>
@@ -314,45 +387,45 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
   <!-- SHARED PROJECT FORM (used by board + directory) -->
   <!-- Add/Edit form -->
-  <div id="projectForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
-    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="projectFormTitle">Add project</p>
+  <div id="projectForm" style="display:none;background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;">
+    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin-bottom:16px;" id="projectFormTitle">Add project</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
         <input id="pfName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
         <input id="pfAddress" type="text" placeholder="1100 Matamoros St, Laredo TX" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
         <div style="display:flex;gap:6px;">
           <input id="pfProspect" type="text" placeholder="Select or type prospect name" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-          <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--navy);font-size:13px;"><i class="ti ti-address-book"></i></button>
+          <button id="pfPickContact" title="Pick from contacts" style="padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--ink);font-size:13px;"><i class="ti ti-address-book"></i></button>
         </div>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Project contacts</label>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
+          <button id="pfPickProjectContacts" type="button" style="padding:7px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--ink);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-address-book"></i> Add contacts</button>
         </div>
         <div id="pfProjectContactsList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:0;"></div>
       </div>
 
       <!-- Project files: brochures & other documents for the project itself (not a journal note) -->
       <div id="pfFilesCell" style="grid-column:2;grid-row:2 / span 2;display:flex;flex-direction:column;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project files</label>
-        <div id="pfFilesZone" style="flex:1;min-height:110px;border:2px dashed var(--border);border-radius:8px;padding:12px;background:#fafafa;box-sizing:border-box;">
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project files</label>
+        <div id="pfFilesZone" style="flex:1;min-height:110px;border:2px dashed var(--border);border-radius:8px;padding:12px;background:var(--card2);box-sizing:border-box;">
           <div id="pfFilesList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
-            <button type="button" onclick="pickFiles(f=>addFilesToProject('form',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:#fff;color:var(--navy);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
-            <span id="pfFilesHint" style="font-size:11px;color:#999;">Brochures, LOIs, site plans… PDF or Word. You can drop files here too.</span>
+            <button type="button" onclick="pickFiles(f=>addFilesToProject('form',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
+            <span id="pfFilesHint" style="font-size:11px;color:var(--muted);">Brochures, LOIs, site plans… PDF or Word. You can drop files here too.</span>
           </div>
         </div>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
         <select id="pfType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
           <option value="">— Select type —</option>
           <option value="Lease">Lease</option>
@@ -363,7 +436,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
         </select>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Status</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Status</label>
         <select id="pfStatus" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
           <option value="">— Select status —</option>
           <option value="Not started">Not started</option>
@@ -382,7 +455,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
         </select>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Priority</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Priority</label>
         <select id="pfPriority" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
           <option value="">— No priority —</option>
           <option value="High">🔴 High</option>
@@ -391,25 +464,25 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
         </select>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Square footage (SF)</label>
         <input id="pfSf" type="text" placeholder="e.g. 2,500" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Price per SF</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Price per SF</label>
         <input id="pfPriceSf" type="text" placeholder="e.g. $18.50" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Project journal</label>
         <!-- New note entry -->
         <div style="margin-bottom:12px;">
           <textarea id="pfNewNote" placeholder="Add a new note..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;box-sizing:border-box;"></textarea>
           <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <button type="button" onclick="pickFiles(f=>addPendingFiles('form',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:#fff;color:var(--navy);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
+            <button type="button" onclick="pickFiles(f=>addPendingFiles('form',f))" title="Attach a PDF or Word document" style="padding:5px 12px;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;"><i class="ti ti-paperclip"></i> Attach file</button>
             <div id="pfNotePending" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
           </div>
         </div>
         <!-- Journal entries list -->
-        <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:#fafafa;display:none;"></div>
+        <div id="pfNotesList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:var(--card2);display:none;"></div>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
@@ -424,7 +497,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
       <div>
         <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0;">Killam Development</p>
-        <h2 style="font-size:18px;font-weight:600;color:var(--navy);margin:4px 0 0;">Project board</h2>
+        <h2 style="font-size:18px;font-weight:600;color:var(--ink);margin:4px 0 0;">Project board</h2>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <input id="projectBoardSearch" type="text" placeholder="Search projects…" style="padding:7px 12px;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:12px;width:200px;">
@@ -440,11 +513,11 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
       </div>
     </div>
     <!-- Active projects panel -->
-    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
+    <div style="background:var(--card);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:20px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <div>
-          <p style="font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.07em;margin:0;">Active projects</p>
-          <p id="activeProjectCount" style="font-size:11px;color:#888;margin:2px 0 0;"></p>
+          <p style="font-size:12px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.07em;margin:0;">Active projects</p>
+          <p id="activeProjectCount" style="font-size:11px;color:var(--muted);margin:2px 0 0;"></p>
         </div>
       </div>
       <div id="projectBoardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
@@ -452,13 +525,13 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
     </div>
 
     <!-- Closed projects panel -->
-    <div id="closedProjectsPanel" style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:16px;display:none;">
+    <div id="closedProjectsPanel" style="background:var(--card);border-radius:10px;border:1px solid var(--border);padding:16px;display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="toggleClosedPanel()">
         <div>
-          <p style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.07em;margin:0;">Closed / Completed / Dead</p>
+          <p style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:0;">Closed / Completed / Dead</p>
           <p id="closedProjectCount" style="font-size:11px;color:#aaa;margin:2px 0 0;"></p>
         </div>
-        <button id="closedPanelToggleBtn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">&#9660; Expand</button>
+        <button id="closedPanelToggleBtn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);">&#9660; Expand</button>
       </div>
       <div id="closedProjectsGrid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;opacity:.8;"></div>
     </div>
@@ -525,7 +598,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
       <div>
         <p style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:0;">Weekly tracker</p>
-        <h2 id="weekLabel" style="font-size:18px;font-weight:600;color:var(--navy);margin:4px 0 0;"></h2>
+        <h2 id="weekLabel" style="font-size:18px;font-weight:600;color:var(--ink);margin:4px 0 0;"></h2>
       </div>
       <div style="display:flex;gap:8px;">
         <button id="btnAdd" class="btn-blue" style="padding:8px 16px;"><i class="ti ti-plus"></i> Add task</button>
@@ -611,27 +684,27 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
   </div>
 
   <!-- Add/Edit form -->
-  <div id="contactForm" style="display:none;background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">
-    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;" id="contactFormTitle">Add contact</p>
+  <div id="contactForm" style="display:none;background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;">
+    <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin-bottom:16px;" id="contactFormTitle">Add contact</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
         <input id="cfName" type="text" placeholder="Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
         <input id="cfCompany" type="text" placeholder="Killam Development" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
         <input id="cfEmail" type="email" placeholder="jane@example.com" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
         <input id="cfPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div style="grid-column:1/-1;">
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Notes</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Notes</label>
         <textarea id="cfNotes" placeholder="Met at ICSC 2025, prefers email..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;"></textarea>
       </div>
     </div>
@@ -644,10 +717,10 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
   <!-- Search -->
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
     <div style="position:relative;flex:1;min-width:220px;max-width:480px;">
-      <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#888;font-size:15px;"></i>
+      <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;"></i>
       <input id="contactSearch" type="search" placeholder="Search by name, company, or project…" autocomplete="off" style="width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
     </div>
-    <span id="contactCount" style="font-size:12px;color:#888;"></span>
+    <span id="contactCount" style="font-size:12px;color:var(--muted);"></span>
   </div>
 
   <!-- Contact cards grid -->
@@ -667,8 +740,8 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
   <!-- Show: All / Leases / Sales / Purchases -->
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-    <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#888;">Show</span>
-    <div id="dashTypeToggle" role="tablist" style="display:inline-flex;background:#fff;border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap;"></div>
+    <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);">Show</span>
+    <div id="dashTypeToggle" role="tablist" style="display:inline-flex;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap;"></div>
   </div>
 
   <!-- Metric tiles -->
@@ -676,48 +749,48 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
   <!-- Charts row -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-    <div style="background:#fff;border-radius:8px;padding:20px;height:280px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Deal pipeline by status</p>
+    <div style="background:var(--card);border-radius:8px;padding:20px;height:280px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin-bottom:16px;">Deal pipeline by status</p>
       <div style="position:relative;height:200px;"><canvas id="chartPipeline"></canvas></div>
     </div>
-    <div style="background:#fff;border-radius:8px;padding:20px;height:280px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin-bottom:16px;">Closed deals by month</p>
+    <div style="background:var(--card);border-radius:8px;padding:20px;height:280px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin-bottom:16px;">Closed deals by month</p>
       <div style="position:relative;height:200px;"><canvas id="chartClosed"></canvas></div>
     </div>
   </div>
 
   <!-- Due this week & overdue -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-    <div style="background:#fff;border-radius:8px;padding:20px;">
+    <div style="background:var(--card);border-radius:8px;padding:20px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Due this week</p>
-        <button onclick="toggleSection('dueWeek')" id="toggleBtn-dueWeek" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+        <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin:0;">Due this week</p>
+        <button onclick="toggleSection('dueWeek')" id="toggleBtn-dueWeek" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:var(--muted);font-family:inherit;">&#9650; Collapse</button>
       </div>
       <div id="section-dueWeek"><div id="dashDueWeek"></div></div>
     </div>
-    <div style="background:#fff;border-radius:8px;padding:20px;">
+    <div style="background:var(--card);border-radius:8px;padding:20px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a32d2d;margin:0;">Overdue tasks</p>
-        <button onclick="toggleSection('overdue')" id="toggleBtn-overdue" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+        <button onclick="toggleSection('overdue')" id="toggleBtn-overdue" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:var(--muted);font-family:inherit;">&#9650; Collapse</button>
       </div>
       <div id="section-overdue"><div id="dashOverdue"></div></div>
     </div>
   </div>
 
   <!-- Contact activity -->
-  <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
+  <div style="background:var(--card);border-radius:8px;padding:20px;margin-bottom:24px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Contact activity</p>
-      <button onclick="toggleSection('contacts')" id="toggleBtn-contacts" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin:0;">Contact activity</p>
+      <button onclick="toggleSection('contacts')" id="toggleBtn-contacts" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:var(--muted);font-family:inherit;">&#9650; Collapse</button>
     </div>
     <div id="section-contacts"><div id="dashContacts"></div></div>
   </div>
 
   <!-- Projects activity -->
-  <div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;">
+  <div style="background:var(--card);border-radius:8px;padding:20px;margin-bottom:24px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0;">Active projects</p>
-      <button onclick="toggleSection('projects')" id="toggleBtn-projects" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:#888;font-family:inherit;">&#9650; Collapse</button>
+      <p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin:0;">Active projects</p>
+      <button onclick="toggleSection('projects')" id="toggleBtn-projects" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:11px;color:var(--muted);font-family:inherit;">&#9650; Collapse</button>
     </div>
     <div id="section-projects"><div id="dashProjects"></div></div>
   </div>
@@ -725,29 +798,29 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
 <!-- PROJECT PICKER MODAL -->
 <div id="projectPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
+  <div style="background:var(--card);border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <p style="font-size:13px;font-weight:700;color:var(--navy);">Select a project</p>
-      <button id="projPickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
+      <p style="font-size:13px;font-weight:700;color:var(--ink);">Select a project</p>
+      <button id="projPickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <input id="projPickerSearch" type="text" placeholder="Search by name or address..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
     <div id="projPickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
-    <button id="projPickerCreate" style="padding:10px 14px;width:100%;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-plus"></i> Create new project</button>
+    <button id="projPickerCreate" style="padding:10px 14px;width:100%;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--ink);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;"><i class="ti ti-plus"></i> Create new project</button>
   </div>
 </div>
 
 <!-- CONTACT PICKER MODAL -->
 <div id="contactPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
+  <div style="background:var(--card);border-radius:12px;padding:24px;width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <p style="font-size:13px;font-weight:700;color:var(--navy);">Add contacts to task</p>
-      <button id="pickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
+      <p style="font-size:13px;font-weight:700;color:var(--ink);">Add contacts to task</p>
+      <button id="pickerClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <div id="pickerSelected" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:0;"></div>
     <input id="pickerSearch" type="text" placeholder="Search by name or company..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:10px;">
     <div id="pickerList" style="overflow-y:auto;flex:1;margin-bottom:12px;"></div>
     <div style="display:flex;gap:8px;">
-      <button id="pickerCreateContact" style="padding:10px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--navy);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;white-space:nowrap;"><i class="ti ti-plus"></i> New contact</button>
+      <button id="pickerCreateContact" style="padding:10px 14px;background:transparent;border:1px solid var(--navy);border-radius:999px;color:var(--ink);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;white-space:nowrap;"><i class="ti ti-plus"></i> New contact</button>
       <button id="pickerDone" class="btn-gold" style="padding:10px;flex:1;font-size:12px;">Done — add to task</button>
     </div>
   </div>
@@ -755,58 +828,58 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
 
 <!-- INLINE CREATE CONTACT MODAL -->
 <div id="inlineContactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:460px;max-width:90vw;">
+  <div style="background:var(--card);border-radius:12px;padding:28px;width:460px;max-width:90vw;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <p style="font-size:14px;font-weight:700;color:var(--navy);">Create new contact</p>
-      <button id="inlineContactClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
+      <p style="font-size:14px;font-weight:700;color:var(--ink);">Create new contact</p>
+      <button id="inlineContactClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Name *</label>
         <input id="icName" type="text" placeholder="Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Company</label>
         <input id="icCompany" type="text" placeholder="Company name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Email</label>
         <input id="icEmail" type="email" placeholder="jane@example.com" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Phone</label>
         <input id="icPhone" type="tel" placeholder="(555) 123-4567" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
     </div>
     <div style="display:flex;gap:8px;">
       <button id="icSave" class="btn-gold" style="padding:10px 20px;">Save & add to task</button>
-      <button id="icCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:#888;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
+      <button id="icCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:var(--muted);font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
     </div>
   </div>
 </div>
 
 <!-- INLINE CREATE PROJECT MODAL -->
 <div id="inlineProjectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:500px;max-width:90vw;">
+  <div style="background:var(--card);border-radius:12px;padding:28px;width:500px;max-width:90vw;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <p style="font-size:14px;font-weight:700;color:var(--navy);">Create new project</p>
-      <button id="inlineProjectClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">✕</button>
+      <p style="font-size:14px;font-weight:700;color:var(--ink);">Create new project</p>
+      <button id="inlineProjectClose" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Project name *</label>
         <input id="ipName" type="text" placeholder="WorkFlow 1100 Matamoros" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Property address</label>
         <input id="ipAddress" type="text" placeholder="1100 Matamoros St" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Prospect</label>
         <input id="ipProspect" type="text" placeholder="Prospect name" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
+        <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Type</label>
         <select id="ipType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
           <option value="">— Select type —</option>
           <option value="Lease">Lease</option>
@@ -819,50 +892,50 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
     </div>
     <div style="display:flex;gap:8px;">
       <button id="ipSave" class="btn-gold" style="padding:10px 20px;">Save & add to task</button>
-      <button id="ipCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:#888;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
+      <button id="ipCancel" style="padding:10px 20px;background:transparent;border:1px solid #888;border-radius:999px;color:var(--muted);font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;">Cancel</button>
     </div>
   </div>
 </div>
 
 <!-- REPORT MODAL -->
 <div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;padding:28px;width:560px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;">
+  <div style="background:var(--card);border-radius:12px;padding:28px;width:560px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;">
 
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <p style="font-size:15px;font-weight:700;color:var(--navy);margin:0;">Generate executive report</p>
-      <button id="reportModalClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;">✕</button>
+      <p style="font-size:15px;font-weight:700;color:var(--ink);margin:0;">Generate executive report</p>
+      <button id="reportModalClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
     </div>
 
     <!-- Tabs -->
     <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;">
-      <button id="tabByWeek" onclick="switchReportTab('week')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy);border-bottom:2px solid var(--navy);margin-bottom:-2px;">By Week</button>
-      <button id="tabByProject" onclick="switchReportTab('project')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;">By Project</button>
+      <button id="tabByWeek" onclick="switchReportTab('week')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink);border-bottom:2px solid var(--navy);margin-bottom:-2px;">By Week</button>
+      <button id="tabByProject" onclick="switchReportTab('project')" style="padding:8px 20px;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;">By Project</button>
     </div>
 
     <!-- By Week tab -->
     <div id="reportTabWeek" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-      <p style="font-size:12px;color:#888;margin-bottom:10px;">Select one or more weeks to include in the report.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Select one or more weeks to include in the report.</p>
       <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <button onclick="reportSelectAll('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
-        <button onclick="reportSelectNone('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
+        <button onclick="reportSelectAll('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink);">Select all</button>
+        <button onclick="reportSelectNone('week')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);">Clear</button>
       </div>
       <div id="reportWeekList" style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;min-height:180px;"></div>
     </div>
 
     <!-- By Project tab -->
     <div id="reportTabProject" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
-      <p style="font-size:12px;color:#888;margin-bottom:10px;">Select one or more projects to include in the report. All tasks across all weeks will be included for each selected project.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Select one or more projects to include in the report. All tasks across all weeks will be included for each selected project.</p>
       <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <button onclick="reportSelectAll('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">Select all</button>
-        <button onclick="reportSelectNone('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#888;">Clear</button>
+        <button onclick="reportSelectAll('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink);">Select all</button>
+        <button onclick="reportSelectNone('project')" style="padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);">Clear</button>
       </div>
       <div id="reportProjectList" style="overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;min-height:180px;"></div>
     </div>
 
     <!-- Footer -->
     <div style="margin-top:16px;">
-      <div id="reportStatus" style="font-size:12px;color:#888;margin-bottom:10px;min-height:18px;"></div>
+      <div id="reportStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px;min-height:18px;"></div>
       <button id="reportGenerateBtn" class="btn-gold" style="padding:12px;width:100%;font-size:13px;"><i class="ti ti-file-text"></i> Generate PDF report</button>
     </div>
   </div>
@@ -932,7 +1005,8 @@ let reviewing = null;   // null, or {id, name} of the person being reviewed
 const REVIEW_WRITES_OK = [
   /^\/api\/projects\/[A-Za-z0-9_-]+\/supervisor-(notes|tasks)(\/[A-Za-z0-9_-]+)?$/,
   /^\/api\/supervisor-tasks\/[A-Za-z0-9_-]+$/,
-  /^\/api\/projects\/reassign$/
+  /^\/api\/projects\/reassign$/,
+  /^\/api\/me\/theme$/
 ];
 
 async function apiFetch(path, method="GET", body){
@@ -1053,7 +1127,7 @@ function render(){
     const projPickBtn = document.createElement("button");
     projPickBtn.innerHTML = '<i class="ti ti-building"></i>';
     projPickBtn.title = "Pick from projects";
-    projPickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
+    projPickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--ink);font-size:13px;flex-shrink:0;margin-top:2px;";
     projPickBtn.onclick = ()=> openProjectPicker(val=>{
       projTa.value = val;
       t.title = val;
@@ -1101,7 +1175,7 @@ function render(){
     const pickBtn = document.createElement("button");
     pickBtn.innerHTML = '<i class="ti ti-address-book"></i>';
     pickBtn.title = "Pick from contacts";
-    pickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
+    pickBtn.style.cssText = "padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--ink);font-size:13px;flex-shrink:0;margin-top:2px;";
     pickBtn.onclick = ()=> openContactPicker(val=>{
       const existing = contactTa.value.trim();
       contactTa.value = existing ? existing + "\n" + val : val;
@@ -1117,7 +1191,7 @@ function render(){
     const tdDel = document.createElement("td");
     const del = document.createElement("button");
     del.innerHTML='<i class="ti ti-trash"></i>';
-    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--navy);border-radius:999px;font-size:13px;";
+    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--ink);border-radius:999px;font-size:13px;";
     del.onclick = async()=>{
       await apiFetch("/api/tasks/"+t.id,"DELETE");
       state.tasks = state.tasks.filter(x=>x.id!==t.id);
@@ -1130,7 +1204,7 @@ function render(){
       const canEdit = myRole()==="owner" || t.createdBy===(state.me&&state.me.id);
       if(!canEdit) tr.querySelectorAll("textarea,select,input[type=date],button").forEach(el=>{ el.disabled = true; });
       const badge = document.createElement("div");
-      badge.style.cssText = "font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6a1b9a;margin-bottom:3px;";
+      badge.style.cssText = "font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--purple-text);margin-bottom:3px;";
       badge.innerHTML = '<i class="ti ti-user-star"></i> Supervisor'+(t.createdByName?" · "+escapeHtml(t.createdByName):"");
       tdP.insertBefore(badge, projWrap);
     }
@@ -1169,7 +1243,7 @@ function renderArchive(){
 
     groups[week].forEach((t,idx)=>{
       const tr = document.createElement("tr"); tr.className="task-row "+wkId;
-      const bg = idx%2===0?"#fff":"var(--gray)";
+      const bg = idx%2===0?"var(--card)":"var(--gray)";
 
       const mkTd=(content,round)=>{
         const td=document.createElement("td");
@@ -1302,8 +1376,8 @@ function renderProjectBoard(){
     const glowShadow    = [flagRing, idleRing].filter(Boolean).join(", ") || "none";
 
     const card = document.createElement("div");
-    const prioBg = p.priority==="High"?"#fff5f5":p.priority==="Medium"?"#fff8f0":p.priority==="Low"?"#fffef0":"#fff";
-    const prioBorder = p.priority==="High"?"#ffcdd2":p.priority==="Medium"?"#ffe0b2":p.priority==="Low"?"#fff9c4":p.priority?"var(--border)":"var(--border)";
+    const prioBg = p.priority==="High"?"var(--prio-high-bg)":p.priority==="Medium"?"var(--prio-med-bg)":p.priority==="Low"?"var(--prio-low-bg)":"var(--card)";
+    const prioBorder = p.priority==="High"?"var(--prio-high-bd)":p.priority==="Medium"?"var(--prio-med-bd)":p.priority==="Low"?"var(--prio-low-bd)":"var(--border)";
     card.style.cssText = `background:${prioBg};border-radius:10px;padding:18px;border:1px solid ${flagged?"#6a1b9a":prioBorder};cursor:pointer;transition:box-shadow .15s;position:relative;box-shadow:${glowShadow};`;
     card.onmouseenter = ()=>card.style.boxShadow = [flagRing, glowColor ? `0 0 0 ${flagged?4:2}px ${glowColor}, 0 0 18px 4px ${glowColor}88, 0 4px 16px rgba(0,0,0,.12)` : "0 4px 16px rgba(0,0,0,.1)"].filter(Boolean).join(", ");
     card.onmouseleave = ()=>card.style.boxShadow = glowShadow;
@@ -1314,13 +1388,13 @@ function renderProjectBoard(){
     card.innerHTML = flagRibbon + `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
         <div style="flex:1;">
-          <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:3px;">${p.name}</div>
-          ${p.address?`<div style="font-size:12px;color:#888;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>`:""}
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:3px;">${p.name}</div>
+          ${p.address?`<div style="font-size:12px;color:var(--muted);"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>`:""}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;">
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
             ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};white-space:nowrap;">${p.type}</span>`:""}
-            <select onchange="updateProjectPriority('${p.id}',this.value,this)" onclick="event.stopPropagation();" style="font-size:9px;font-weight:700;border:none;border-radius:999px;padding:2px 6px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit;${p.priority==='High'?'color:#c62828;background:#ffcdd2;':p.priority==='Medium'?'color:#e65100;background:#ffe0b2;':p.priority==='Low'?'color:#f9a825;background:#fff9c4;':'color:#888;background:#f0f0f0;'}">
+            <select onchange="updateProjectPriority('${p.id}',this.value,this)" onclick="event.stopPropagation();" style="font-size:9px;font-weight:700;border:none;border-radius:999px;padding:2px 6px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;font-family:inherit;${p.priority==='High'?'color:#c62828;background:#ffcdd2;':p.priority==='Medium'?'color:#e65100;background:#ffe0b2;':p.priority==='Low'?'color:#f9a825;background:#fff9c4;':'color:var(--muted);background:var(--gray);'}">
               <option value="" ${!p.priority?'selected':''}>N/A</option>
               <option value="High" ${p.priority==='High'?'selected':''}>🔴 HIGH</option>
               <option value="Medium" ${p.priority==='Medium'?'selected':''}>🟠 MED</option>
@@ -1330,7 +1404,7 @@ function renderProjectBoard(){
           ${activeTasks>0?`<span style="font-size:10px;background:var(--navy);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700;">${activeTasks} active</span>`:""}
         </div>
       </div>
-      ${p.prospect?`<div style="font-size:12px;color:#555;margin-bottom:6px;"><i class="ti ti-user" style="margin-right:3px;"></i>${p.prospect}</div>`:""}
+      ${p.prospect?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px;"><i class="ti ti-user" style="margin-right:3px;"></i>${p.prospect}</div>`:""}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;">
         <div style="display:flex;align-items:center;gap:6px;">
           ${statusBadge(p.status)}
@@ -1338,8 +1412,8 @@ function renderProjectBoard(){
           ${glowColor?`<span style="font-size:10px;font-weight:700;color:${glowColor};background:${glowColor}18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-clock-pause" style="margin-right:3px;"></i>${idleDays}d idle</span>`:""}
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          ${(p.sf||p.price_per_sf)?`<span style="font-size:11px;color:#888;">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</span>`:""}
-          <span style="font-size:11px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
+          ${(p.sf||p.price_per_sf)?`<span style="font-size:11px;color:var(--muted);">${p.sf?p.sf+" SF":""} ${p.price_per_sf?"· "+p.price_per_sf+"/SF":""}</span>`:""}
+          <span style="font-size:11px;color:var(--muted);">${taskCount} task${taskCount!==1?"s":""}</span>
         </div>
       </div>
     `;
@@ -1374,7 +1448,7 @@ function supChipHtml(p){
   const t = state.tasks.filter(x=>x.supervisor && !x.done && taskBelongsTo(x,p)).length;
   if(!n && !t) return "";
   const bits = [n?n+" note"+(n>1?"s":""):"", t?t+" task"+(t>1?"s":""):""].filter(Boolean).join(" · ");
-  return `<span title="From a supervisor" style="font-size:10px;font-weight:700;color:#6a1b9a;background:#6a1b9a18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-user-star" style="margin-right:3px;"></i>${bits}</span>`;
+  return `<span title="From a supervisor" style="font-size:10px;font-weight:700;color:var(--purple-text);background:#6a1b9a18;padding:3px 9px;border-radius:999px;white-space:nowrap;"><i class="ti ti-user-star" style="margin-right:3px;"></i>${bits}</span>`;
 }
 
 // Put cards into a grid under a heading per section (Leases / Sales & Purchases / Other).
@@ -1388,7 +1462,7 @@ function fillGrouped(grid, projects, buildCard, withHeadings){
     h.style.cssText = `grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:6px 0 -2px;padding-bottom:6px;border-bottom:2px solid ${sec.color}33;`;
     h.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${sec.color};"></span>
       <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${sec.color};">${sec.label}</span>
-      <span style="font-size:11px;color:#888;">${items.length}</span>`;
+      <span style="font-size:11px;color:var(--muted);">${items.length}</span>`;
     grid.appendChild(h);
     items.forEach(p=>grid.appendChild(buildCard(p)));
   });
@@ -1403,7 +1477,7 @@ async function updateProjectPriority(id, priority, selectEl){
     "High":   "color:#c62828;background:#ffcdd2;",
     "Medium": "color:#e65100;background:#ffe0b2;",
     "Low":    "color:#f9a825;background:#fff9c4;",
-    "":       "color:#888;background:#f0f0f0;"
+    "":       "color:var(--muted);background:var(--gray);"
   };
   selectEl.style.cssText = selectEl.style.cssText.replace(/color:[^;]+;background:[^;]+;/, styles[priority]||styles[""]);
   try {
@@ -1540,7 +1614,7 @@ function renderDetailNotes(p, resetScroll){
             <textarea id="detailNoteEditText" style="width:100%;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(e.text)}</textarea>
             ${attachmentChipsHtml(e,i,"detail",true)}
             <div style="display:flex;gap:8px;margin-top:6px;">
-              <button type="button" id="detailNoteEditSaveBtn" onclick="saveDetailNoteEdit(${i})" style="padding:5px 14px;background:var(--gold);color:var(--navy);border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
+              <button type="button" id="detailNoteEditSaveBtn" onclick="saveDetailNoteEdit(${i})" style="padding:5px 14px;background:var(--gold);color:var(--ink);border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
               <button type="button" onclick="cancelDetailNoteEdit()" style="padding:5px 14px;background:transparent;color:#cfd6dd;border:1px solid rgba(255,255,255,.3);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
             </div>
           </div>`;
@@ -1659,9 +1733,9 @@ function renderDetailArchive(p){
   // Collapsible header
   let collapsed = true;
   const header = document.createElement("div");
-  header.style.cssText = "display:flex;align-items:center;justify-content:space-between;background:#f0f0f0;border-radius:999px;padding:10px 18px;cursor:pointer;margin-bottom:0;";
-  header.innerHTML = `<span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#888;">Completed tasks &nbsp;·&nbsp; ${archived.length} task${archived.length!==1?"s":""}</span>
-    <span id="archToggleIcon" style="font-size:12px;color:#888;">&#9660; Expand</span>`;
+  header.style.cssText = "display:flex;align-items:center;justify-content:space-between;background:var(--gray);border-radius:999px;padding:10px 18px;cursor:pointer;margin-bottom:0;";
+  header.innerHTML = `<span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);">Completed tasks &nbsp;·&nbsp; ${archived.length} task${archived.length!==1?"s":""}</span>
+    <span id="archToggleIcon" style="font-size:12px;color:var(--muted);">&#9660; Expand</span>`;
 
   const body = document.createElement("div");
   body.style.display = "none";
@@ -1698,7 +1772,7 @@ function renderDetailArchive(p){
     ].forEach(({val,round})=>{
       const td = document.createElement("td");
       td.textContent = val;
-      td.style.cssText = `background:${bg};color:#555;padding:8px 10px;vertical-align:top;font-size:12px;`;
+      td.style.cssText = `background:${bg};color:var(--text2);padding:8px 10px;vertical-align:top;font-size:12px;`;
       if(round==="left")  { td.style.borderRadius="999px 0 0 999px"; td.style.paddingLeft="14px"; }
       if(round==="right") { td.style.borderRadius="0 999px 999px 0"; td.style.paddingRight="14px"; }
       tr.appendChild(td);
@@ -1731,7 +1805,7 @@ function renderDetailTasks(p){
   projTasks.forEach((t,idx)=>{
     const tr = document.createElement("tr");
     tr.className = "task-row";
-    const bg = idx%2===0?"#fff":"var(--gray)";
+    const bg = idx%2===0?"var(--card)":"var(--gray)";
     if(!t.done && t.deadline){
       if(t.deadline===today) tr.className+=" due-today";
       else if(t.deadline<today) tr.className+=" overdue";
@@ -1791,7 +1865,7 @@ function renderDetailTasks(p){
     const ctTa = mkTa(t.contact, v=>{ t.contact=v; scheduleSave(t); }, "Contact info"); ctTa.style.flex="1";
     const pickBtn = document.createElement("button");
     pickBtn.innerHTML='<i class="ti ti-address-book"></i>';
-    pickBtn.style.cssText="padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--navy);font-size:13px;flex-shrink:0;margin-top:2px;";
+    pickBtn.style.cssText="padding:4px 7px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--ink);font-size:13px;flex-shrink:0;margin-top:2px;";
     pickBtn.onclick=()=>openContactPicker(val=>{ ctTa.value=val; t.contact=val; scheduleSave(t); });
     ctWrap.appendChild(ctTa); ctWrap.appendChild(pickBtn);
     tr.appendChild(mkTd(ctWrap));
@@ -1799,7 +1873,7 @@ function renderDetailTasks(p){
     // Delete
     const del = document.createElement("button");
     del.innerHTML='<i class="ti ti-trash"></i>';
-    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--navy);border-radius:999px;font-size:13px;cursor:pointer;";
+    del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--ink);border-radius:999px;font-size:13px;cursor:pointer;";
     del.onclick=async()=>{ await apiFetch("/api/tasks/"+t.id,"DELETE"); state.tasks=state.tasks.filter(x=>x.id!==t.id); renderDetailTasks(p); };
     tr.appendChild(mkTd(del,"right"));
 
@@ -1890,25 +1964,25 @@ function renderProjects(){
 
   projects.forEach(p => {
     const card = document.createElement("div");
-    card.style.cssText = "background:#fff;border-radius:8px;padding:16px;border:1px solid var(--border);";
+    card.style.cssText = "background:var(--card);border-radius:8px;padding:16px;border:1px solid var(--border);";
     const notesId = "pnotes-"+p.id;
     const typeColor = p.type==="Lease"?"#1565c0":p.type==="Purchase"?"#2e7d32":p.type==="Sale"?"#b8924f":"#888";
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div style="flex:1;">
-          <div style="font-size:14px;font-weight:700;color:var(--navy);">${p.name||"(no name)"}</div>
-          ${p.address ? `<div style="font-size:12px;color:#666;margin-top:2px;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>` : ""}
+          <div style="font-size:14px;font-weight:700;color:var(--ink);">${p.name||"(no name)"}</div>
+          ${p.address ? `<div style="font-size:12px;color:var(--text2);margin-top:2px;"><i class="ti ti-map-pin" style="margin-right:3px;"></i>${p.address}</div>` : ""}
           ${p.type ? `<div style="font-size:11px;font-weight:700;color:${typeColor};text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">${p.type}</div>` : ""}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;margin-left:8px;">
           ${p.notes ? `<button onclick="toggleProjectNotes('${p.id}')" title="Notes" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--gold);font-family:inherit;"><i class="ti ti-notes"></i></button>` : ""}
-          <button onclick="editProject('${p.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--navy);font-family:inherit;"><i class="ti ti-pencil"></i></button>
+          <button onclick="editProject('${p.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--ink);font-family:inherit;"><i class="ti ti-pencil"></i></button>
           <button onclick="deleteProject('${p.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
         </div>
       </div>
-      ${p.prospect ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-user" style="margin-right:4px;"></i>${p.prospect}</div>` : ""}
-      ${(p.sf || p.price_per_sf) ? `<div style="font-size:12px;color:#555;margin-bottom:4px;">${p.sf ? `<span style="margin-right:12px;"><i class="ti ti-ruler" style="margin-right:3px;"></i>${p.sf} SF</span>` : ""}${p.price_per_sf ? `<span><i class="ti ti-currency-dollar" style="margin-right:3px;"></i>${p.price_per_sf}/SF</span>` : ""}</div>` : ""}
-      ${p.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${p.notes}</div>` : ""}
+      ${p.prospect ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;"><i class="ti ti-user" style="margin-right:4px;"></i>${p.prospect}</div>` : ""}
+      ${(p.sf || p.price_per_sf) ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;">${p.sf ? `<span style="margin-right:12px;"><i class="ti ti-ruler" style="margin-right:3px;"></i>${p.sf} SF</span>` : ""}${p.price_per_sf ? `<span><i class="ti ti-currency-dollar" style="margin-right:3px;"></i>${p.price_per_sf}/SF</span>` : ""}</div>` : ""}
+      ${p.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap;">${p.notes}</div>` : ""}
     `;
     grid.appendChild(card);
   });
@@ -1938,9 +2012,9 @@ function renderProjectContactPills(containerId){
   el.innerHTML = currentProjectContacts.map((c,i)=>`
     <div style="display:flex;align-items:center;gap:6px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
       <div>
-        <div style="font-size:12px;font-weight:700;color:var(--navy);">${c.name}</div>
-        ${c.company?`<div style="font-size:11px;color:#888;">${c.company}</div>`:""}
-        ${c.email?`<div style="font-size:11px;color:#888;">${c.email}</div>`:""}
+        <div style="font-size:12px;font-weight:700;color:var(--ink);">${c.name}</div>
+        ${c.company?`<div style="font-size:11px;color:var(--muted);">${c.company}</div>`:""}
+        ${c.email?`<div style="font-size:11px;color:var(--muted);">${c.email}</div>`:""}
       </div>
       <button onclick="removeProjectContact(${i})" style="background:none;border:none;cursor:pointer;color:#a32d2d;font-size:14px;padding:0 2px;">✕</button>
     </div>`).join("");
@@ -2093,7 +2167,7 @@ async function openAttachment(att){
 function fileChipHtml(a, scope, openJs, removeJs, readOnly){
   const chip = scope==="detail"
     ? "background:rgba(255,255,255,.12);color:#e8edf2;border:1px solid rgba(255,255,255,.2);"
-    : "background:#fff;color:var(--navy);border:1px solid var(--border);";
+    : "background:var(--card);color:var(--ink);border:1px solid var(--border);";
   return `
     <span style="display:inline-flex;align-items:center;gap:6px;${chip}border-radius:999px;padding:3px ${readOnly?10:6}px 3px 10px;font-size:11px;max-width:100%;">
       ${fileIconHtml(a.key, "flex-shrink:0;")}
@@ -2117,7 +2191,7 @@ function renderPending(scope){
   if(!el) return;
   const chip = scope==="detail"
     ? "background:rgba(255,255,255,.12);color:#e8edf2;border:1px solid rgba(255,255,255,.2);"
-    : "background:#fff;color:var(--navy);border:1px solid var(--border);";
+    : "background:var(--card);color:var(--ink);border:1px solid var(--border);";
   el.innerHTML = files.map((f,k)=>`
     <span style="display:inline-flex;align-items:center;gap:6px;${chip}border-radius:999px;padding:3px 6px 3px 10px;font-size:11px;">
       ${fileIconHtml(f.name)}${escapeHtml(f.name)}
@@ -2357,7 +2431,7 @@ function renderNotesList(entries, containerId){
         ${attachmentChipsHtml(e,i,"form",true)}
         <div style="display:flex;gap:8px;margin-top:6px;">
           <button type="button" onclick="saveFormNoteEdit(${i})" style="padding:5px 14px;background:var(--navy);color:#fff;border:none;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">SAVE</button>
-          <button type="button" onclick="cancelFormNoteEdit()" style="padding:5px 14px;background:transparent;color:#888;border:1px solid var(--border);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
+          <button type="button" onclick="cancelFormNoteEdit()" style="padding:5px 14px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;">CANCEL</button>
         </div>
       </div>`;
     }
@@ -2370,9 +2444,9 @@ function renderNotesList(entries, containerId){
         ${attachmentChipsHtml(e,i,"form",false)}
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
-        <i class="ti ti-paperclip" onclick="pickFiles(f=>addFilesToNote('form',${i},f))" style="cursor:pointer;color:#888;font-size:14px;" title="Attach a PDF or Word file"></i>
-        <i class="ti ti-pencil" onclick="editFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Edit note"></i>
-        <i class="ti ti-trash" onclick="deleteFormNote(${i})" style="cursor:pointer;color:#888;font-size:14px;" title="Delete note"></i>
+        <i class="ti ti-paperclip" onclick="pickFiles(f=>addFilesToNote('form',${i},f))" style="cursor:pointer;color:var(--muted);font-size:14px;" title="Attach a PDF or Word file"></i>
+        <i class="ti ti-pencil" onclick="editFormNote(${i})" style="cursor:pointer;color:var(--muted);font-size:14px;" title="Edit note"></i>
+        <i class="ti ti-trash" onclick="deleteFormNote(${i})" style="cursor:pointer;color:var(--muted);font-size:14px;" title="Delete note"></i>
       </div>
     </div>`;
   }).join("");
@@ -2571,14 +2645,14 @@ function renderProjectPickerList(query){
   );
   list.innerHTML = "";
   if(!projects.length){
-    list.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No projects found.</p>';
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px;">No projects found.</p>';
     return;
   }
   projects.forEach(p=>{
     const row = document.createElement("div");
     row.style.cssText = "padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;";
-    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--navy);">${p.name}</div>
-      <div style="font-size:11px;color:#888;">${[p.address,p.type].filter(Boolean).join(" · ")}</div>`;
+    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--ink);">${p.name}</div>
+      <div style="font-size:11px;color:var(--muted);">${[p.address,p.type].filter(Boolean).join(" · ")}</div>`;
     row.onmouseenter = ()=>row.style.background="var(--cream)";
     row.onmouseleave = ()=>row.style.background="";
     row.onclick = ()=>{
@@ -2600,8 +2674,68 @@ document.getElementById("projPickerClose").onclick  = () => {
 const ROLE_LABEL = {owner:"Owner", supervisor:"Supervisor", agent:"Agent"};
 function myRole(){ return (state.me && state.me.role) || "agent"; }
 
+// ── Colour schemes ─────────────────────────────────────────────
+const THEME_META = {
+  standard:{label:"Standard", desc:"Navy and gold, the classic look",           sw:["#16273a","#b8924f","#f4f4f4"]},
+  bright:  {label:"Bright",   desc:"Shades of pink and fuchsia",                sw:["#a21caf","#ec4899","#fff1f7"]},
+  dark:    {label:"Dark",     desc:"Standard, after midnight",                  sw:["#060b16","#b8924f","#131c2e"]},
+  starwars:{label:"Star Wars",desc:"A long time ago… (Owner only)",             sw:["#000000","#ffe81f","#1e88e5"], ownerOnly:true}
+};
+function currentTheme(){ return document.documentElement.getAttribute("data-theme") || "standard"; }
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+// Chart.js bakes colours in when a chart is created, so recolour any that are on screen.
+function refreshChartColors(){
+  if(typeof Chart==="undefined") return;
+  const txt = cssVar("--text2"), grid = cssVar("--border");
+  Chart.defaults.color = txt; Chart.defaults.borderColor = grid;
+  Object.values(Chart.instances||{}).forEach(c=>{
+    try{
+      c.options.color = txt;
+      Object.values(c.options.scales||{}).forEach(sc=>{ sc.ticks=sc.ticks||{}; sc.ticks.color=txt; sc.grid=sc.grid||{}; sc.grid.color=grid; });
+      c.options.plugins = c.options.plugins||{}; c.options.plugins.legend = c.options.plugins.legend||{}; c.options.plugins.legend.labels = Object.assign(c.options.plugins.legend.labels||{},{color:txt});
+      c.update("none");
+    }catch(e){}
+  });
+}
+function applyTheme(t){
+  if(!THEME_META[t]) t = "standard";
+  document.documentElement.setAttribute("data-theme", t);
+  try{ localStorage.setItem("kd_theme", t); }catch(e){}
+  refreshChartColors();
+}
+function renderThemeOptions(){
+  const box = document.getElementById("themeOptions"), cur = currentTheme(), isOwner = myRole()==="owner";
+  box.innerHTML = Object.keys(THEME_META).filter(k=>!THEME_META[k].ownerOnly || isOwner).map(k=>{
+    const m = THEME_META[k], on = k===cur;
+    return '<button type="button" class="themeOpt" data-theme-pick="'+k+'" style="display:flex;align-items:center;gap:14px;text-align:left;text-transform:none;letter-spacing:0;font-size:13px;padding:12px 14px;border-radius:10px;background:var(--card2);color:var(--text);border:2px solid '+(on?'var(--gold)':'var(--border)')+';width:100%;">'
+      + '<span style="display:flex;border-radius:999px;overflow:hidden;border:1px solid rgba(128,128,128,.4);flex:none;">'+m.sw.map(c=>'<span style="width:22px;height:30px;background:'+c+';display:block;"></span>').join('')+'</span>'
+      + '<span style="flex:1;"><span style="display:block;font-weight:700;font-size:13px;">'+m.label+'</span><span style="display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;">'+m.desc+'</span></span>'
+      + (on?'<i class="ti ti-check" style="font-size:18px;color:var(--gold);"></i>':'') + '</button>';
+  }).join("");
+  box.querySelectorAll(".themeOpt").forEach(b=>b.onclick = ()=>chooseTheme(b.dataset.themePick));
+}
+async function chooseTheme(t){
+  const prev = currentTheme(), msg = document.getElementById("themeMsg"); msg.style.display = "none";
+  if(t===prev) return;
+  applyTheme(t); renderThemeOptions();               // instant, then save
+  try{
+    const r = await apiFetch("/api/me/theme","PUT",{theme:t});
+    if(r && r.error) throw new Error(r.error);
+    if(state.me) state.me.theme = t;
+  }catch(e){
+    applyTheme(prev); renderThemeOptions();
+    msg.textContent = "Couldn't save that choice: "+(e.message||"try again"); msg.style.display = "block";
+  }
+}
+function openSettings(){ renderThemeOptions(); document.getElementById("themeMsg").style.display="none"; document.getElementById("settingsModal").style.display="flex"; }
+function closeSettings(){ document.getElementById("settingsModal").style.display="none"; }
+document.getElementById("btnSettings").onclick = openSettings;
+document.getElementById("btnSettingsClose").onclick = closeSettings;
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && document.getElementById("settingsModal").style.display==="flex") closeSettings(); });
+
 function applyRole(){
   const me = state.me || {};
+  if(me.theme && me.theme!==currentTheme()) applyTheme(me.theme);   // the account's saved scheme wins
   const canSeeTeam = me.role==="owner" || me.role==="supervisor";
   document.getElementById("btnTeam").style.display      = canSeeTeam ? "" : "none";
   document.getElementById("mobileTeamLink").style.display = canSeeTeam ? "flex" : "none";
@@ -2635,8 +2769,8 @@ async function copyText(text){
 }
 
 function inviteLinkBox(link){
-  return '<div style="background:#f4f7fa;border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px;">'
-    + '<p style="font-size:12px;color:#555;margin:0 0 8px;">Send this link to the person. It works once and expires in 7 days.</p>'
+  return '<div style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px;">'
+    + '<p style="font-size:12px;color:var(--text2);margin:0 0 8px;">Send this link to the person. It works once and expires in 7 days.</p>'
     + '<div style="display:flex;gap:8px;"><input class="teamLinkInput" readonly value="'+escapeHtml(link)+'" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;">'
     + '<button class="btn-blue teamCopyBtn" type="button"><i class="ti ti-copy"></i> Copy</button></div></div>';
 }
@@ -2650,8 +2784,8 @@ async function renderTeam(){
   teamUsers = r.users;
   const isOwner = myRole()==="owner";
   const myId = state.me && state.me.id;
-  const card = 'background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;';
-  const h = 'font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6a1b9a;margin:0 0 14px;';
+  const card = 'background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;';
+  const h = 'font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--purple-text);margin:0 0 14px;';
   const inp = 'width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;';
   let html = '<div id="teamOverviewHolder"></div>';
 
@@ -2667,7 +2801,7 @@ async function renderTeam(){
   }
 
   html += '<div style="'+card+'overflow-x:auto;"><p style="'+h+'">People</p>'
-    + '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;">'
     + '<th style="padding:6px 8px;">Name</th><th style="padding:6px 8px;">Email</th><th style="padding:6px 8px;">Role</th><th style="padding:6px 8px;">Status</th><th style="padding:6px 8px;text-align:right;">Projects</th>'
     + (isOwner ? '<th style="padding:6px 8px;"></th>' : '') + '</tr></thead><tbody>';
   teamUsers.forEach(u=>{
@@ -2678,10 +2812,10 @@ async function renderTeam(){
     }
     let actions = "";
     if(isOwner && u.role!=="owner"){
-      actions = (u.active ? '<button class="btn-ghost teamLink" data-id="'+escapeHtml(u.id)+'" style="color:var(--navy);border-color:var(--border);">'+(u.pending?"New invite link":"Reset link")+'</button> ' : '')
+      actions = (u.active ? '<button class="btn-ghost teamLink" data-id="'+escapeHtml(u.id)+'" style="color:var(--ink);border-color:var(--border);">'+(u.pending?"New invite link":"Reset link")+'</button> ' : '')
         + '<button class="btn-ghost teamActive" data-id="'+escapeHtml(u.id)+'" data-active="'+(u.active?"0":"1")+'" style="color:'+(u.active?"#a32d2d":"var(--navy)")+';border-color:var(--border);">'+(u.active?"Deactivate":"Reactivate")+'</button>';
     }
-    const ghost = 'color:var(--navy);border-color:var(--border);';
+    const ghost = 'color:var(--ink);border-color:var(--border);';
     let nameCell = '<span style="font-weight:600;">'+escapeHtml(u.name||u.username)+'</span>';
     let emailCell = escapeHtml(u.email||u.username);
     if(isOwner && teamEditingId===u.id){
@@ -2694,7 +2828,7 @@ async function renderTeam(){
       actions = '<button class="btn-ghost teamEdit" data-id="'+escapeHtml(u.id)+'" style="'+ghost+'"><i class="ti ti-pencil"></i> Edit</button> ' + actions;
     }
     html += '<tr style="border-top:1px solid var(--border);"><td style="padding:10px 8px;">'+nameCell+'</td>'
-      + '<td style="padding:10px 8px;color:#555;">'+emailCell+'</td>'
+      + '<td style="padding:10px 8px;color:var(--text2);">'+emailCell+'</td>'
       + '<td style="padding:10px 8px;">'+roleCell+'</td><td style="padding:10px 8px;">'+status+'</td>'
       + '<td style="padding:10px 8px;text-align:right;">'+u.projectCount+'</td>'
       + (isOwner ? '<td style="padding:10px 8px;text-align:right;white-space:nowrap;">'+actions+'</td>' : '') + '</tr>';
@@ -2705,17 +2839,17 @@ async function renderTeam(){
   const targets = teamUsers.filter(u=>u.active && !u.pending && u.id!==myId);
   html += '<div style="'+card+'"><p style="'+h+'">Hand off projects</p>';
   if(!state.projects.length){
-    html += '<p style="font-size:13px;color:#888;margin:0;">You have no projects to hand off.</p>';
+    html += '<p style="font-size:13px;color:var(--muted);margin:0;">You have no projects to hand off.</p>';
   } else if(!targets.length){
-    html += '<p style="font-size:13px;color:#888;margin:0;">Nobody has accepted an invite yet. Once they sign in you can hand projects to them here.</p>';
+    html += '<p style="font-size:13px;color:var(--muted);margin:0;">Nobody has accepted an invite yet. Once they sign in you can hand projects to them here.</p>';
   } else {
-    html += '<p style="font-size:12px;color:#555;margin:0 0 10px;">Pick projects and who should take them over. Their journal notes, files, and tasks move with them.</p>'
+    html += '<p style="font-size:12px;color:var(--text2);margin:0 0 10px;">Pick projects and who should take them over. Their journal notes, files, and tasks move with them.</p>'
       + '<div id="handoffList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:12px;">'
-      + state.projects.map(p=>'<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer;"><input type="checkbox" class="handoffChk" style="width:auto;margin:0;" value="'+escapeHtml(p.id)+'"> <span>'+escapeHtml(p.name||"(unnamed)")+(p.address?' <span style="color:#888;">— '+escapeHtml(p.address)+'</span>':'')+'</span></label>').join("")
+      + state.projects.map(p=>'<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer;"><input type="checkbox" class="handoffChk" style="width:auto;margin:0;" value="'+escapeHtml(p.id)+'"> <span>'+escapeHtml(p.name||"(unnamed)")+(p.address?' <span style="color:var(--muted);">— '+escapeHtml(p.address)+'</span>':'')+'</span></label>').join("")
       + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       + '<select id="handoffTo" style="'+inp+'">'+targets.map(u=>'<option value="'+escapeHtml(u.id)+'">'+escapeHtml(u.name||u.username)+' ('+escapeHtml(ROLE_LABEL[u.role])+')</option>').join("")+'</select>'
       + '<button id="handoffGo" class="btn-gold" type="button">Hand off selected</button>'
-      + '<button id="handoffAll" class="btn-ghost" type="button" style="color:var(--navy);border-color:var(--border);">Select all</button></div>';
+      + '<button id="handoffAll" class="btn-ghost" type="button" style="color:var(--ink);border-color:var(--border);">Select all</button></div>';
   }
   html += '</div>';
   root.innerHTML = html;
@@ -2835,28 +2969,28 @@ function canSupervise(){ return myRole()==="owner" || myRole()==="supervisor"; }
 async function renderTeamOverview(){
   const holder = document.getElementById("teamOverviewHolder");
   if(!holder) return;
-  holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;"><p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;">Team dashboard</p><p class="empty-msg" style="margin:0;">Loading…</p></div>';
+  holder.innerHTML = '<div style="background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;"><p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin:0 0 14px;">Team dashboard</p><p class="empty-msg" style="margin:0;">Loading…</p></div>';
   let r;
   try { r = await apiFetch("/api/team/overview?today="+todayStr()); } catch(e){ return; }
-  const head = '<p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 14px;">Team dashboard</p>';
-  if(r.error){ holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head+'<p style="color:#a32d2d;font-size:13px;margin:0;">'+escapeHtml(r.error)+'</p></div>'; return; }
+  const head = '<p style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin:0 0 14px;">Team dashboard</p>';
+  if(r.error){ holder.innerHTML = '<div style="background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;">'+head+'<p style="color:#a32d2d;font-size:13px;margin:0;">'+escapeHtml(r.error)+'</p></div>'; return; }
   if(!r.people.length){
-    holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head+'<p style="font-size:13px;color:#888;margin:0;">Nobody else has accepted an invite yet. Once they do, each person appears here.</p></div>';
+    holder.innerHTML = '<div style="background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;">'+head+'<p style="font-size:13px;color:var(--muted);margin:0;">Nobody else has accepted an invite yet. Once they do, each person appears here.</p></div>';
     return;
   }
-  const stat = (n,label,color)=>`<div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:${color};line-height:1.1;">${n}</div><div style="font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-top:2px;">${label}</div></div>`;
-  holder.innerHTML = '<div style="background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;">'+head
+  const stat = (n,label,color)=>`<div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:${color};line-height:1.1;">${n}</div><div style="font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px;">${label}</div></div>`;
+  holder.innerHTML = '<div style="background:var(--card);border-radius:8px;padding:20px;margin-bottom:16px;">'+head
     + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">'
     + r.people.map(u=>{
-        const unseen = u.flagged ? `<span title="Projects where ${escapeHtml(u.name)} hasn't opened your note, task, or assignment yet" style="font-size:10px;font-weight:700;color:#6a1b9a;background:#6a1b9a18;padding:3px 9px;border-radius:999px;"><i class="ti ti-flag-3"></i> ${u.flagged} unseen</span>` : "";
+        const unseen = u.flagged ? `<span title="Projects where ${escapeHtml(u.name)} hasn't opened your note, task, or assignment yet" style="font-size:10px;font-weight:700;color:var(--purple-text);background:#6a1b9a18;padding:3px 9px;border-radius:999px;"><i class="ti ti-flag-3"></i> ${u.flagged} unseen</span>` : "";
         const idle = (u.idleRed||u.idleYellow||u.flagged)
           ? `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">${unseen}${u.idleRed?`<span style="font-size:10px;font-weight:700;color:#c62828;background:#c6282818;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleRed} idle 14d+</span>`:""}${u.idleYellow?`<span style="font-size:10px;font-weight:700;color:#b26a00;background:#f9a82522;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleYellow} idle 7d+</span>`:""}</div>`
           : "";
         const split = [u.leases?u.leases+" lease"+(u.leases>1?"s":""):"", u.salesPurchases?u.salesPurchases+" sale/purchase"+(u.salesPurchases>1?"s":""):""].filter(Boolean).join(" · ");
-        return `<button type="button" class="teamCard" data-id="${escapeHtml(u.id)}" style="text-align:left;background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;font-family:inherit;transition:box-shadow .15s;">
+        return `<button type="button" class="teamCard" data-id="${escapeHtml(u.id)}" style="text-align:left;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;font-family:inherit;transition:box-shadow .15s;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
-            <span style="font-size:14px;font-weight:700;color:var(--navy);">${escapeHtml(u.name)}</span>
-            <span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:999px;">${escapeHtml(ROLE_LABEL[u.role]||u.role)}</span>
+            <span style="font-size:14px;font-weight:700;color:var(--ink);">${escapeHtml(u.name)}</span>
+            <span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--gray);padding:2px 8px;border-radius:999px;">${escapeHtml(ROLE_LABEL[u.role]||u.role)}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             ${stat(u.activeProjects,"Active","var(--navy)")}
@@ -2864,7 +2998,7 @@ async function renderTeamOverview(){
             ${stat(u.supervisorOpen,"Admin tasks",u.supervisorOpen?"#6a1b9a":"#888")}
           </div>
           ${idle}
-          <div style="font-size:11px;color:#888;margin-top:10px;">${split||(u.totalProjects?u.totalProjects+" project"+(u.totalProjects>1?"s":""):"No projects yet")}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:10px;">${split||(u.totalProjects?u.totalProjects+" project"+(u.totalProjects>1?"s":""):"No projects yet")}</div>
         </button>`;
       }).join("")
     + '</div></div>';
@@ -2909,14 +3043,14 @@ async function openReassign(){
   if(!targets.length){ toast("There is nobody else to hand this to yet","#888"); return; }
   const ov = document.createElement("div");
   ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9500;display:flex;align-items:center;justify-content:center;";
-  ov.innerHTML = `<div style="background:#fff;border-radius:10px;padding:24px;width:360px;max-width:90vw;">
-    <h3 style="margin:0 0 6px;color:var(--navy);font-size:16px;">Reassign project</h3>
-    <p style="margin:0 0 14px;font-size:12px;color:#666;">${escapeHtml(p.name)}: its journal, files, supervisor notes, and tasks move with it.</p>
+  ov.innerHTML = `<div style="background:var(--card);border-radius:10px;padding:24px;width:360px;max-width:90vw;">
+    <h3 style="margin:0 0 6px;color:var(--ink);font-size:16px;">Reassign project</h3>
+    <p style="margin:0 0 14px;font-size:12px;color:var(--text2);">${escapeHtml(p.name)}: its journal, files, supervisor notes, and tasks move with it.</p>
     <select id="reassignTo" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:16px;">
       ${targets.map(u=>`<option value="${escapeHtml(u.id)}">${escapeHtml(u.name||u.username)} (${escapeHtml(ROLE_LABEL[u.role])})</option>`).join("")}
     </select>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button id="reassignCancel" class="btn-ghost" style="color:var(--navy);border-color:var(--border);">Cancel</button>
+      <button id="reassignCancel" class="btn-ghost" style="color:var(--ink);border-color:var(--border);">Cancel</button>
       <button id="reassignGo" class="btn-gold">Reassign</button>
     </div></div>`;
   document.body.appendChild(ov);
@@ -2962,19 +3096,19 @@ function renderSupervisorPanel(p){
   if(!notes.length && !tasks.length && !can){ el.style.display = "none"; el.innerHTML = ""; return; }
   el.style.display = "block";
   const iconBtn = (icon,title,js)=>`<i class="ti ti-${icon}" title="${title}" onclick="${js}" style="cursor:pointer;color:#8e6aa0;font-size:14px;"></i>`;
-  const inp = "width:auto;padding:6px 10px;border:1px solid #d9c7e3;border-radius:6px;font-family:inherit;font-size:12px;background:#fff;";
-  const lbl = t=>`<div style="font-size:10px;font-weight:700;color:#6a1b9a;letter-spacing:.07em;text-transform:uppercase;margin:${t};">`;
+  const inp = "width:auto;padding:6px 10px;border:1px solid #d9c7e3;border-radius:6px;font-family:inherit;font-size:12px;background:var(--card);";
+  const lbl = t=>`<div style="font-size:10px;font-weight:700;color:var(--purple-text);letter-spacing:.07em;text-transform:uppercase;margin:${t};">`;
 
   const noteRows = notes.map(n=>{
     if(supEditing && supEditing.kind==="note" && supEditing.id===n.id){
       return `<div style="padding:8px 0;border-bottom:1px solid #eadcf1;">
         <textarea id="supNoteEdit" style="${inp}width:100%;min-height:60px;box-sizing:border-box;resize:vertical;">${escapeHtml(n.text)}</textarea>
-        <div style="display:flex;gap:8px;margin-top:6px;"><button type="button" class="btn-gold" style="padding:4px 14px;font-size:10px;" onclick="supSaveNote('${escapeHtml(n.id)}')">Save</button><button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:#6a1b9a;border-color:#d9c7e3;" onclick="supCancel()">Cancel</button></div></div>`;
+        <div style="display:flex;gap:8px;margin-top:6px;"><button type="button" class="btn-gold" style="padding:4px 14px;font-size:10px;" onclick="supSaveNote('${escapeHtml(n.id)}')">Save</button><button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:var(--purple-text);border-color:#d9c7e3;" onclick="supCancel()">Cancel</button></div></div>`;
     }
     return `<div class="supNote" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eadcf1;align-items:flex-start;">
       <div style="flex:1;">
-        <div style="font-size:10px;font-weight:700;color:#6a1b9a;margin-bottom:2px;">Supervisor · ${escapeHtml(n.authorName||"")} · ${supDate(n.date)}${n.edited?" · edited":""}</div>
-        <div style="font-size:12px;color:#333;line-height:1.5;white-space:pre-wrap;">${escapeHtml(n.text)}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--purple-text);margin-bottom:2px;">Supervisor · ${escapeHtml(n.authorName||"")} · ${supDate(n.date)}${n.edited?" · edited":""}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;white-space:pre-wrap;">${escapeHtml(n.text)}</div>
       </div>
       ${can && supCanManage(n.authorId) ? `<div style="display:flex;gap:8px;padding-top:2px;">${iconBtn("pencil","Edit note",`supEdit('note','${escapeHtml(n.id)}')`)}${iconBtn("trash","Delete note",`supDeleteNote('${escapeHtml(n.id)}')`)}</div>` : ""}
     </div>`;
@@ -2986,26 +3120,26 @@ function renderSupervisorPanel(p){
         <input id="supTaskEditText" value="${escapeHtml(t.task)}" style="${inp}flex:1;min-width:180px;">
         <input id="supTaskEditDue" type="date" value="${escapeHtml(t.deadline||"")}" style="${inp}">
         <button type="button" class="btn-gold" style="padding:4px 14px;font-size:10px;" onclick="supSaveTask('${escapeHtml(t.id)}')">Save</button>
-        <button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:#6a1b9a;border-color:#d9c7e3;" onclick="supCancel()">Cancel</button></div>`;
+        <button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:var(--purple-text);border-color:#d9c7e3;" onclick="supCancel()">Cancel</button></div>`;
     }
     const overdue = !t.done && t.deadline && t.deadline < todayStr();
     return `<div class="supTask" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eadcf1;align-items:flex-start;">
       <input type="checkbox" ${t.done?"checked":""} ${reviewing?"disabled":""} onchange="supToggleTask('${escapeHtml(t.id)}',this.checked)" style="width:16px;height:16px;margin-top:2px;cursor:${reviewing?"default":"pointer"};">
       <div style="flex:1;">
-        <div style="font-size:12px;color:#333;${t.done?"text-decoration:line-through;color:#888;":""}">${escapeHtml(t.task)}</div>
-        <div style="font-size:10px;color:#6a1b9a;font-weight:700;margin-top:2px;">Supervisor · ${escapeHtml(t.createdByName||"")}${t.deadline?` · <span style="${overdue?"color:#a32d2d;":""}">due ${escapeHtml(t.deadline)}</span>`:""}</div>
+        <div style="font-size:12px;color:var(--text2);${t.done?"text-decoration:line-through;color:var(--muted);":""}">${escapeHtml(t.task)}</div>
+        <div style="font-size:10px;color:var(--purple-text);font-weight:700;margin-top:2px;">Supervisor · ${escapeHtml(t.createdByName||"")}${t.deadline?` · <span style="${overdue?"color:#a32d2d;":""}">due ${escapeHtml(t.deadline)}</span>`:""}</div>
       </div>
       ${can && supCanManage(t.createdBy) ? `<div style="display:flex;gap:8px;padding-top:2px;">${iconBtn("pencil","Edit task",`supEdit('task','${escapeHtml(t.id)}')`)}${iconBtn("trash","Delete task",`supDeleteTask('${escapeHtml(t.id)}')`)}</div>` : ""}
     </div>`;
   }).join("");
 
-  el.innerHTML = `<div style="background:#faf5fc;border:1px solid #eadcf1;border-left:4px solid #6a1b9a;border-radius:8px;padding:14px 16px;margin:0 0 14px;">
-    <div style="font-size:11px;font-weight:700;color:#6a1b9a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;"><i class="ti ti-user-star"></i> Supervisor notes &amp; admin tasks</div>
+  el.innerHTML = `<div style="background:var(--purple-tint);border:1px solid #eadcf1;border-left:4px solid #6a1b9a;border-radius:8px;padding:14px 16px;margin:0 0 14px;">
+    <div style="font-size:11px;font-weight:700;color:var(--purple-text);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;"><i class="ti ti-user-star"></i> Supervisor notes &amp; admin tasks</div>
     ${lbl("10px 0 2px")}Notes${notes.length?" · "+notes.length:""}</div>
-    ${noteRows || '<div style="font-size:12px;color:#999;padding:4px 0;">No notes yet.</div>'}
+    ${noteRows || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">No notes yet.</div>'}
     ${can ? `<div style="display:flex;gap:8px;margin-top:8px;"><textarea id="supNoteNew" placeholder="Add a supervisor note…" style="${inp}flex:1;min-height:44px;resize:vertical;"></textarea><button type="button" id="supNoteAdd" class="btn-gold" style="align-self:flex-start;padding:6px 14px;font-size:11px;" onclick="supAddNote()">Add note</button></div>` : ""}
     ${lbl("16px 0 2px")}Admin tasks${tasks.length?" · "+tasks.length:""}</div>
-    ${taskRows || '<div style="font-size:12px;color:#999;padding:4px 0;">No admin tasks yet.</div>'}
+    ${taskRows || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">No admin tasks yet.</div>'}
     ${can ? `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><input id="supTaskNew" placeholder="Add an admin task…" style="${inp}flex:1;min-width:200px;"><input id="supTaskDue" type="date" style="${inp}"><button type="button" id="supTaskAdd" class="btn-gold" style="padding:6px 14px;font-size:11px;" onclick="supAddTask()">Add task</button></div>` : ""}
   </div>`;
 }
@@ -3150,27 +3284,27 @@ function renderContacts(){
 
   rows.forEach(({c, projects}) => {
     const card = document.createElement("div");
-    card.style.cssText = "background:#fff;border-radius:8px;padding:16px;border:1px solid var(--border);";
+    card.style.cssText = "background:var(--card);border-radius:8px;padding:16px;border:1px solid var(--border);";
     const notesId = "notes-"+c.id;
     const projChips = projects.length
-      ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${projects.map(p=>`<span title="${escapeHtml(p.address||"")}" style="font-size:11px;background:var(--cream);color:var(--navy);border-radius:999px;padding:2px 8px;"><i class="ti ti-building" style="margin-right:3px;"></i>${escapeHtml(p.name||"(unnamed)")}</span>`).join("")}</div>`
+      ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${projects.map(p=>`<span title="${escapeHtml(p.address||"")}" style="font-size:11px;background:var(--cream);color:var(--ink);border-radius:999px;padding:2px 8px;"><i class="ti ti-building" style="margin-right:3px;"></i>${escapeHtml(p.name||"(unnamed)")}</span>`).join("")}</div>`
       : "";
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
-          <div style="font-size:14px;font-weight:700;color:var(--navy);">${escapeHtml(c.name||"(no name)")}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);">${escapeHtml(c.name||"(no name)")}</div>
           <div style="font-size:12px;color:var(--gold);font-weight:600;">${escapeHtml(c.company||"")}</div>
         </div>
         <div style="display:flex;gap:6px;">
           ${c.notes ? `<button onclick="toggleNotes('${c.id}')" title="Notes" style="background:none;border:1px solid var(--gold);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--gold);font-family:inherit;"><i class="ti ti-notes"></i></button>` : ""}
-          <button onclick="editContact('${c.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--navy);font-family:inherit;"><i class="ti ti-pencil"></i></button>
+          <button onclick="editContact('${c.id}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--ink);font-family:inherit;"><i class="ti ti-pencil"></i></button>
           <button onclick="deleteContact('${c.id}')" style="background:none;border:1px solid #f8d6d6;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#a32d2d;font-family:inherit;"><i class="ti ti-trash"></i></button>
         </div>
       </div>
-      ${c.email ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${escapeHtml(c.email)}</div>` : ""}
-      ${c.phone ? `<div style="font-size:12px;color:#555;margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${escapeHtml(c.phone)}</div>` : ""}
+      ${c.email ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${escapeHtml(c.email)}</div>` : ""}
+      ${c.phone ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${escapeHtml(c.phone)}</div>` : ""}
       ${projChips}
-      ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">${escapeHtml(c.notes)}</div>` : ""}
+      ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap;">${escapeHtml(c.notes)}</div>` : ""}
     `;
     grid.appendChild(card);
   });
@@ -3288,14 +3422,14 @@ function renderPickerList(query){
   );
   list.innerHTML = "";
   if(!contacts.length){
-    list.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No more contacts found.</p>';
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px;">No more contacts found.</p>';
     return;
   }
   contacts.forEach(c=>{
     const row = document.createElement("div");
     row.style.cssText = "padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;";
-    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--navy);">${c.name}</div>
-      <div style="font-size:11px;color:#888;">${[c.company,c.email,c.phone].filter(Boolean).join(" · ")}</div>`;
+    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--ink);">${c.name}</div>
+      <div style="font-size:11px;color:var(--muted);">${[c.company,c.email,c.phone].filter(Boolean).join(" · ")}</div>`;
     row.onmouseenter = ()=>row.style.background="var(--cream)";
     row.onmouseleave = ()=>row.style.background="";
     row.onclick = ()=>{
@@ -3411,7 +3545,7 @@ function renderDashboard(){
   const tg = document.getElementById("dashTypeToggle");
   tg.innerHTML = opts.map(([k,label,n])=>{
     const on = k===dashType;
-    return `<button type="button" role="tab" aria-selected="${on}" data-type="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;padding:6px 16px;border-radius:999px;${on?"background:var(--navy);color:#fff;":"background:transparent;color:var(--navy);"}">${label} <span style="opacity:.65;font-weight:500;">${n}</span></button>`;
+    return `<button type="button" role="tab" aria-selected="${on}" data-type="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;padding:6px 16px;border-radius:999px;${on?"background:var(--navy);color:#fff;":"background:transparent;color:var(--ink);"}">${label} <span style="opacity:.65;font-weight:500;">${n}</span></button>`;
   }).join("");
   tg.querySelectorAll("button").forEach(b=>b.onclick = ()=>{ dashType = b.dataset.type; renderDashboard(); });
 
@@ -3439,7 +3573,7 @@ function renderDashboard(){
   const overdue     = tasks.filter(t=>!t.done && t.deadline && t.deadline < today).length;
 
   const metrics = [
-    {label:"Active projects",   value:activeProjects,  color:"var(--navy)"},
+    {label:"Active projects",   value:activeProjects,  color:"var(--ink)"},
     {label:"Closed / Done",     value:closedProjects,  color:"#2e7d32"},
     {label:"At LOI",            value:loiProjects,     color:"#1565c0"},
     {label:"Lease agreement",   value:leaseProjects,   color:"#7b1fa2"},
@@ -3451,9 +3585,9 @@ function renderDashboard(){
   const mDiv = document.getElementById("dashMetrics");
   mDiv.innerHTML = "";
   metrics.forEach(m=>{
-    mDiv.innerHTML += `<div style="background:#fff;border-radius:8px;padding:16px;text-align:center;">
+    mDiv.innerHTML += `<div style="background:var(--card);border-radius:8px;padding:16px;text-align:center;">
       <div style="font-size:32px;font-weight:700;color:${m.color};">${m.value}</div>
-      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#888;margin-top:4px;">${m.label}</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-top:4px;">${m.label}</div>
     </div>`;
   });
 
@@ -3518,7 +3652,7 @@ function renderDashboard(){
   const dueDiv = document.getElementById("dashDueWeek");
   const dueTasks = tasks.filter(t=>!t.done && t.deadline && t.deadline >= today && t.deadline <= weekEnd());
   if(!dueTasks.length){
-    dueDiv.innerHTML = '<p style="color:#888;font-size:12px;">Nothing due this week 🎉</p>';
+    dueDiv.innerHTML = '<p style="color:var(--muted);font-size:12px;">Nothing due this week 🎉</p>';
   } else {
     dueDiv.innerHTML = dueTasks.map(t=>{
       const proj = findProjectForTask(t);
@@ -3526,8 +3660,8 @@ function renderDashboard(){
       const projLabel = proj ? `<span style="font-size:10px;font-weight:700;color:var(--gold);margin-left:4px;">→ ${proj.name}</span>` : "";
       return `<div ${clickable} style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;${proj?"cursor:pointer;":""}${proj?"background:transparent;transition:background .15s;" : ""}">
         <div>
-          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}${projLabel}</div>
-          <div style="font-size:11px;color:#888;">${t.task||""}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--ink);">${t.title||"(untitled)"}${projLabel}</div>
+          <div style="font-size:11px;color:var(--muted);">${t.task||""}</div>
         </div>
         <div style="font-size:11px;font-weight:600;color:#b8924f;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
       </div>`;
@@ -3538,15 +3672,15 @@ function renderDashboard(){
   const overdueDiv = document.getElementById("dashOverdue");
   const overdueTasks = tasks.filter(t=>!t.done && t.deadline && t.deadline < today);
   if(!overdueTasks.length){
-    overdueDiv.innerHTML = '<p style="color:#888;font-size:12px;">No overdue tasks 🎉</p>';
+    overdueDiv.innerHTML = '<p style="color:var(--muted);font-size:12px;">No overdue tasks 🎉</p>';
   } else {
     overdueDiv.innerHTML = overdueTasks.map(t=>{
       const proj = findProjectForTask(t);
       const projLabel = proj ? `<span style="font-size:10px;font-weight:700;color:var(--gold);margin-left:4px;">→ ${proj.name}</span>` : "";
       return `<div ${proj?`onclick="goToProjectFromDash('${proj.id}')"`:""} style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;${proj?"cursor:pointer;":""}">
         <div>
-          <div style="font-size:12px;font-weight:600;color:var(--navy);">${t.title||"(untitled)"}${projLabel}</div>
-          <div style="font-size:11px;color:#888;">${t.task||""}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--ink);">${t.title||"(untitled)"}${projLabel}</div>
+          <div style="font-size:11px;color:var(--muted);">${t.task||""}</div>
         </div>
         <div style="font-size:11px;font-weight:600;color:#a32d2d;white-space:nowrap;margin-left:8px;">${t.deadline}</div>
       </div>`;
@@ -3571,13 +3705,13 @@ function renderDashboard(){
   const contactDiv = document.getElementById("dashContacts");
   const contactEntries = Object.entries(contactTaskMap).sort((a,b)=>b[1].tasks.length-a[1].tasks.length).slice(0,12);
   if(!contactEntries.length){
-    contactDiv.innerHTML = '<p style="color:#888;font-size:12px;">No contacts yet.</p>';
+    contactDiv.innerHTML = '<p style="color:var(--muted);font-size:12px;">No contacts yet.</p>';
   } else {
     contactDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
     ${contactEntries.map(([name,data])=>`
       <div style="background:var(--cream);border-radius:6px;padding:12px;">
-        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;">${name}</div>
-        <div style="font-size:11px;color:#888;margin-bottom:4px;">${[...new Set(data.tasks)].join(", ")}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;">${name}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${[...new Set(data.tasks)].join(", ")}</div>
         <div style="font-size:10px;font-weight:700;color:var(--gold);">${data.tasks.length} task${data.tasks.length!==1?"s":""}</div>
       </div>`).join("")}
     </div>`;
@@ -3591,7 +3725,7 @@ function renderDashboard(){
   const statusColors2 = {"Not started":"#888","Started":"#e65100","LOI":"#1565c0","Lease agreement":"#7b1fa2","PSA":"#6a1b9a","Closed":"#2e7d32","Completed":"#43a047","Dead":"#c62828","Working on other":"#e65100","Land Prep":"#5d4037","Ground Up Build":"#4e342e","Interior Finishout":"#6d4c41","Delivered":"#2e7d32"};
 
   if(!activeProjs.length){
-    projDiv.innerHTML = '<p style="color:#888;font-size:12px;">'+(dashType==="all"?"No active projects yet.":"No active "+DEAL_GROUPS[dashType].label.toLowerCase()+" right now.")+'</p>';
+    projDiv.innerHTML = '<p style="color:var(--muted);font-size:12px;">'+(dashType==="all"?"No active projects yet.":"No active "+DEAL_GROUPS[dashType].label.toLowerCase()+" right now.")+'</p>';
   } else {
     projDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
     ${activeProjs.map(p=>{
@@ -3602,14 +3736,14 @@ function renderDashboard(){
       const sc = statusColors2[p.status]||"#888";
       return `<div style="background:var(--cream);border-radius:6px;padding:12px;cursor:pointer;" onclick="openProjectDetail('${p.id}');hideDashboard();">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-          <div style="font-size:13px;font-weight:700;color:var(--navy);flex:1;">${p.name}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink);flex:1;">${p.name}</div>
           ${p.type?`<span style="font-size:10px;font-weight:700;color:${typeColor(p.type)};margin-left:6px;white-space:nowrap;">${p.type}</span>`:""}
         </div>
-        ${p.address?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-map-pin"></i> ${p.address}</div>`:""}
-        ${p.prospect?`<div style="font-size:11px;color:#888;margin-bottom:4px;"><i class="ti ti-user"></i> ${p.prospect}</div>`:""}
+        ${p.address?`<div style="font-size:11px;color:var(--muted);margin-bottom:4px;"><i class="ti ti-map-pin"></i> ${p.address}</div>`:""}
+        ${p.prospect?`<div style="font-size:11px;color:var(--muted);margin-bottom:4px;"><i class="ti ti-user"></i> ${p.prospect}</div>`:""}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
           ${p.status?`<span style="font-size:10px;font-weight:700;color:${sc};background:${sc}18;padding:2px 8px;border-radius:999px;">${p.status}</span>`:"<span></span>"}
-          <span style="font-size:10px;color:#888;">${taskCount} task${taskCount!==1?"s":""}</span>
+          <span style="font-size:10px;color:var(--muted);">${taskCount} task${taskCount!==1?"s":""}</span>
         </div>
       </div>`;
     }).join("")}
@@ -3742,13 +3876,13 @@ function buildWeekList(){
     allWeeks.push({id:w, label:w+" · "+weekRange(w)+" · "+groups[w].length+" task"+(groups[w].length!==1?"s":""), isCurrent:false});
   });
   if(!allWeeks.length){
-    weekList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No tasks yet.</p>';
+    weekList.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px;">No tasks yet.</p>';
     return;
   }
   allWeeks.forEach(wk=>{
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;";
-    row.innerHTML = `<input type="checkbox" id="wk-${wk.id}" value="${wk.id}" style="width:16px;height:16px;cursor:pointer;" ${wk.isCurrent?"checked":""}><label for="wk-${wk.id}" style="font-size:13px;color:var(--navy);cursor:pointer;flex:1;">${wk.label}</label>`;
+    row.innerHTML = `<input type="checkbox" id="wk-${wk.id}" value="${wk.id}" style="width:16px;height:16px;cursor:pointer;" ${wk.isCurrent?"checked":""}><label for="wk-${wk.id}" style="font-size:13px;color:var(--ink);cursor:pointer;flex:1;">${wk.label}</label>`;
     row.onclick = e=>{ if(e.target.tagName!=="INPUT") row.querySelector("input").click(); };
     weekList.appendChild(row);
   });
@@ -3764,7 +3898,7 @@ function buildProjectList(){
   (state.projects||[]).forEach(p=>{ if(p.name) projectNames.add(p.name); });
 
   if(!projectNames.size){
-    projList.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">No projects yet.</p>';
+    projList.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px;">No projects yet.</p>';
     return;
   }
 
@@ -3778,8 +3912,8 @@ function buildProjectList(){
     const safeId = "proj-"+name.replace(/[^a-zA-Z0-9]/g,"_");
     row.innerHTML = `<input type="checkbox" id="${safeId}" value="${name}" style="width:16px;height:16px;cursor:pointer;margin-top:2px;">
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;color:var(--navy);">${name}</div>
-        <div style="font-size:11px;color:#888;margin-top:2px;">
+        <div style="font-size:13px;font-weight:600;color:var(--ink);">${name}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
           ${projData?.address?projData.address+" · ":""}
           ${projData?.type?`<span style="color:${typeColor(projData.type)};font-weight:600;">${projData.type}</span> · `:""}
           ${taskCount} task${taskCount!==1?"s":""}
@@ -3842,8 +3976,12 @@ document.getElementById("reportGenerateBtn").onclick = async () => {
   try {
     const dashEl = document.getElementById("dashboardView");
     const metricsEl = document.getElementById("dashMetrics");
-    const canvas = await html2canvas(metricsEl, {scale:1.5, useCORS:true, backgroundColor:"#ffffff"});
-    dashImg = canvas.toDataURL("image/png");
+    const keepTheme = currentTheme();
+    applyTheme("standard"); await new Promise(r=>setTimeout(r,120));   // reports always print in Standard colours
+    try {
+      const canvas = await html2canvas(metricsEl, {scale:1.5, useCORS:true, backgroundColor:"#ffffff"});
+      dashImg = canvas.toDataURL("image/png");
+    } finally { applyTheme(keepTheme); }
   } catch(e){ console.warn("Dashboard capture failed:", e); }
 
   statusEl.textContent = "⏳ Generating AI narrative…";
@@ -4163,14 +4301,15 @@ document.getElementById("registerToggle").onclick = () => {
   const isReg   = current === "login";
   showLoginScreen(isReg);
   document.getElementById("registerToggle").innerHTML = isReg
-    ? 'Already have an account? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Sign in</span>'
-    : 'First time? <span style="color:var(--navy);font-weight:600;text-decoration:underline;">Create your account</span>';
+    ? 'Already have an account? <span style="color:var(--ink);font-weight:600;text-decoration:underline;">Sign in</span>'
+    : 'First time? <span style="color:var(--ink);font-weight:600;text-decoration:underline;">Create your account</span>';
 };
 
 document.getElementById("btnLogout").onclick = () => {
   if(!confirm("Sign out?")) return;
   localStorage.removeItem("kd_token");
   localStorage.removeItem("kd_username");
+  applyTheme("standard"); try{ localStorage.removeItem("kd_theme"); }catch(e){}
   showLoginScreen();
 };
 
