@@ -244,6 +244,11 @@ body.reviewing #btnThisWeek, body.reviewing #btnArchive, body.reviewing #btnExpo
 body.reviewing #btnAddProjectBoard, body.reviewing #btnDetailAddNote, body.reviewing #btnDetailEditProject,
 body.reviewing #btnDetailAddTask, body.reviewing #btnGenerateReport { display:none !important; }
 body.reviewing #projectBoardGrid select, body.reviewing #closedProjectsGrid select { pointer-events:none; }
+/* Lease Admin: no creating or editing projects; she may add journal notes and work her own tasks */
+body.role-admin #btnAddProjectBoard, body.role-admin #btnDetailEditProject, body.role-admin #btnDetailAddTask,
+body.role-admin #btnDetailReassign, body.role-admin #btnExport, body.role-admin #mobileExportLink { display:none !important; }
+body.role-admin #projectBoardGrid select, body.role-admin #closedProjectsGrid select { pointer-events:none; }
+body.role-admin #detailNotesScroll i.ti-paperclip, body.role-admin #detailNotesScroll i.ti-pencil, body.role-admin #detailNotesScroll i.ti-trash { display:none; }
 body.reviewing #detailNotesScroll i.ti-paperclip, body.reviewing #detailNotesScroll i.ti-pencil, body.reviewing #detailNotesScroll i.ti-trash { display:none; }
 body.reviewing #detailTaskBody input, body.reviewing #detailTaskBody textarea, body.reviewing #detailTaskBody select, body.reviewing #detailTaskBody button { pointer-events:none; }
 body.reviewing #detailTaskBody button { visibility:hidden; }
@@ -708,6 +713,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
         <textarea id="cfNotes" placeholder="Met at ICSC 2025, prefers email..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical;"></textarea>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;"><input id="cfLead" type="checkbox" style="width:auto;margin:0;"> Lead <span style="font-weight:400;color:var(--muted);font-size:12px;">(a prospect that hasn't become a project yet)</span></label>
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button id="cfSave" class="btn-gold" style="padding:8px 20px;">Save contact</button>
       <button id="cfCancel" class="btn-ghost" style="padding:8px 20px;background:#888;border-color:#888;">Cancel</button>
@@ -720,6 +726,7 @@ body.reviewing #detailTaskBody button { visibility:hidden; }
       <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;"></i>
       <input id="contactSearch" type="search" placeholder="Search by name, company, or project…" autocomplete="off" style="width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">
     </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;user-select:none;"><input id="contactLeadsOnly" type="checkbox" style="width:auto;margin:0;"> Leads only</label>
     <span id="contactCount" style="font-size:12px;color:var(--muted);"></span>
   </div>
 
@@ -1006,6 +1013,8 @@ const REVIEW_WRITES_OK = [
   /^\/api\/projects\/[A-Za-z0-9_-]+\/supervisor-(notes|tasks)(\/[A-Za-z0-9_-]+)?$/,
   /^\/api\/supervisor-tasks\/[A-Za-z0-9_-]+$/,
   /^\/api\/projects\/reassign$/,
+  /^\/api\/projects\/[A-Za-z0-9_-]+\/admin-tasks$/,
+  /^\/api\/admin-tasks\/[A-Za-z0-9_-]+$/,
   /^\/api\/me\/theme$/
 ];
 
@@ -1110,8 +1119,9 @@ function render(){
       if(cb.checked && !t.supervisor){
         // Auto-archive: move to archive immediately (admin tasks stay visible to their supervisor until New Week)
         await apiFetch("/api/newweek-single","POST",{taskId: t.id, weekId: state.weekId});
-        state.archive.unshift({...t, weekCompleted: state.weekId, done: true});
+        state.archive.unshift({...t, weekCompleted: state.weekId, done: true, completedByName: t.assigned ? (ROLE_LABEL[myRole()]||"") : ""});
         state.tasks = state.tasks.filter(x=>x.id!==t.id);
+        pruneAdminProjects();
       }
       render();
     };
@@ -1148,11 +1158,14 @@ function render(){
     const sel = document.createElement("select");
     STATUSES.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; if(t.status===s) o.selected=true; sel.appendChild(o); });
     sel.onchange = async()=>{ t.status=sel.value; await saveTask(t); };
+    sel.dataset.keep = "1";
     tdS.appendChild(sel); tr.appendChild(tdS);
 
     // Notes
     const tdN = document.createElement("td");
-    tdN.appendChild(mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes"));
+    const notesEl = mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes");
+    notesEl.dataset.keep = "1";
+    tdN.appendChild(notesEl);
     tr.appendChild(tdN);
 
     // Deadline
@@ -1208,9 +1221,33 @@ function render(){
       badge.innerHTML = '<i class="ti ti-user-star"></i> Supervisor'+(t.createdByName?" · "+escapeHtml(t.createdByName):"");
       tdP.insertBefore(badge, projWrap);
     }
+    if(t.assigned){ tdP.insertBefore(assignedBadge(t), projWrap); lockAssignedRow(tr, t); }
 
     tbody.appendChild(tr);
   });
+}
+
+// The Lease Admin's board lists only projects she still has unfinished assigned work on, so drop a project the
+// moment its last task is ticked (the server applies the same rule when the page is next loaded).
+function pruneAdminProjects(){
+  if(!isAdminRole()) return;
+  state.projects = (state.projects||[]).filter(p=>(state.tasks||[]).some(t=>t.assigned && !t.done && t.projectId===p.id));
+}
+
+// A task handed to the Lease Admin: she changes status, notes and the done tick; the wording, project, due date
+// and contact stay as whoever assigned it set them. Marked with a small "assigned by" badge.
+function assignedBadge(t){
+  const b = document.createElement("div");
+  b.style.cssText = "font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-border);margin-bottom:3px;";
+  b.innerHTML = '<i class="ti ti-clipboard-check"></i> Lease Admin task'+(t.createdByName?" · from "+escapeHtml(t.createdByName):"");
+  return b;
+}
+function lockAssignedRow(tr, t){
+  if(!t.assigned) return;
+  const canEdit = myRole()==="owner" || t.createdBy===(state.me&&state.me.id);
+  if(canEdit) return;
+  tr.querySelectorAll("textarea,select,input[type=date],button").forEach(el=>{ if(el.dataset.keep!=="1") el.disabled = true; });
+  tr.querySelectorAll("button").forEach(b=>{ b.style.visibility = "hidden"; });   // picker and delete buttons
 }
 
 // ── Render archive ─────────────────────────────────────────────
@@ -1267,7 +1304,13 @@ function renderArchive(){
       tr.appendChild(mkTd(arcTa("notes","Notes")));
       const dlTd=mkTd(null); dlTd.textContent=t.deadline||"—"; dlTd.style.fontSize="12px"; tr.appendChild(dlTd);
       tr.appendChild(mkTd(arcTa("contact","Contact")));
-      const wkTd=mkTd(null,"right"); wkTd.textContent=t.weekCompleted||"—"; wkTd.style.fontSize="11px"; tr.appendChild(wkTd);
+      const wkTd=mkTd(null,"right"); wkTd.textContent=t.weekCompleted||"—"; wkTd.style.fontSize="11px";
+      if(t.completedByName){
+        const by=document.createElement("div"); by.style.cssText="font-size:10px;font-weight:700;color:var(--blue-border);margin-top:3px;";
+        by.innerHTML='<i class="ti ti-circle-check"></i> Completed by '+escapeHtml(t.completedByName)+(t.createdByName?' <span style="font-weight:500;color:var(--muted);">· assigned by '+escapeHtml(t.createdByName)+'</span>':"");
+        wkTd.appendChild(by);
+      }
+      tr.appendChild(wkTd);
 
       tbody.appendChild(tr);
     });
@@ -1318,16 +1361,19 @@ let currentProjectId = null;
 function updateFlagBadge(){
   const btn = document.getElementById("btnProjects");
   let b = document.getElementById("projFlagBadge");
-  const n = reviewing ? 0 : (state.projects||[]).filter(p=>p.sup_flag_at).length;
+  const flags = reviewing ? 0 : (state.projects||[]).filter(p=>p.sup_flag_at).length;
+  const leadN = myOpenLeads().length;
+  const n = flags + leadN;
   if(!n){ if(b) b.remove(); return; }
   if(!b){ b = document.createElement("span"); b.id = "projFlagBadge"; btn.appendChild(b); }
   b.style.cssText = "display:inline-block;min-width:16px;margin-left:6px;padding:1px 6px;border-radius:999px;background:#6a1b9a;color:#fff;font-size:10px;font-weight:700;text-align:center;";
-  b.title = n+" project"+(n>1?"s":"")+" with something new from a supervisor";
+  b.title = [flags?flags+" project"+(flags>1?"s":"")+" with something new from a supervisor":"", leadN?leadN+" new lead"+(leadN>1?"s":"")+" for you":""].filter(Boolean).join(" · ");
   b.textContent = n;
 }
 
 function renderProjectBoard(){
   updateFlagBadge();
+  renderLeadBanner();
   const search = document.getElementById("projectBoardSearch").value.toLowerCase();
   const filter = document.getElementById("projectBoardFilter").value;
 
@@ -1426,6 +1472,7 @@ function renderProjectBoard(){
   const empty = document.getElementById("projectBoardEmpty");
   grid.innerHTML = "";
   empty.style.display = openProjects.length ? "none" : "block";
+  empty.textContent = isAdminRole() ? "No projects need you right now. When someone assigns you a task on a project, it will appear here." : "No active projects. Click New project to get started.";
   document.getElementById("activeProjectCount").textContent = openProjects.length+" project"+(openProjects.length!==1?"s":"");
   fillGrouped(grid, openProjects, buildCard, !filter);
 
@@ -1511,7 +1558,7 @@ document.getElementById("btnAddProjectBoard").onclick = ()=>{
 // Updates local state immediately (optimistic) so the board reflects it
 // next time it's shown, without waiting on the network round trip.
 async function markProjectOpened(p){
-  if(reviewing) return;   // looking at someone else's project must not reset its idle clock
+  if(reviewing || isAdminRole()) return;   // only a project's own holder resets its idle clock
   p.last_opened_at = new Date().toISOString();
   p.sup_flag_at = null; p.sup_flag_text = null;   // opening it counts as seeing the supervisor's flag
   try {
@@ -1563,9 +1610,9 @@ function openProjectDetail(projectId){
       '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
       projContacts.map(c=>`<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;">
         <div style="font-size:12px;font-weight:700;color:#fff;">${c.name||""}</div>
-        ${c.company?`<div style="font-size:11px;color:var(--gold);">${c.company}</div>`:""}
-        ${c.email?`<div style="font-size:11px;color:#cfd6dd;">${c.email}</div>`:""}
-        ${c.phone?`<div style="font-size:11px;color:#cfd6dd;">${c.phone}</div>`:""}
+        ${c.company?`<div style="font-size:11px;color:var(--gold);">${escapeHtml(c.company)}</div>`:""}
+        ${c.email?`<div style="font-size:11px;color:#cfd6dd;">${escapeHtml(c.email)}</div>`:""}
+        ${c.phone?`<div style="font-size:11px;color:#cfd6dd;">${escapeHtml(c.phone)}</div>`:""}
       </div>`).join("") + '</div>';
     detailContactsEl.style.display = "block";
   } else {
@@ -1588,6 +1635,7 @@ function openProjectDetail(projectId){
   renderDetailArchive(p);
   document.getElementById("btnDetailReassign").style.display = canSupervise() ? "" : "none";
   renderSupervisorPanel(p);
+  renderLeaseAdminPanel(p);
 }
 
 // ── Detail view journal: editable entries ──────────────────────
@@ -1636,9 +1684,9 @@ function renderDetailNotes(p, resetScroll){
         return `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);align-items:flex-start;">
           <div style="width:5px;height:5px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
           <div style="flex:1;">
-            <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${formatNoteDate(e.date)}</div>
-            ${e.text ? `<div style="font-size:12px;color:#e0e0e0;line-height:1.5;white-space:pre-wrap;">${e.text}</div>` : ""}
-            ${attachmentChipsHtml(e,i,"detail",!!reviewing)}
+            <div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:2px;">${e.system?'<i class="ti ti-circle-check"></i> ':""}${formatNoteDate(e.date)}${e.by&&!e.system?" · "+escapeHtml(e.by):""}</div>
+            ${e.text ? `<div style="font-size:12px;color:#e0e0e0;line-height:1.5;white-space:pre-wrap;">${escapeHtml(e.text)}</div>` : ""}
+            ${attachmentChipsHtml(e,i,"detail",!!reviewing||isAdminRole())}
           </div>
           <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
             <i class="ti ti-paperclip" onclick="pickFiles(f=>addFilesToNote('detail',${i},f))" style="cursor:pointer;color:#9fb0c0;font-size:14px;" title="Attach a PDF or Word file"></i>
@@ -1775,14 +1823,14 @@ function renderDetailArchive(p){
 
   const tbody = document.createElement("tbody");
   archived.forEach((t,i)=>{
-    const bg = i%2===0?"#fafafa":"#f4f4f4";
+    const bg = i%2===0?"var(--card2)":"var(--gray)";
     const tr = document.createElement("tr");
     [
       {val:t.task||"—",   round:"left"},
       {val:t.status||"—", round:""},
       {val:t.notes||"—",  round:""},
       {val:t.deadline||"—",round:""},
-      {val:t.weekCompleted||"—",round:"right"}
+      {val:(t.weekCompleted||"—")+(t.completedByName?"  ✓ "+t.completedByName:""),round:"right"}
     ].forEach(({val,round})=>{
       const td = document.createElement("td");
       td.textContent = val;
@@ -1843,8 +1891,9 @@ function renderDetailTasks(p){
       await saveTask(t);
       if(cb.checked){
         await apiFetch("/api/newweek-single","POST",{taskId: t.id, weekId: state.weekId});
-        state.archive.unshift({...t, weekCompleted: state.weekId, done: true});
+        state.archive.unshift({...t, weekCompleted: state.weekId, done: true, completedByName: t.assigned ? (ROLE_LABEL[myRole()]||"") : ""});
         state.tasks = state.tasks.filter(x=>x.id!==t.id);
+        pruneAdminProjects();
       }
       renderDetailTasks(p);
       renderProjectBoard();
@@ -1859,10 +1908,12 @@ function renderDetailTasks(p){
     const sel = document.createElement("select");
     STATUSES.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; if(t.status===s) o.selected=true; sel.appendChild(o); });
     sel.onchange = async()=>{ t.status=sel.value; await saveTask(t); };
+    sel.dataset.keep = "1";
     tr.appendChild(mkTd(sel));
 
     // Notes
     const notesTa = mkTa(t.notes, v=>{ t.notes=v; scheduleSave(t); }, "Status notes");
+    notesTa.dataset.keep = "1";
     tr.appendChild(mkTd(notesTa));
 
     // Deadline
@@ -1890,6 +1941,7 @@ function renderDetailTasks(p){
     del.style="padding:4px 8px;background:transparent;border:1px solid var(--border);color:var(--ink);border-radius:999px;font-size:13px;cursor:pointer;";
     del.onclick=async()=>{ await apiFetch("/api/tasks/"+t.id,"DELETE"); state.tasks=state.tasks.filter(x=>x.id!==t.id); renderDetailTasks(p); };
     tr.appendChild(mkTd(del,"right"));
+    if(t.assigned){ const tdTask = tr.children[1]; tdTask.insertBefore(assignedBadge(t), tdTask.firstChild); lockAssignedRow(tr, t); }
 
     tbody.appendChild(tr);
   });
@@ -1921,11 +1973,18 @@ document.getElementById("detailNoteSave").onclick = async()=>{
     const atts = await uploadAllAttachments(p.id, detailPendingFiles);
     const entry = {date: new Date().toISOString(), text};
     if(atts.length) entry.attachments = atts;
-    const entries = parseNotes(p.notes);
-    entries.unshift(entry);
-    if(!(await saveDetailEntries(p, entries))){
-      await Promise.all(atts.map(a=>deleteStoredFile(p.id, a.key)));   // note didn't save: don't leave files behind
-      return;
+    if(isAdminRole()){
+      // She can't save the project itself; the server adds her note to the journal and nothing else.
+      const jr = await apiFetch("/api/projects/"+p.id+"/journal","POST",{text, attachments: atts});
+      if(jr.error){ toast(jr.error,"#c0392b"); return; }
+      p.notes = jr.notes;
+    } else {
+      const entries = parseNotes(p.notes);
+      entries.unshift(entry);
+      if(!(await saveDetailEntries(p, entries))){
+        await Promise.all(atts.map(a=>deleteStoredFile(p.id, a.key)));   // note didn't save: don't leave files behind
+        return;
+      }
     }
     document.getElementById("detailNoteText").value = "";
     detailPendingFiles = []; renderPending("detail");
@@ -2027,9 +2086,9 @@ function renderProjectContactPills(containerId){
   el.innerHTML = currentProjectContacts.map((c,i)=>`
     <div style="display:flex;align-items:center;gap:6px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
       <div>
-        <div style="font-size:12px;font-weight:700;color:var(--ink);">${c.name}</div>
-        ${c.company?`<div style="font-size:11px;color:var(--muted);">${c.company}</div>`:""}
-        ${c.email?`<div style="font-size:11px;color:var(--muted);">${c.email}</div>`:""}
+        <div style="font-size:12px;font-weight:700;color:var(--ink);">${escapeHtml(c.name)}</div>
+        ${c.company?`<div style="font-size:11px;color:var(--muted);">${escapeHtml(c.company)}</div>`:""}
+        ${c.email?`<div style="font-size:11px;color:var(--muted);">${escapeHtml(c.email)}</div>`:""}
       </div>
       <button onclick="removeProjectContact(${i})" style="background:none;border:none;cursor:pointer;color:#a32d2d;font-size:14px;padding:0 2px;">✕</button>
     </div>`).join("");
@@ -2252,10 +2311,10 @@ function renderProjectFiles(scope){
   el.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.07em;text-transform:uppercase;">Project files${list.length ? " · "+list.length : ""}</div>
-      <button type="button" onclick="pickFiles(f=>addFilesToProject('detail',f))" title="Attach a PDF or Word document" style="${reviewing?"display:none;":""}padding:4px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer;"><i class="ti ti-paperclip"></i> ADD FILE</button>
+      <button type="button" onclick="pickFiles(f=>addFilesToProject('detail',f))" title="Attach a PDF or Word document" style="${(reviewing||isAdminRole())?"display:none;":""}padding:4px 12px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer;"><i class="ti ti-paperclip"></i> ADD FILE</button>
     </div>` + (list.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${list.map((a,j)=>fileChipHtml(a, "detail", `openProjectFile('detail',${j})`, `removeProjectFile('detail',${j})`, !!reviewing)).join("")}</div>`
-      : `<div style="font-size:11px;color:#9fb0c0;margin-top:6px;">${reviewing?"No files attached.":"Brochures, LOIs, site plans… PDF or Word. You can drop files here too."}</div>`);
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${list.map((a,j)=>fileChipHtml(a, "detail", `openProjectFile('detail',${j})`, `removeProjectFile('detail',${j})`, !!reviewing||isAdminRole())).join("")}</div>`
+      : `<div style="font-size:11px;color:#9fb0c0;margin-top:6px;">${(reviewing||isAdminRole())?"No files attached.":"Brochures, LOIs, site plans… PDF or Word. You can drop files here too."}</div>`);
 }
 
 function openProjectFile(scope, j){
@@ -2454,8 +2513,8 @@ function renderNotesList(entries, containerId){
     <div style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);align-items:flex-start;">
       <div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;"></div>
       <div style="flex:1;">
-        <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:2px;">${formatNoteDate(e.date)}</div>
-        ${e.text ? `<div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-wrap;">${e.text}</div>` : ""}
+        <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:2px;">${e.system?'<i class="ti ti-circle-check"></i> ':""}${formatNoteDate(e.date)}${e.by&&!e.system?" · "+escapeHtml(e.by):""}</div>
+        ${e.text ? `<div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-wrap;">${escapeHtml(e.text)}</div>` : ""}
         ${attachmentChipsHtml(e,i,"form",false)}
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;padding-top:2px;">
@@ -2503,6 +2562,7 @@ function deleteFormNote(idx){
 let currentFormNotes = []; // working copy of notes in the form
 
 function showProjectForm(project){
+  pendingLeadId = null;                       // (createProjectFromLead sets it again right after opening the form)
   discardFormUploads();                       // clean up files from an earlier, unsaved form session
   editingProjectId = project ? project.id : null;
   formProjectId = project ? project.id : uid();   // a new project needs its id up front so files have a storage path
@@ -2565,6 +2625,7 @@ async function deleteProject(id){
 
 document.getElementById("btnAddProject").onclick = () => showProjectForm(null);
 document.getElementById("pfCancel").onclick = () => {
+  pendingLeadId = null;
   discardFormUploads();     // throw away any files uploaded in this session but never saved
   document.getElementById("projectForm").style.display = "none";
   editingProjectId = null;
@@ -2609,7 +2670,7 @@ document.getElementById("pfSave").onclick = async () => {
   try {
     const resp = isEdit
       ? await apiFetch("/api/projects/"+id, "PUT",  {name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files})
-      : await apiFetch("/api/projects",     "POST", {id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files});
+      : await apiFetch("/api/projects",     "POST", {id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files,leadContactId: pendingLeadId||undefined});
     if(resp && resp.error) throw new Error(resp.error);
   } catch(e){
     // Nothing was saved. Keep the form open (and the file bookkeeping intact) so the user can retry or cancel.
@@ -2624,6 +2685,7 @@ document.getElementById("pfSave").onclick = async () => {
   } else {
     if(!state.projects) state.projects=[];
     state.projects.push({id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files});
+    if(pendingLeadId){ const lc=(state.contacts||[]).find(x=>x.id===pendingLeadId); if(lc && lc.lead_to===(state.me&&state.me.id)) lc.lead_project_id=id; pendingLeadId=null; }
     toast("Project added","#2e7d32");
   }
   document.getElementById("projectForm").style.display = "none";
@@ -2686,8 +2748,9 @@ document.getElementById("projPickerClose").onclick  = () => {
 
 // ── Roles & Team ──────────────────────────────────────────────
 // The server is what actually enforces permissions; this only decides what to SHOW.
-const ROLE_LABEL = {owner:"Owner", supervisor:"Supervisor", agent:"Agent"};
+const ROLE_LABEL = {owner:"Owner", supervisor:"Supervisor", agent:"Agent", admin:"Lease Admin"};
 function myRole(){ return (state.me && state.me.role) || "agent"; }
+const isAdminRole = ()=>myRole()==="admin";   // the Lease Admin: works her assigned tasks, never owns or edits projects
 
 // ── Colour schemes ─────────────────────────────────────────────
 const THEME_META = {
@@ -2757,6 +2820,7 @@ function applyRole(){
   const canExport = me.role==="owner";   // export is owner-only
   document.getElementById("btnExport").style.display = canExport ? "" : "none";
   document.getElementById("mobileExportLink").style.display = canExport ? "flex" : "none";
+  document.body.classList.toggle("role-admin", me.role==="admin");
   const chip = document.getElementById("userChip");
   chip.textContent = (me.name || me.username || "") + (me.role ? " · " + ROLE_LABEL[me.role] : "");
   chip.style.display = me.role ? "" : "none";
@@ -2809,7 +2873,7 @@ async function renderTeam(){
       + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
       + '<input id="invName" placeholder="Full name" style="'+inp+'flex:1;min-width:160px;">'
       + '<input id="invEmail" type="email" placeholder="Email" style="'+inp+'flex:1;min-width:200px;">'
-      + '<select id="invRole" style="'+inp+'"><option value="agent">Agent</option><option value="supervisor">Supervisor</option></select>'
+      + '<select id="invRole" style="'+inp+'"><option value="agent">Agent</option><option value="supervisor">Supervisor</option><option value="admin">Lease Admin</option></select>'
       + '<button id="invSend" class="btn-team" type="button">Create invite</button></div>'
       + '<p id="invMsg" style="display:none;font-size:12px;color:#a32d2d;margin:10px 0 0;"></p>'
       + '<div id="invLinkHolder"></div></div>';
@@ -2823,7 +2887,7 @@ async function renderTeam(){
     const status = !u.active ? '<span style="color:#a32d2d;">Deactivated</span>' : u.pending ? '<span style="color:#b26a00;">Invite pending</span>' : '<span style="color:#2e7d32;">Active</span>';
     let roleCell = escapeHtml(ROLE_LABEL[u.role]||u.role);
     if(isOwner && u.role!=="owner"){
-      roleCell = '<select class="teamRole" data-id="'+escapeHtml(u.id)+'" style="'+inp+'padding:4px 8px;"><option value="agent"'+(u.role==="agent"?" selected":"")+'>Agent</option><option value="supervisor"'+(u.role==="supervisor"?" selected":"")+'>Supervisor</option></select>';
+      roleCell = '<select class="teamRole" data-id="'+escapeHtml(u.id)+'" style="'+inp+'padding:4px 8px;"><option value="agent"'+(u.role==="agent"?" selected":"")+'>Agent</option><option value="supervisor"'+(u.role==="supervisor"?" selected":"")+'>Supervisor</option><option value="admin"'+(u.role==="admin"?" selected":"")+'>Lease Admin</option></select>';
     }
     let actions = "";
     if(isOwner && u.role!=="owner"){
@@ -2851,7 +2915,7 @@ async function renderTeam(){
   html += '</tbody></table><div id="teamLinkHolder"></div></div>';
 
   // Hand off my own projects to someone else
-  const targets = teamUsers.filter(u=>u.active && !u.pending && u.id!==myId);
+  const targets = teamUsers.filter(u=>u.active && !u.pending && u.id!==myId && u.role!=="admin");   // a Lease Admin never holds projects
   html += '<div style="'+card+'"><p style="'+h+'">Hand off projects</p>';
   if(!state.projects.length){
     html += '<p style="font-size:13px;color:var(--muted);margin:0;">You have no projects to hand off.</p>';
@@ -2998,7 +3062,7 @@ async function renderTeamOverview(){
     + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">'
     + r.people.map(u=>{
         const unseen = u.flagged ? `<span title="Projects where ${escapeHtml(u.name)} hasn't opened your note, task, or assignment yet" style="font-size:10px;font-weight:700;color:var(--purple-text);background:#6a1b9a18;padding:3px 9px;border-radius:999px;"><i class="ti ti-flag-3"></i> ${u.flagged} unseen</span>` : "";
-        const idle = (u.idleRed||u.idleYellow||u.flagged)
+        const idle = (u.role!=="admin" && (u.idleRed||u.idleYellow||u.flagged))
           ? `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">${unseen}${u.idleRed?`<span style="font-size:10px;font-weight:700;color:#c62828;background:#c6282818;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleRed} idle 14d+</span>`:""}${u.idleYellow?`<span style="font-size:10px;font-weight:700;color:#b26a00;background:#f9a82522;padding:3px 9px;border-radius:999px;"><i class="ti ti-clock-pause"></i> ${u.idleYellow} idle 7d+</span>`:""}</div>`
           : "";
         const split = [u.leases?u.leases+" lease"+(u.leases>1?"s":""):"", u.salesPurchases?u.salesPurchases+" sale/purchase"+(u.salesPurchases>1?"s":""):""].filter(Boolean).join(" · ");
@@ -3008,12 +3072,12 @@ async function renderTeamOverview(){
             <span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--gray);padding:2px 8px;border-radius:999px;">${escapeHtml(ROLE_LABEL[u.role]||u.role)}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-            ${stat(u.activeProjects,"Active","var(--navy)")}
-            ${stat(u.overdue,"Overdue",u.overdue?"#a32d2d":"#2e7d32")}
-            ${stat(u.supervisorOpen,"Admin tasks",u.supervisorOpen?"#6a1b9a":"#888")}
+            ${u.role==="admin"
+              ? stat(u.openTasks,"Open tasks","var(--ink)") + stat(u.overdue,"Overdue",u.overdue?"#a32d2d":"#2e7d32") + stat(u.completed7,"Done · 7 days","#2e7d32")
+              : stat(u.activeProjects,"Active","var(--ink)") + stat(u.overdue,"Overdue",u.overdue?"#a32d2d":"#2e7d32") + stat(u.supervisorOpen,"Admin tasks",u.supervisorOpen?"var(--purple-text)":"var(--muted)")}
           </div>
           ${idle}
-          <div style="font-size:11px;color:var(--muted);margin-top:10px;">${split||(u.totalProjects?u.totalProjects+" project"+(u.totalProjects>1?"s":""):"No projects yet")}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:10px;">${u.role==="admin" ? (u.assignedProjects+" project"+(u.assignedProjects!==1?"s":"")+" with open work · "+u.completedTotal+" completed in all") : (split||(u.totalProjects?u.totalProjects+" project"+(u.totalProjects>1?"s":""):"No projects yet"))}</div>
         </button>`;
       }).join("")
     + '</div></div>';
@@ -3054,7 +3118,7 @@ async function openReassign(){
   let r; try { r = await apiFetch("/api/users"); } catch(e){ return; }
   if(r.error){ toast(r.error,"#c0392b"); return; }
   const currentOwner = (state.viewing && state.viewing.id) || (state.me && state.me.id);
-  const targets = r.users.filter(u=>u.active && !u.pending && u.id!==currentOwner);
+  const targets = r.users.filter(u=>u.active && !u.pending && u.id!==currentOwner && u.role!=="admin");
   if(!targets.length){ toast("There is nobody else to hand this to yet","#888"); return; }
   const ov = document.createElement("div");
   ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9500;display:flex;align-items:center;justify-content:center;";
@@ -3084,6 +3148,122 @@ async function openReassign(){
   };
 }
 document.getElementById("btnDetailReassign").onclick = openReassign;
+
+// ── Lease Admin tasks panel on the project page ────────────────
+// Owner, Supervisors and the project's Agent hand the Lease Admin a task here. It lands on her board; when she
+// ticks it done, the project journal records "Task completed by Lease Admin" and the task shows as done here.
+let laCollapsed = false;
+try{ laCollapsed = localStorage.getItem("kd_laCollapsed")==="1"; }catch(e){}
+let laEditing = null;
+function laToggleCollapse(){
+  laCollapsed = !laCollapsed;
+  try{ localStorage.setItem("kd_laCollapsed", laCollapsed?"1":"0"); }catch(e){}
+  const p=currentProject(); if(p) renderLeaseAdminPanel(p);
+}
+function laEl(){
+  let el = document.getElementById("detailLeaseAdminPanel");
+  if(!el){
+    el = document.createElement("div"); el.id = "detailLeaseAdminPanel";
+    const tableWrap = document.getElementById("detailTaskBody").closest("div[style*='overflow-x']");
+    tableWrap.parentNode.insertBefore(el, tableWrap);
+  }
+  return el;
+}
+const laCanManage = t => !t.archived && (myRole()==="owner" || t.createdBy===(state.me&&state.me.id));
+function renderLeaseAdminPanel(p){
+  const el = laEl();
+  if(isAdminRole()){ el.style.display="none"; el.innerHTML=""; return; }   // she sees these as her own tasks
+  const admins = state.admins || [];
+  const all = (state.assignedTasks||[]).filter(t=>t.projectId===p.id);
+  if(!all.length && !admins.length){
+    if(myRole()==="owner"){ el.style.display="block"; el.innerHTML = '<div style="border:1px dashed var(--border);border-radius:8px;padding:12px 16px;margin:0 0 14px;font-size:12px;color:var(--muted);"><i class="ti ti-clipboard-check"></i> Lease Admin tasks: nobody has the Lease Admin role yet. Invite her from the Team screen.</div>'; }
+    else { el.style.display="none"; el.innerHTML=""; }
+    return;
+  }
+  el.style.display = "block";
+  const open = all.filter(t=>!t.done), finished = all.filter(t=>t.done);
+  const shownFinished = finished.slice(0,5);
+  const collapsed = laCollapsed && !laEditing;
+  const iconBtn = (icon,title,js)=>`<i class="ti ti-${icon}" title="${title}" onclick="${js}" style="cursor:pointer;color:var(--muted);font-size:14px;"></i>`;
+  const inp = "width:auto;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:var(--card);";
+  const accent = "var(--blue-border)";
+  const adminOptions = sel => admins.map(a=>`<option value="${escapeHtml(a.id)}" ${a.id===sel?"selected":""}>${escapeHtml(a.name)}</option>`).join("");
+  const rowHtml = t=>{
+    if(laEditing===t.id){
+      return `<div class="laRow" style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="laEditText" value="${escapeHtml(t.task)}" style="${inp}flex:1;min-width:180px;">
+        <input id="laEditDue" type="date" value="${escapeHtml(t.deadline||"")}" style="${inp}">
+        ${admins.length>1?`<select id="laEditWho" style="${inp}">${adminOptions(t.assigneeId)}</select>`:""}
+        <button type="button" class="btn-gold" style="padding:4px 14px;font-size:10px;" onclick="laSave('${escapeHtml(t.id)}')">Save</button>
+        <button type="button" class="btn-ghost" style="padding:4px 14px;font-size:10px;color:var(--ink);border-color:var(--border);" onclick="laCancel()">Cancel</button></div>`;
+    }
+    const overdue = !t.done && t.deadline && t.deadline < todayStr();
+    const state_ = t.done
+      ? `<span style="color:#2e7d32;font-weight:700;"><i class="ti ti-circle-check"></i> Completed${t.completedByName?" by "+escapeHtml(t.completedByName):""}</span>`
+      : `<span style="color:var(--text2);">${escapeHtml(t.status||"Not started")}</span>`;
+    return `<div class="laRow" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+      <div style="flex:1;">
+        <div style="font-size:12px;color:var(--text);${t.done?"text-decoration:line-through;color:var(--muted);":""}">${escapeHtml(t.task)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;">${escapeHtml(t.assigneeName||"Lease Admin")} · ${state_}${t.deadline?` · <span style="${overdue?"color:#a32d2d;font-weight:700;":""}">due ${escapeHtml(t.deadline)}</span>`:""}${t.createdByName?" · from "+escapeHtml(t.createdByName):""}</div>
+        ${t.notes && !t.done ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;white-space:pre-wrap;">${escapeHtml(t.notes)}</div>`:""}
+      </div>
+      ${laCanManage(t) ? `<div style="display:flex;gap:8px;padding-top:2px;">${iconBtn("pencil","Edit task",`laEdit('${escapeHtml(t.id)}')`)}${iconBtn("trash","Remove task",`laDelete('${escapeHtml(t.id)}')`)}</div>`:""}
+    </div>`;
+  };
+  const summary = open.length+" open · "+finished.length+" done";
+  el.innerHTML = `<div id="laBox" style="background:var(--card2);border:1px solid var(--border);border-left:4px solid ${accent};border-radius:8px;padding:14px 16px;margin:0 0 14px;">
+    <div id="laHeader" role="button" tabindex="0" aria-expanded="${!collapsed}" onclick="laToggleCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();laToggleCollapse();}" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:${collapsed?0:6}px;">
+      <div style="font-size:11px;font-weight:700;color:${accent};letter-spacing:.08em;text-transform:uppercase;flex:1;"><i class="ti ti-clipboard-check"></i> Lease Admin tasks${collapsed?` <span style="font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:6px;">${summary}</span>`:""}</div>
+      <span style="font-size:11px;color:${accent};font-weight:600;white-space:nowrap;">${collapsed?"&#9660; Expand":"&#9650; Collapse"}</span>
+    </div>
+    <div id="laBody" style="display:${collapsed?"none":"block"};">
+      ${open.map(rowHtml).join("") + shownFinished.map(rowHtml).join("") || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">Nothing assigned yet.</div>'}
+      ${finished.length>shownFinished.length?`<div style="font-size:11px;color:var(--muted);padding:6px 0;">+ ${finished.length-shownFinished.length} earlier completed task${finished.length-shownFinished.length>1?"s":""}</div>`:""}
+      ${admins.length ? `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;">
+        <input id="laNewText" placeholder="Assign a task to the Lease Admin…" style="${inp}flex:1;min-width:200px;">
+        <input id="laNewDue" type="date" style="${inp}">
+        ${admins.length>1?`<select id="laNewWho" style="${inp}">${adminOptions("")}</select>`:`<span style="font-size:11px;color:var(--muted);">to ${escapeHtml(admins[0].name)}</span>`}
+        <button type="button" id="laNewAdd" class="btn-blue" style="padding:6px 16px;font-size:10px;">Assign</button></div>` : '<div style="font-size:11px;color:var(--muted);margin-top:8px;">No Lease Admin is active, so nothing new can be assigned.</div>'}
+    </div>
+  </div>`;
+  const add = document.getElementById("laNewAdd"); if(add) add.onclick = laAdd;
+  const nt = document.getElementById("laNewText"); if(nt) nt.onkeydown = e=>{ if(e.key==="Enter") laAdd(); };
+}
+function laRefresh(){ const p=currentProject(); if(p) renderLeaseAdminPanel(p); }
+function laEdit(id){ laEditing=id; laRefresh(); }
+function laCancel(){ laEditing=null; laRefresh(); }
+async function laAdd(){
+  const p=currentProject(); const ti=document.getElementById("laNewText"); if(!p||!ti) return;
+  const task=ti.value.trim(); if(!task) return;
+  const who=document.getElementById("laNewWho"); const assigneeId = who ? who.value : (state.admins[0]||{}).id;
+  const deadline=document.getElementById("laNewDue").value||"";
+  const btn=document.getElementById("laNewAdd"); btn.disabled=true;
+  try {
+    const r=await apiFetch("/api/projects/"+p.id+"/admin-tasks","POST",{id:uid(),task,deadline,assigneeId});
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    (state.assignedTasks=state.assignedTasks||[]).push(r.task); laRefresh(); toast("Assigned to "+(r.task.assigneeName||"the Lease Admin"),"#2e7d32");
+  } catch(e){ toast(e.message||"Could not assign","#c0392b"); } finally { btn.disabled=false; }
+}
+async function laSave(id){
+  const t=(state.assignedTasks||[]).find(x=>x.id===id); const ti=document.getElementById("laEditText"); if(!t||!ti) return;
+  const task=ti.value.trim(); if(!task) return;
+  const deadline=document.getElementById("laEditDue").value||"";
+  const who=document.getElementById("laEditWho"); const assigneeId = who ? who.value : t.assigneeId;
+  try {
+    const r=await apiFetch("/api/admin-tasks/"+id,"PUT",{task,deadline,assigneeId});
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    t.task=task; t.deadline=deadline; t.assigneeId=assigneeId; t.assigneeName=((state.admins||[]).find(a=>a.id===assigneeId)||{name:t.assigneeName}).name;
+    laEditing=null; laRefresh(); toast("Task updated","#2e7d32");
+  } catch(e){ toast(e.message||"Save failed","#c0392b"); }
+}
+async function laDelete(id){
+  if(!confirm("Remove this task from the Lease Admin's list?")) return;
+  try {
+    const r=await apiFetch("/api/admin-tasks/"+id,"DELETE");
+    if(r.error){ toast(r.error,"#c0392b"); return; }
+    state.assignedTasks=(state.assignedTasks||[]).filter(x=>x.id!==id); laRefresh(); toast("Task removed","#888");
+  } catch(e){ toast(e.message||"Delete failed","#c0392b"); }
+}
 
 // ── Supervisor panel on the project page ───────────────────────
 // Everyone who can open the project sees it (clearly labelled "Supervisor"); only Owner/Supervisors get the
@@ -3301,7 +3481,9 @@ function renderContacts(){
   const q = (document.getElementById("contactSearch").value||"").trim().toLowerCase();
   const terms = q.split(/\s+/).filter(Boolean);   // every word must match somewhere: "acme laredo"
 
+  const leadsOnly = document.getElementById("contactLeadsOnly").checked;
   const rows = all.map(c=>({c, projects: projectsForContact(c)})).filter(({c,projects})=>{
+    if(leadsOnly && !c.is_lead) return false;
     if(!terms.length) return true;
     const hay = [c.name, c.company, c.email, c.phone,
                  ...projects.map(p=>(p.name||"")+" "+(p.address||""))].join(" ").toLowerCase();
@@ -3323,7 +3505,7 @@ function renderContacts(){
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);">${escapeHtml(c.name||"(no name)")}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);">${escapeHtml(c.name||"(no name)")}${c.is_lead?' <span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:#e65100;border-radius:999px;padding:2px 8px;margin-left:4px;vertical-align:middle;">Lead</span>':""}</div>
           <div style="font-size:12px;color:var(--gold);font-weight:600;">${escapeHtml(c.company||"")}</div>
         </div>
         <div style="display:flex;gap:6px;">
@@ -3335,12 +3517,114 @@ function renderContacts(){
       ${c.email ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;"><i class="ti ti-mail" style="margin-right:4px;"></i>${escapeHtml(c.email)}</div>` : ""}
       ${c.phone ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;"><i class="ti ti-phone" style="margin-right:4px;"></i>${escapeHtml(c.phone)}</div>` : ""}
       ${projChips}
+      ${leadStatusHtml(c)}
       ${c.notes ? `<div id="${notesId}" style="display:none;margin-top:10px;padding:10px;background:var(--cream);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap;">${escapeHtml(c.notes)}</div>` : ""}
     `;
     grid.appendChild(card);
   });
 }
 document.getElementById("contactSearch").addEventListener("input", renderContacts);
+document.getElementById("contactLeadsOnly").addEventListener("change", renderContacts);
+
+// ── Leads ──────────────────────────────────────────────────────
+// A contact tagged Lead can be handed to an agent by the Lease Admin, a Supervisor or the Owner. The agent gets a
+// prompt on their project board to create a project from it; doing so closes the lead out.
+const canGiveLeads = ()=>["owner","supervisor","admin"].includes(myRole());
+function leadStatusHtml(c){
+  if(!c.is_lead) return "";
+  const box = inner => `<div style="margin-top:10px;padding:8px 10px;background:#e6510012;border-left:3px solid #e65100;border-radius:4px;font-size:11px;color:var(--text2);line-height:1.6;">${inner}</div>`;
+  const btn = (label,js,icon) => `<button type="button" onclick="${js}" style="margin-top:6px;background:none;border:1px solid #e65100;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;color:#e65100;font-family:inherit;font-weight:600;"><i class="ti ti-${icon}"></i> ${label}</button>`;
+  if(c.lead_project_id){
+    const p = (state.projects||[]).find(x=>x.id===c.lead_project_id);
+    return box(`<i class="ti ti-circle-check" style="color:#2e7d32;"></i> Project created${p?": <b>"+escapeHtml(p.name)+"</b>":""}${c.lead_to_name?" by "+escapeHtml(c.lead_to_name):""}`);
+  }
+  if(c.lead_to){
+    return box(`<i class="ti ti-send"></i> Assigned to <b>${escapeHtml(c.lead_to_name||"an agent")}</b>${c.lead_by_name?" by "+escapeHtml(c.lead_by_name):""}${c.lead_at?" · "+supDate(c.lead_at):""}${c.lead_to_active===false?' <span style="color:#a32d2d;font-weight:700;">(inactive)</span>':""}<br>Waiting for a project to be created.${canGiveLeads()?"<br>"+btn("Reassign",`openAssignLead('${escapeHtml(c.id)}')`,"switch-horizontal"):""}`);
+  }
+  return box(`Lead: not assigned yet.${canGiveLeads()?"<br>"+btn("Assign to an agent",`openAssignLead('${escapeHtml(c.id)}')`,"send"):""}`);
+}
+function openAssignLead(id){
+  const c = (state.contacts||[]).find(x=>x.id===id); if(!c) return;
+  const targets = state.leadTargets||[];
+  if(!targets.length){ toast("There are no active agents to assign this to yet","#888"); return; }
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;";
+  ov.innerHTML = `<div style="background:var(--card);color:var(--text);border-radius:10px;padding:24px;width:380px;max-width:100%;border:1px solid var(--border);">
+    <h3 style="margin:0 0 6px;color:var(--ink);font-size:16px;">Assign lead</h3>
+    <p style="margin:0 0 14px;font-size:12px;color:var(--text2);"><b>${escapeHtml(c.name)}</b>${c.company?" · "+escapeHtml(c.company):""}. They'll see a prompt to create a project from this lead.</p>
+    <select id="assignLeadTo" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-bottom:16px;">
+      ${targets.map(u=>`<option value="${escapeHtml(u.id)}" ${u.id===c.lead_to?"selected":""}>${escapeHtml(u.name)} (${escapeHtml(ROLE_LABEL[u.role]||u.role)})</option>`).join("")}
+    </select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      ${c.lead_to?'<button id="assignLeadClear" class="btn-ghost" style="color:#a32d2d;border-color:#f8d6d6;margin-right:auto;">Take back</button>':""}
+      <button id="assignLeadCancel" class="btn-ghost" style="color:var(--ink);border-color:var(--border);">Cancel</button>
+      <button id="assignLeadGo" class="btn-team">Assign</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close = ()=>ov.remove();
+  ov.onclick = e=>{ if(e.target===ov) close(); };
+  ov.querySelector("#assignLeadCancel").onclick = close;
+  const clear = ov.querySelector("#assignLeadClear");
+  if(clear) clear.onclick = async()=>{
+    try{
+      const r = await apiFetch("/api/contacts/"+id+"/assign-lead","DELETE");
+      if(r.error){ toast(r.error,"#c0392b"); return; }
+      c.lead_to=null; c.lead_to_name=null; c.lead_by_name=""; c.lead_at=null; close(); renderContacts(); toast("Lead taken back","#888");
+    }catch(e){ toast(e.message||"Failed","#c0392b"); }
+  };
+  ov.querySelector("#assignLeadGo").onclick = async()=>{
+    const userId = ov.querySelector("#assignLeadTo").value;
+    try{
+      const r = await apiFetch("/api/contacts/"+id+"/assign-lead","POST",{userId});
+      if(r.error){ toast(r.error,"#c0392b"); return; }
+      Object.assign(c, r.lead, {is_lead:true, lead_project_id:null, lead_to_active:true}); close(); renderContacts();
+      toast("Lead assigned to "+r.lead.lead_to_name,"#2e7d32");
+    }catch(e){ toast(e.message||"Could not assign","#c0392b"); }
+  };
+}
+
+// The agent's prompt: leads waiting for them, with a one-click start on the project.
+function myOpenLeads(){
+  const me = state.me && state.me.id;
+  return reviewing ? [] : (state.contacts||[]).filter(c=>c.is_lead && c.lead_to===me && !c.lead_project_id);
+}
+function renderLeadBanner(){
+  let el = document.getElementById("leadBanner");
+  const leads = myOpenLeads();
+  if(!el){
+    el = document.createElement("div"); el.id = "leadBanner";
+    const view = document.getElementById("projectBoardView");
+    view.insertBefore(el, view.children[1] || null);
+  }
+  if(!leads.length){ el.style.display="none"; el.innerHTML=""; return; }
+  el.style.display = "block";
+  el.innerHTML = `<div style="background:#e6510012;border:1px solid #e6510055;border-left:4px solid #e65100;border-radius:8px;padding:14px 16px;margin:0 0 16px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e65100;margin-bottom:6px;"><i class="ti ti-bell-ringing"></i> ${leads.length===1?"New lead for you":leads.length+" new leads for you"}</div>
+    ${leads.map(c=>`<div class="leadRow" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #e6510033;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);">${escapeHtml(c.name)}${c.company?` <span style="font-weight:600;color:var(--gold);">· ${escapeHtml(c.company)}</span>`:""}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;">${[c.phone,c.email].filter(Boolean).map(escapeHtml).join(" · ")}${c.lead_by_name?` · from ${escapeHtml(c.lead_by_name)}`:""}${c.lead_at?" · "+supDate(c.lead_at):""}</div>
+        ${c.notes?`<div style="font-size:11px;color:var(--text2);margin-top:3px;white-space:pre-wrap;">${escapeHtml(c.notes)}</div>`:""}
+      </div>
+      <button type="button" class="btn-gold leadCreate" data-id="${escapeHtml(c.id)}" style="padding:6px 16px;font-size:11px;"><i class="ti ti-plus"></i> Create project</button>
+    </div>`).join("")}
+  </div>`;
+  el.querySelectorAll(".leadCreate").forEach(b=>b.onclick = ()=>createProjectFromLead(b.dataset.id));
+}
+let pendingLeadId = null;   // set while the New project form is open for a lead
+function createProjectFromLead(id){
+  const c = (state.contacts||[]).find(x=>x.id===id); if(!c) return;
+  showProjectForm(null);
+  pendingLeadId = id;
+  document.getElementById("pfProspect").value = c.name || "";
+  currentProjectContacts = [{id:c.id, name:c.name||"", company:c.company||"", email:c.email||"", phone:c.phone||""}];
+  renderProjectContactPills("pfProjectContactsList");
+  const when = c.lead_at ? supDate(c.lead_at) : "";
+  const text = "Created from a lead" + (c.lead_by_name ? " assigned by "+c.lead_by_name : "") + (when ? " on "+when : "") + "." + (c.notes ? "\n\nLead notes:\n"+c.notes : "");
+  currentFormNotes = [{date:new Date().toISOString(), text}];
+  renderNotesList(currentFormNotes, "pfNotesList");
+  document.getElementById("projectForm").scrollIntoView({behavior:"smooth", block:"start"});
+}
 
 function toggleNotes(id){
   const el = document.getElementById("notes-"+id);
@@ -3356,6 +3640,7 @@ function showContactForm(contact){
   document.getElementById("cfEmail").value   = contact?.email   || "";
   document.getElementById("cfPhone").value   = contact?.phone   || "";
   document.getElementById("cfNotes").value   = contact?.notes   || "";
+  document.getElementById("cfLead").checked  = !!contact?.is_lead;
   document.getElementById("contactForm").style.display = "block";
   document.getElementById("cfName").focus();
 }
@@ -3385,18 +3670,23 @@ document.getElementById("cfSave").onclick = async () => {
   const email   = document.getElementById("cfEmail").value.trim();
   const phone   = document.getElementById("cfPhone").value.trim();
   const notes   = document.getElementById("cfNotes").value.trim();
+  const is_lead = document.getElementById("cfLead").checked;
   if(!name){ alert("Name is required"); return; }
 
   if(editingContactId){
-    await apiFetch("/api/contacts/"+editingContactId,"PUT",{name,company,email,phone,notes});
+    await apiFetch("/api/contacts/"+editingContactId,"PUT",{name,company,email,phone,notes,is_lead});
     const c = (state.contacts||[]).find(x=>x.id===editingContactId);
-    if(c){ c.name=name; c.company=company; c.email=email; c.phone=phone; c.notes=notes; }
+    if(c){
+      c.name=name; c.company=company; c.email=email; c.phone=phone; c.notes=notes;
+      if(c.is_lead && !is_lead && !c.lead_project_id){ c.lead_to=null; c.lead_to_name=null; c.lead_by_name=""; c.lead_at=null; }   // un-tagging withdraws a waiting lead
+      c.is_lead=is_lead;
+    }
     toast("Contact updated","#2e7d32");
   } else {
     const id = uid();
-    await apiFetch("/api/contacts","POST",{id,name,company,email,phone,notes});
+    await apiFetch("/api/contacts","POST",{id,name,company,email,phone,notes,is_lead});
     if(!state.contacts) state.contacts=[];
-    state.contacts.push({id,name,company,email,phone,notes});
+    state.contacts.push({id,name,company,email,phone,notes,is_lead});
     toast("Contact added","#2e7d32");
   }
   document.getElementById("contactForm").style.display = "none";
@@ -3431,7 +3721,7 @@ function renderPickerSelected(){
   pickerSelected.forEach((c,i)=>{
     const tag = document.createElement("div");
     tag.style.cssText = "background:var(--navy);color:#fff;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;";
-    tag.innerHTML = `${c.name} <span style="cursor:pointer;opacity:.7;" data-i="${i}">✕</span>`;
+    tag.innerHTML = `${escapeHtml(c.name)} <span style="cursor:pointer;opacity:.7;" data-i="${i}">✕</span>`;
     tag.querySelector("span").onclick = (e)=>{
       pickerSelected.splice(parseInt(e.target.dataset.i),1);
       renderPickerSelected();
@@ -3459,7 +3749,7 @@ function renderPickerList(query){
   contacts.forEach(c=>{
     const row = document.createElement("div");
     row.style.cssText = "padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;";
-    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--ink);">${c.name}</div>
+    row.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--ink);">${escapeHtml(c.name)}</div>
       <div style="font-size:11px;color:var(--muted);">${[c.company,c.email,c.phone].filter(Boolean).join(" · ")}</div>`;
     row.onmouseenter = ()=>row.style.background="var(--cream)";
     row.onmouseleave = ()=>row.style.background="";
