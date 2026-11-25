@@ -221,6 +221,24 @@ async function initDB() {
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS supervisor BOOLEAN DEFAULT FALSE;
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS created_by TEXT;
     ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS created_by_name TEXT DEFAULT '';
+    -- Lease Admin: a task can be assigned to the administrator from a project. Such a task belongs to her board
+    -- (owner_id = her), remembers its project, who assigned it, and who finished it and when.
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS project_id TEXT;
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS assigned   BOOLEAN DEFAULT FALSE;
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS completed_by_name TEXT DEFAULT '';
+    ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+    ALTER TABLE archive   ADD COLUMN IF NOT EXISTS project_id TEXT;
+    ALTER TABLE archive   ADD COLUMN IF NOT EXISTS created_by_name TEXT DEFAULT '';
+    ALTER TABLE archive   ADD COLUMN IF NOT EXISTS completed_by_name TEXT DEFAULT '';
+    ALTER TABLE archive   ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+    -- Leads: a contact can carry a Lead tag and be handed to an agent, who turns it into a project.
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS is_lead    BOOLEAN DEFAULT FALSE;
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS lead_to    TEXT;
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS lead_by    TEXT;
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS lead_by_name TEXT DEFAULT '';
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS lead_at    TIMESTAMP;
+    ALTER TABLE contacts  ADD COLUMN IF NOT EXISTS lead_project_id TEXT;
+    CREATE INDEX IF NOT EXISTS tasks_project ON tasks (project_id);
     CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower ON users (lower(email)) WHERE email IS NOT NULL;
     CREATE INDEX IF NOT EXISTS projects_owner ON projects (owner_id);
     CREATE INDEX IF NOT EXISTS tasks_owner    ON tasks (owner_id);
@@ -303,8 +321,16 @@ const requireRole = (...roles) => (req, res, next) =>
 // Who may touch a project?
 //   read  : the Owner and Supervisors can read every project; an Agent only their own
 //   write : the Owner can change every project; everyone else only their own
-const canReadProject  = (u, p) => u.role !== "agent" || p.owner_id === u.id;
+//   A Lease Admin owns nothing: she can read only a project she has been given a task on (see canReadProjectDb).
+const canReadProject  = (u, p) => u.role === "owner" || u.role === "supervisor" || p.owner_id === u.id;
 const canWriteProject = (u, p) => u.role === "owner" || p.owner_id === u.id;
+
+// Same as canReadProject, plus the Lease Admin rule (needs a look at the tasks table, so it is async).
+async function canReadProjectDb(u, p) {
+  if (u.role !== "admin") return canReadProject(u, p);
+  const r = await pool.query("SELECT 1 FROM tasks WHERE owner_id=$1 AND project_id=$2 AND assigned=TRUE LIMIT 1", [u.id, p.id]);
+  return r.rows.length > 0;
+}
 
 async function getProjectOwner(projectId) {
   const r = await pool.query("SELECT id, owner_id FROM projects WHERE id=$1", [projectId]);
@@ -316,7 +342,7 @@ async function getProjectOwner(projectId) {
 const projectAccess = (mode) => async (req, res, next) => {
   try {
     const p = await getProjectOwner(req.params.id);
-    if (!p || !canReadProject(req.user, p)) return res.status(404).json({ error: "Project not found" });
+    if (!p || !(await canReadProjectDb(req.user, p))) return res.status(404).json({ error: "Project not found" });
     if (mode === "write" && !canWriteProject(req.user, p)) return res.status(403).json({ error: "You don't have permission to change this project" });
     req.project = p;
     next();
@@ -326,7 +352,9 @@ const projectAccess = (mode) => async (req, res, next) => {
 // For "UPDATE/DELETE ... WHERE id=$1 AND ($2 OR owner_id=$3)": the Owner may touch any row, others only their own.
 const scopeParams = (u) => [u.role === "owner", u.id];
 
-const ROLES = ["owner", "supervisor", "agent"];
+const ROLES = ["owner", "supervisor", "agent", "admin"];
+const ROLE_LABEL = { owner: "Owner", supervisor: "Supervisor", agent: "Agent", admin: "Lease Admin" };
+const ROLE_ORDER_SQL = "CASE role WHEN 'owner' THEN 0 WHEN 'supervisor' THEN 1 WHEN 'agent' THEN 2 ELSE 3 END";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const sha256 = (s) => crypto.createHash("sha256").update(s).digest("hex");
 // Colour schemes. "starwars" is an Owner-only perk, so it is also filtered out when we read it back.
@@ -436,7 +464,7 @@ app.get("/api/users", requireAuth, requireRole("owner", "supervisor"), async (re
              (u.password = $1) AS pending,
              (SELECT COUNT(*) FROM projects p WHERE p.owner_id = u.id)::int AS project_count
         FROM users u
-       ORDER BY CASE u.role WHEN 'owner' THEN 0 WHEN 'supervisor' THEN 1 ELSE 2 END, lower(u.name), lower(u.username)`,
+       ORDER BY CASE u.role WHEN 'owner' THEN 0 WHEN 'supervisor' THEN 1 WHEN 'agent' THEN 2 ELSE 3 END, lower(u.name), lower(u.username)`,
       [NO_PASSWORD]);
     res.json({ users: r.rows.map(u => ({
       id: u.id, username: u.username, email: u.email, name: u.name || "", role: u.role,
@@ -461,7 +489,7 @@ app.post("/api/users/invite", requireAuth, requireRole("owner"), async (req, res
   const role  = String(req.body.role || "");
   if (!name) return res.status(400).json({ error: "Name is required" });
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "Enter a valid email address" });
-  if (!["supervisor", "agent"].includes(role)) return res.status(400).json({ error: "Role must be Supervisor or Agent" });
+  if (!["supervisor", "agent", "admin"].includes(role)) return res.status(400).json({ error: "Role must be Supervisor, Agent or Lease Admin" });
   try {
     const dup = await pool.query("SELECT 1 FROM users WHERE lower(email)=$1 OR lower(username)=$1", [email]);
     if (dup.rows.length) return res.status(409).json({ error: "Someone with that email already exists" });
@@ -493,8 +521,12 @@ app.patch("/api/users/:id", requireAuth, requireRole("owner"), async (req, res) 
     const { name, role, active, email } = req.body;
     const isOwnerAccount = target.role === "owner";
     if (role !== undefined) {
-      if (!["supervisor", "agent"].includes(role)) return res.status(400).json({ error: "Role must be Supervisor or Agent" });
+      if (!["supervisor", "agent", "admin"].includes(role)) return res.status(400).json({ error: "Role must be Supervisor, Agent or Lease Admin" });
       if (isOwnerAccount) return res.status(400).json({ error: "The owner's role can't be changed" });
+      if (role === "admin") {
+        const held = await client.query("SELECT COUNT(*)::int AS n FROM projects WHERE owner_id=$1", [req.params.id]);
+        if (held.rows[0].n > 0) return res.status(400).json({ error: "This person still holds projects. Hand them off first; a Lease Admin can't own projects." });
+      }
     }
     if (active === false && isOwnerAccount) return res.status(400).json({ error: "The owner can't be deactivated" });
     let newName = null, newEmail = null;
@@ -547,37 +579,81 @@ async function getWeekId(userId) {
   return r.rows[0]?.value || getCurrentWeekId();
 }
 
+const taskShape = (r) => ({
+  id: r.id, title: r.title, task: r.task, status: r.status,
+  notes: r.notes, deadline: r.deadline, contact: r.contact, done: r.done,
+  supervisor: r.supervisor === true, createdBy: r.created_by || null, createdByName: r.created_by_name || "",
+  assigned: r.assigned === true, projectId: r.project_id || null, completedByName: r.completed_by_name || ""
+});
+
 app.get("/api/state", requireAuth, async (req, res) => {
   try {
     let target = req.user;
     const as = req.query.as ? String(req.query.as) : "";
     if (as && as !== req.user.id) {
-      if (req.user.role === "agent") return res.status(403).json({ error: "You don't have permission to do that" });
+      if (!["owner", "supervisor"].includes(req.user.role)) return res.status(403).json({ error: "You don't have permission to do that" });
       const t = await pool.query("SELECT id, username, email, name, role, active FROM users WHERE id=$1", [as]);
       if (!t.rows.length) return res.status(404).json({ error: "User not found" });
       target = t.rows[0];
     }
+    const isAdminBoard = target.role === "admin";
     const weekId  = await getWeekId(target.id);
     const taskRes = await pool.query("SELECT * FROM tasks WHERE owner_id=$1 ORDER BY created_at ASC", [target.id]);
     const archRes = await pool.query("SELECT * FROM archive WHERE owner_id=$1 ORDER BY archived_at DESC", [target.id]);
-    const contRes = await pool.query("SELECT * FROM contacts ORDER BY name ASC");
-    const projRes = await pool.query("SELECT * FROM projects WHERE owner_id=$1 ORDER BY name ASC", [target.id]);
+    const contRes = await pool.query(
+      "SELECT c.*, COALESCE(NULLIF(u.name,''), u.username) AS lead_to_name, u.active AS lead_to_active FROM contacts c LEFT JOIN users u ON u.id=c.lead_to ORDER BY c.name ASC");
+    // Who a lead can be handed to (only offered to the people allowed to hand them out).
+    let leadTargets = [];
+    if (["owner", "supervisor", "admin"].includes(req.user.role)) {
+      const lt = await pool.query("SELECT id, name, username, role FROM users WHERE active=TRUE AND password <> $1 AND role IN ('agent','supervisor') ORDER BY lower(name), lower(username)", [NO_PASSWORD]);
+      leadTargets = lt.rows.map(u => ({ id: u.id, name: u.name || u.username, role: u.role }));
+    }
+    // A Lease Admin's board holds only the projects she currently has an unfinished task on, and never the
+    // supervisor-only layer. Everyone else sees the projects they hold.
+    let projRows;
+    if (isAdminBoard) {
+      const pr = await pool.query(
+        "SELECT * FROM projects WHERE id IN (SELECT project_id FROM tasks WHERE owner_id=$1 AND assigned=TRUE AND done=FALSE AND project_id IS NOT NULL) ORDER BY name ASC", [target.id]);
+      // (A supervisor reviewing her board still sees everything; only she is kept out of the supervisor layer.)
+      projRows = req.user.role === "admin" ? pr.rows.map(p => ({ ...p, supervisor_notes: "[]", sup_flag_at: null, sup_flag_text: null })) : pr.rows;
+    } else {
+      projRows = (await pool.query("SELECT * FROM projects WHERE owner_id=$1 ORDER BY name ASC", [target.id])).rows;
+    }
+    // Tasks handed to a Lease Admin from the projects on this board, and who can be asked.
+    let assignedTasks = [], admins = [];
+    if (!isAdminBoard) {
+      if (projRows.length) {
+        const at = await pool.query(
+          `SELECT t.*, u.name AS assignee_name, u.username AS assignee_username FROM tasks t LEFT JOIN users u ON u.id=t.owner_id
+           WHERE t.assigned=TRUE AND t.project_id = ANY($1) ORDER BY t.created_at ASC`, [projRows.map(p => p.id)]);
+        assignedTasks = at.rows.map(r => ({ ...taskShape(r), assigneeId: r.owner_id, assigneeName: r.assignee_name || r.assignee_username || "" }));
+        // Finished ones the assignee has already filed away stay visible on the project as history.
+        const done = await pool.query(
+          `SELECT a.*, u.name AS assignee_name, u.username AS assignee_username FROM archive a LEFT JOIN users u ON u.id=a.owner_id
+           WHERE a.project_id = ANY($1) ORDER BY COALESCE(a.completed_at, a.archived_at) DESC LIMIT 200`, [projRows.map(p => p.id)]);
+        assignedTasks = assignedTasks.concat(done.rows.map(r => ({
+          id: r.id, projectId: r.project_id, task: r.task, status: r.status, notes: r.notes, deadline: r.deadline, done: true, archived: true,
+          assigned: true, createdByName: r.created_by_name || "", completedByName: r.completed_by_name || "",
+          completedAt: r.completed_at || r.archived_at, assigneeId: r.owner_id, assigneeName: r.assignee_name || r.assignee_username || ""
+        })));
+      }
+      const ad = await pool.query("SELECT id, name, username FROM users WHERE role='admin' AND active=TRUE AND password <> $1 ORDER BY lower(name), lower(username)", [NO_PASSWORD]);
+      admins = ad.rows.map(u => ({ id: u.id, name: u.name || u.username }));
+    }
     res.json({
       weekId,
       me: publicUser(req.user),
       viewing: publicUser(target),
       readOnly: target.id !== req.user.id && req.user.role !== "owner",
-      tasks: taskRes.rows.map(r => ({
-        id: r.id, title: r.title, task: r.task, status: r.status,
-        notes: r.notes, deadline: r.deadline, contact: r.contact, done: r.done,
-        supervisor: r.supervisor === true, createdBy: r.created_by || null, createdByName: r.created_by_name || ""
-      })),
+      tasks: taskRes.rows.map(taskShape),
       archive: archRes.rows.map(r => ({
         id: r.id, title: r.title, task: r.task, status: r.status,
-        notes: r.notes, deadline: r.deadline, contact: r.contact, weekCompleted: r.week_completed
+        notes: r.notes, deadline: r.deadline, contact: r.contact, weekCompleted: r.week_completed,
+        createdByName: r.created_by_name || "", completedByName: r.completed_by_name || "", projectId: r.project_id || null
       })),
       contacts: contRes.rows,
-      projects: projRes.rows
+      projects: projRows,
+      assignedTasks, admins, leadTargets
     });
   } catch(e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
@@ -597,6 +673,46 @@ app.post("/api/tasks", requireAuth, async (req, res) => {
   }
 });
 
+// The project journal is a JSON list in projects.notes, newest first. These helpers change it safely (row lock)
+// so the automatic "completed by" lines never collide with someone saving a note at the same moment.
+async function mutateJournal(projectId, fn) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r = await client.query("SELECT notes FROM projects WHERE id=$1 FOR UPDATE", [projectId]);
+    if (!r.rows.length) { await client.query("ROLLBACK"); return null; }
+    let list = [];
+    const raw = r.rows[0].notes || "";
+    try { const j = JSON.parse(raw); list = Array.isArray(j) ? j : []; if (!Array.isArray(j) && raw.trim()) list = [{ date: "Previous notes", text: raw.trim() }]; }
+    catch (e) { if (raw.trim()) list = [{ date: "Previous notes", text: raw.trim() }]; }
+    fn(list);
+    await client.query("UPDATE projects SET notes=$1 WHERE id=$2", [JSON.stringify(list), projectId]);
+    await client.query("COMMIT");
+    return list;
+  } catch (e) { await client.query("ROLLBACK").catch(() => {}); throw e; }
+  finally { client.release(); }
+}
+
+// Done / not-done flips: remember when (for everyone) and, for tasks handed over by someone, who finished it,
+// with a line in the project's journal ("Task completed by Lease Admin: ...") that is withdrawn if it is un-ticked.
+async function recordCompletion(cur, nowDone, user) {
+  if (!!cur.done === !!nowDone) return;
+  if (!nowDone) await pool.query("UPDATE tasks SET completed_at=NULL, completed_by_name='' WHERE id=$1", [cur.id]);
+  else await pool.query("UPDATE tasks SET completed_at=NOW(), completed_by_name=$2 WHERE id=$1", [cur.id, cur.assigned ? ROLE_LABEL[user.role] || "" : ""]);
+  if (!cur.assigned || !cur.project_id) return;
+  try {
+    await mutateJournal(cur.project_id, list => {
+      const keep = list.filter(e => !(e && e.system && e.taskId === cur.id));
+      list.length = 0; list.push(...keep);
+      if (nowDone) list.unshift({ date: new Date().toISOString(), text: `Task completed by ${ROLE_LABEL[user.role] || "team"}: ${cur.task}`, system: true, taskId: cur.id, by: ROLE_LABEL[user.role] || "" });
+    });
+  } catch (e) { console.error("journal log failed:", e.message); }
+}
+
+// A task handed over by someone else (to a Lease Admin) is the author's to word and date; its assignee updates
+// progress: tick it done and change its status and notes.
+const canEditAssignedTask = (u, t) => !t.assigned || u.role === "owner" || t.created_by === u.id;
+
 // A task made by a supervisor ("admin task") belongs to the project's owner but is the supervisor's to edit:
 // the owner may tick it done, nothing more. Only its author (or the Owner) can change or delete it.
 const canEditSupervisorTask = (u, t) => !t.supervisor || u.role === "owner" || t.created_by === u.id;
@@ -604,25 +720,35 @@ const canEditSupervisorTask = (u, t) => !t.supervisor || u.role === "owner" || t
 app.put("/api/tasks/:id", requireAuth, async (req, res) => {
   const { title, task, status, notes, deadline, contact, done } = req.body;
   try {
-    const cur = (await pool.query("SELECT id, owner_id, supervisor, created_by FROM tasks WHERE id=$1", [req.params.id])).rows[0];
+    const cur = (await pool.query("SELECT id, owner_id, supervisor, created_by, assigned, project_id, done, task FROM tasks WHERE id=$1", [req.params.id])).rows[0];
     if (!cur || !(req.user.role === "owner" || cur.owner_id === req.user.id)) return res.status(404).json({ error: "Task not found" });
     if (!canEditSupervisorTask(req.user, cur)) {
       await pool.query("UPDATE tasks SET done=$1 WHERE id=$2", [done === true, req.params.id]);   // completing is all they may do
+      await recordCompletion(cur, done === true, req.user);
+      return res.json({ ok: true });
+    }
+    if (!canEditAssignedTask(req.user, cur)) {
+      // The Lease Admin: progress only. What the task says and when it is due stay as assigned.
+      await pool.query("UPDATE tasks SET status=$1, notes=$2, done=$3 WHERE id=$4",
+        [status||"Not started", notes||"", done === true, req.params.id]);
+      await recordCompletion(cur, done === true, req.user);
       return res.json({ ok: true });
     }
     await pool.query(
       "UPDATE tasks SET title=$1,task=$2,status=$3,notes=$4,deadline=$5,contact=$6,done=$7 WHERE id=$8",
       [title||"", task||"", status||"Not started", notes||"", deadline||"", contact||"", done||false, req.params.id]
     );
+    await recordCompletion(cur, done === true, req.user);
     res.json({ ok: true });
   } catch(e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
 
 app.delete("/api/tasks/:id", requireAuth, async (req, res) => {
   try {
-    const cur = (await pool.query("SELECT id, owner_id, supervisor, created_by FROM tasks WHERE id=$1", [req.params.id])).rows[0];
+    const cur = (await pool.query("SELECT id, owner_id, supervisor, created_by, assigned FROM tasks WHERE id=$1", [req.params.id])).rows[0];
     if (!cur || !(req.user.role === "owner" || cur.owner_id === req.user.id)) return res.json({ ok: true });
     if (!canEditSupervisorTask(req.user, cur)) return res.status(403).json({ error: "Only the supervisor who added this task can remove it" });
+    if (!canEditAssignedTask(req.user, cur)) return res.status(403).json({ error: "Only the person who assigned this task can remove it" });
     await pool.query("DELETE FROM tasks WHERE id=$1", [req.params.id]);
     res.json({ ok: true });
   } catch(e) { console.error(e); res.status(500).json({ error: "Server error" }); }
@@ -637,9 +763,10 @@ app.post("/api/newweek-single", requireAuth, async (req, res) => {
     const t = task.rows[0];
     // An unfinished supervisor task can't be tucked away by its assignee.
     if (!t.done && !canEditSupervisorTask(req.user, t)) return res.status(403).json({ error: "That task was assigned by a supervisor" });
+    if (!t.done && !canEditAssignedTask(req.user, t)) return res.status(403).json({ error: "That task was assigned to you. Finish it first." });
     await pool.query(
-      "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING",
-      [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, weekId, t.owner_id]
+      "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed,owner_id,project_id,created_by_name,completed_by_name,completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (id) DO NOTHING",
+      [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, weekId, t.owner_id, t.project_id, t.created_by_name || "", t.completed_by_name || "", t.completed_at]
     );
     await pool.query("DELETE FROM tasks WHERE id=$1", [taskId]);
     res.json({ ok: true });
@@ -653,8 +780,8 @@ app.post("/api/newweek", requireAuth, async (req, res) => {
     const doneTasks = await pool.query("SELECT * FROM tasks WHERE done=TRUE AND owner_id=$1", [req.user.id]);
     for (const t of doneTasks.rows) {
       await pool.query(
-        "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING",
-        [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, currentWeekId, t.owner_id]
+        "INSERT INTO archive (id,title,task,status,notes,deadline,contact,week_completed,owner_id,project_id,created_by_name,completed_by_name,completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (id) DO NOTHING",
+        [t.id, t.title, t.task, t.status, t.notes, t.deadline, t.contact, currentWeekId, t.owner_id, t.project_id, t.created_by_name || "", t.completed_by_name || "", t.completed_at]
       );
     }
     await pool.query("DELETE FROM tasks WHERE done=TRUE AND owner_id=$1", [req.user.id]);
@@ -681,8 +808,8 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
   if (!id || !ID_RE.test(String(id))) return res.status(400).json({ error: "Invalid contact id" });
   try {
     await pool.query(
-      "INSERT INTO contacts (id,name,company,email,phone,notes) VALUES ($1,$2,$3,$4,$5,$6)",
-      [id, name||"", company||"", email||"", phone||"", notes||""]
+      "INSERT INTO contacts (id,name,company,email,phone,notes,is_lead) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+      [id, name||"", company||"", email||"", phone||"", notes||"", req.body.is_lead === true]
     );
     res.json({ ok: true });
   } catch(e) {
@@ -693,11 +820,39 @@ app.post("/api/contacts", requireAuth, async (req, res) => {
 
 app.put("/api/contacts/:id", requireAuth, async (req, res) => {
   const { name, company, email, phone, notes } = req.body;
-  await pool.query(
-    "UPDATE contacts SET name=$1,company=$2,email=$3,phone=$4,notes=$5 WHERE id=$6",
-    [name||"", company||"", email||"", phone||"", notes||"", req.params.id]
-  );
-  res.json({ ok: true });
+  const isLead = typeof req.body.is_lead === "boolean" ? req.body.is_lead : null;   // absent = leave the tag alone
+  try {
+    await pool.query(
+      "UPDATE contacts SET name=$1,company=$2,email=$3,phone=$4,notes=$5,is_lead=COALESCE($6,is_lead) WHERE id=$7",
+      [name||"", company||"", email||"", phone||"", notes||"", isLead, req.params.id]
+    );
+    // Taking the Lead tag off a lead that is waiting with an agent withdraws it from them.
+    if (isLead === false) await pool.query("UPDATE contacts SET lead_to=NULL, lead_by=NULL, lead_by_name='', lead_at=NULL WHERE id=$1 AND lead_project_id IS NULL", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Leads ──────────────────────────────────────────────────────
+// The Lease Admin (and the Owner and Supervisors) can hand a lead to an agent. It then shows up on the agent's
+// project board as a prompt to create a project from it; creating the project closes the lead out.
+const leadGivers = requireRole("owner", "supervisor", "admin");
+app.post("/api/contacts/:id/assign-lead", requireAuth, leadGivers, async (req, res) => {
+  try {
+    const c = (await pool.query("SELECT id, lead_project_id FROM contacts WHERE id=$1", [req.params.id])).rows[0];
+    if (!c) return res.status(404).json({ error: "Contact not found" });
+    if (c.lead_project_id) return res.status(409).json({ error: "A project has already been created from this lead" });
+    const to = (await pool.query("SELECT id, name, username FROM users WHERE id=$1 AND active=TRUE AND password <> $2 AND role IN ('agent','supervisor')", [String(req.body.userId || ""), NO_PASSWORD])).rows[0];
+    if (!to) return res.status(400).json({ error: "Choose an active agent" });
+    await pool.query("UPDATE contacts SET is_lead=TRUE, lead_to=$1, lead_by=$2, lead_by_name=$3, lead_at=NOW() WHERE id=$4",
+      [to.id, req.user.id, displayName(req.user), req.params.id]);
+    res.json({ ok: true, lead: { lead_to: to.id, lead_to_name: to.name || to.username, lead_by: req.user.id, lead_by_name: displayName(req.user), lead_at: new Date().toISOString() } });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+app.delete("/api/contacts/:id/assign-lead", requireAuth, leadGivers, async (req, res) => {
+  try {
+    await pool.query("UPDATE contacts SET lead_to=NULL, lead_by=NULL, lead_by_name='', lead_at=NULL WHERE id=$1 AND lead_project_id IS NULL", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
 
 app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
@@ -705,7 +860,7 @@ app.delete("/api/contacts/:id", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/projects", requireAuth, async (req, res) => {
+app.post("/api/projects", requireAuth, requireRole("owner", "supervisor", "agent"), async (req, res) => {
   const { id, name, address, prospect, type, sf, price_per_sf, status, notes, contacts, priority, files } = req.body;
   if (!id || !ID_RE.test(String(id))) return res.status(400).json({ error: "Invalid project id" });
   // A new project may arrive with files already uploaded under its (pre-generated) id.
@@ -716,6 +871,10 @@ app.post("/api/projects", requireAuth, async (req, res) => {
       "INSERT INTO projects (id,name,address,prospect,type,sf,price_per_sf,status,notes,contacts,priority,files,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
       [id, name||"", address||"", prospect||"", type||"", sf||"", price_per_sf||"", status||"", notes||"", contacts||"[]", priority||"", filesJson, req.user.id]
     );
+    // Created from a lead that was handed to this person: close the lead out and link it to the new project.
+    if (req.body.leadContactId) {
+      await pool.query("UPDATE contacts SET lead_project_id=$1 WHERE id=$2 AND lead_to=$3 AND lead_project_id IS NULL", [id, String(req.body.leadContactId), req.user.id]);
+    }
     res.json({ ok: true });
   } catch (e) {
     if (e.code === "23505") return res.status(409).json({ error: "That project already exists" });
@@ -778,6 +937,7 @@ app.patch("/api/projects/:id/files", requireAuth, projectAccess("write"), async 
 
 app.delete("/api/projects/:id", requireAuth, projectAccess("write"), async (req, res) => {
   await pool.query("DELETE FROM projects WHERE id=$1", [req.params.id]);
+  await pool.query("DELETE FROM tasks WHERE project_id=$1 AND assigned=TRUE", [req.params.id]);   // tasks handed to a Lease Admin go with it
   // Clean up the project's files in the background; don't fail the request if R2 hiccups.
   deleteProjectFiles(req.params.id).catch(e => console.error("R2 cleanup failed:", e.message));
   res.json({ ok: true });
@@ -792,8 +952,9 @@ app.post("/api/projects/reassign", requireAuth, requireRole("owner", "supervisor
   if (!ids.length || ids.length > 500 || !ids.every(i => ID_RE.test(i))) return res.status(400).json({ error: "Choose at least one project" });
   const client = await pool.connect();
   try {
-    const to = await client.query("SELECT id, active FROM users WHERE id=$1", [toId]);
+    const to = await client.query("SELECT id, active, role FROM users WHERE id=$1", [toId]);
     if (!to.rows.length || to.rows[0].active === false) return res.status(400).json({ error: "Choose an active user" });
+    if (to.rows[0].role === "admin") return res.status(400).json({ error: "A Lease Admin can't hold projects. Assign her a task instead." });
     await client.query("BEGIN");
     let moved = 0, tasksMoved = 0;
     for (const pid of ids) {
@@ -942,12 +1103,100 @@ app.delete("/api/supervisor-tasks/:id", requireAuth, supervisorsOnly, async (req
   } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
 
+// ── Lease Admin tasks ──────────────────────────────────────────
+// The Owner, Supervisors and the project's own Agent can hand a Lease Admin a task from a project. The task
+// lands on her board (and the project appears there until she has finished everything on it).
+const assignedTaskOut = (r, assignee) => ({ ...taskShape(r), assigneeId: r.owner_id, assigneeName: assignee ? (assignee.name || assignee.username) : "" });
+async function loadAssignee(id) {
+  const r = await pool.query("SELECT id, name, username FROM users WHERE id=$1 AND role='admin' AND active=TRUE AND password <> $2", [id, NO_PASSWORD]);
+  return r.rows[0] || null;
+}
+const assigners = requireRole("owner", "supervisor", "agent");
+
+app.post("/api/projects/:id/admin-tasks", requireAuth, assigners, projectAccess("read"), async (req, res) => {
+  const id = String(req.body.id || "");
+  const task = cleanText(req.body.task, 2000);
+  const deadline = String(req.body.deadline || "");
+  if (!ID_RE.test(id)) return res.status(400).json({ error: "Invalid task id" });
+  if (!task) return res.status(400).json({ error: "Describe the task" });
+  if (deadline && !DATE_RE.test(deadline)) return res.status(400).json({ error: "Invalid date" });
+  try {
+    const assignee = await loadAssignee(String(req.body.assigneeId || ""));
+    if (!assignee) return res.status(400).json({ error: "Choose a Lease Admin to assign this to" });
+    const p = (await pool.query("SELECT name, address FROM projects WHERE id=$1", [req.params.id])).rows[0];
+    const title = `${p.name || ""} — ${p.address || ""}`.trim();
+    const weekId = await getWeekId(assignee.id);
+    await pool.query(
+      "INSERT INTO tasks (id,title,task,status,notes,deadline,contact,done,week_id,owner_id,assigned,project_id,created_by,created_by_name) VALUES ($1,$2,$3,'Not started','',$4,'',FALSE,$5,$6,TRUE,$7,$8,$9)",
+      [id, title, task, deadline, weekId, assignee.id, req.params.id, req.user.id, displayName(req.user)]);
+    const row = (await pool.query("SELECT * FROM tasks WHERE id=$1", [id])).rows[0];
+    res.json({ ok: true, task: assignedTaskOut(row, assignee) });
+  } catch (e) {
+    if (e.code === "23505") return res.status(409).json({ error: "That task already exists" });
+    console.error(e); res.status(500).json({ error: "Server error" });
+  }
+});
+
+async function loadAssignedTask(req, res) {
+  const t = (await pool.query("SELECT * FROM tasks WHERE id=$1 AND assigned=TRUE", [req.params.id])).rows[0];
+  if (!t) { res.status(404).json({ error: "Task not found" }); return null; }
+  if (req.user.role !== "owner" && t.created_by !== req.user.id) { res.status(403).json({ error: "Only the person who assigned this task can change it" }); return null; }
+  return t;
+}
+app.put("/api/admin-tasks/:id", requireAuth, assigners, async (req, res) => {
+  const task = cleanText(req.body.task, 2000);
+  const deadline = String(req.body.deadline || "");
+  if (!task) return res.status(400).json({ error: "Describe the task" });
+  if (deadline && !DATE_RE.test(deadline)) return res.status(400).json({ error: "Invalid date" });
+  try {
+    const cur = await loadAssignedTask(req, res); if (!cur) return;
+    let ownerId = cur.owner_id;
+    if (req.body.assigneeId && String(req.body.assigneeId) !== cur.owner_id) {
+      const a = await loadAssignee(String(req.body.assigneeId));
+      if (!a) return res.status(400).json({ error: "Choose a Lease Admin" });
+      ownerId = a.id;
+    }
+    await pool.query("UPDATE tasks SET task=$1, deadline=$2, owner_id=$3 WHERE id=$4", [task, deadline, ownerId, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+app.delete("/api/admin-tasks/:id", requireAuth, assigners, async (req, res) => {
+  try {
+    const cur = await loadAssignedTask(req, res); if (!cur) return;
+    await pool.query("DELETE FROM tasks WHERE id=$1", [req.params.id]);
+    // A finished task's "completed by" line is history; withdrawing the task withdraws that line too.
+    if (cur.project_id) await mutateJournal(cur.project_id, list => { const keep = list.filter(e => !(e && e.system && e.taskId === cur.id)); list.length = 0; list.push(...keep); }).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
+// Add one entry to a project's journal without touching anything else on the project. This is how a Lease Admin
+// writes notes (she can't save the project itself). Her entries are tagged with her role.
+app.post("/api/projects/:id/journal", requireAuth, projectAccess("read"), async (req, res) => {
+  const text = cleanText(req.body.text, 5000);
+  const atts = Array.isArray(req.body.attachments) ? req.body.attachments.slice(0, 10) : [];
+  const clean = [];
+  for (const a of atts) {
+    const m = a && KEY_RE.exec(String(a.key || ""));
+    if (!m || m[1] !== req.params.id) return res.status(400).json({ error: "Invalid file" });
+    clean.push({ key: String(a.key), name: cleanText(a.name, 200), size: Number(a.size) || 0 });
+  }
+  if (!text && !clean.length) return res.status(400).json({ error: "Write a note or attach a file" });
+  try {
+    const entry = { date: new Date().toISOString(), text };
+    if (clean.length) entry.attachments = clean;
+    if (req.user.role === "admin") entry.by = ROLE_LABEL.admin;
+    const list = await mutateJournal(req.params.id, l => { l.unshift(entry); });
+    res.json({ ok: true, notes: JSON.stringify(list) });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+
 // Team dashboard: one summary per person (everyone but the viewer). `today` is the viewer's local date.
 app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => {
   const today = DATE_RE.test(String(req.query.today || "")) ? String(req.query.today) : new Date().toISOString().slice(0, 10);
   try {
     const people = await pool.query(
-      "SELECT id, username, name, role FROM users WHERE active=TRUE AND password <> $1 AND id <> $2 ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'supervisor' THEN 1 ELSE 2 END, lower(name), lower(username)",
+      "SELECT id, username, name, role FROM users WHERE active=TRUE AND password <> $1 AND id <> $2 ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'supervisor' THEN 1 WHEN 'agent' THEN 2 ELSE 3 END, lower(name), lower(username)",
       [NO_PASSWORD, req.user.id]);
     const projs = await pool.query(`
       SELECT owner_id,
@@ -963,8 +1212,16 @@ app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => 
       SELECT owner_id,
         COUNT(*) FILTER (WHERE NOT done)::int AS open_tasks,
         COUNT(*) FILTER (WHERE NOT done AND deadline <> '' AND deadline < $1)::int AS overdue,
-        COUNT(*) FILTER (WHERE NOT done AND supervisor)::int AS supervisor_open
+        COUNT(*) FILTER (WHERE NOT done AND supervisor)::int AS supervisor_open,
+        COUNT(*) FILTER (WHERE done)::int AS done_now,
+        COUNT(*) FILTER (WHERE done AND COALESCE(completed_at, created_at) >= NOW() - INTERVAL '7 days')::int AS done_7,
+        COUNT(DISTINCT project_id) FILTER (WHERE NOT done AND assigned)::int AS assigned_projects
       FROM tasks GROUP BY owner_id`, [today]);
+    const arc = await pool.query(`
+      SELECT owner_id, COUNT(*)::int AS archived,
+        COUNT(*) FILTER (WHERE COALESCE(completed_at, archived_at) >= NOW() - INTERVAL '7 days')::int AS archived_7
+      FROM archive GROUP BY owner_id`);
+    const A = Object.fromEntries(arc.rows.map(r => [r.owner_id, r]));
     const P = Object.fromEntries(projs.rows.map(r => [r.owner_id, r]));
     const T = Object.fromEntries(tks.rows.map(r => [r.owner_id, r]));
     res.json({ people: people.rows.map(u => ({
@@ -972,7 +1229,10 @@ app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => 
       totalProjects: P[u.id]?.total || 0, activeProjects: P[u.id]?.active || 0,
       idleRed: P[u.id]?.idle_red || 0, idleYellow: P[u.id]?.idle_yellow || 0,
       flagged: P[u.id]?.flagged || 0, leases: P[u.id]?.leases || 0, salesPurchases: P[u.id]?.sales_purchases || 0,
-      openTasks: T[u.id]?.open_tasks || 0, overdue: T[u.id]?.overdue || 0, supervisorOpen: T[u.id]?.supervisor_open || 0
+      openTasks: T[u.id]?.open_tasks || 0, overdue: T[u.id]?.overdue || 0, supervisorOpen: T[u.id]?.supervisor_open || 0,
+      completedTotal: (T[u.id]?.done_now || 0) + (A[u.id]?.archived || 0),
+      completed7: (T[u.id]?.done_7 || 0) + (A[u.id]?.archived_7 || 0),
+      assignedProjects: T[u.id]?.assigned_projects || 0
     })) });
   } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
@@ -981,18 +1241,20 @@ app.get("/api/team/overview", requireAuth, supervisorsOnly, async (req, res) => 
 // Upload: multipart form, field name "file". Returns the storage key to save in the note.
 // A brand-new project uploads its files before the project itself is saved, so a missing project is
 // allowed; an existing one must be writable by the caller.
+//   mode "journal": attaching a file to a journal note. A Lease Admin may do this on a project she has a task on.
 async function checkFileAccess(user, projectId, mode) {
   const p = await getProjectOwner(projectId);
-  if (!p) return { ok: true };
-  if (!canReadProject(user, p)) return { ok: false, status: 404, error: "File not found" };
-  if (mode === "write" && !canWriteProject(user, p)) return { ok: false, status: 403, error: "You don't have permission to change this project" };
+  if (!p) return user.role === "admin" ? { ok: false, status: 404, error: "File not found" } : { ok: true };
+  if (!(await canReadProjectDb(user, p))) return { ok: false, status: 404, error: "File not found" };
+  if (mode === "journal" && user.role === "admin") return { ok: true };
+  if ((mode === "write" || mode === "journal") && !canWriteProject(user, p)) return { ok: false, status: 403, error: "You don't have permission to change this project" };
   return { ok: true };
 }
 
 app.post("/api/projects/:id/attachments", requireAuth, requireR2, async (req, res) => {
   if (!ID_RE.test(req.params.id)) return res.status(400).json({ error: "Invalid project id" });
   try {
-    const acc = await checkFileAccess(req.user, req.params.id, "write");
+    const acc = await checkFileAccess(req.user, req.params.id, "journal");
     if (!acc.ok) return res.status(acc.status).json({ error: acc.error });
   } catch(e) { console.error(e); return res.status(500).json({ error: "Server error" }); }
   uploadAttachment(req, res, async (err) => {
